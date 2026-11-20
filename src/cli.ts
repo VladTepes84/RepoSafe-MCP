@@ -7,6 +7,8 @@ import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import { generateReport } from './git.js';
 import { scanRepository, validateRoot } from './scanner.js';
 import type { ScanReport } from './types.js';
+import { reportToSarif } from './sarif.js';
+import { formatHumanReport } from './format.js';
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -22,7 +24,7 @@ function help(): void {
     'RepoSafe MCP v0.4 | offline read-only repository auditor',
     '',
     'Usage:',
-    '  reposafe scan --root ABSOLUTE_PATH [--json] [--no-history] [--no-git]',
+    '  reposafe scan --root ABSOLUTE_PATH [--json|--sarif] [--no-history] [--no-git]',
     '  reposafe doctor --root ABSOLUTE_PATH [--json]',
     '  reposafe init --root ABSOLUTE_PATH --client cursor|claude|vscode|codex',
     '  npm run demo',
@@ -87,27 +89,15 @@ function validateFlags(allowed: string[]): boolean {
 async function main(): Promise<void> {
   if (!command || command === '--help' || command === '-h') { help(); return; }
   if (command === 'scan') {
-    if (!validateFlags(['scan', '--root', '--json', '--no-history', '--no-git'])) throw new Error('Invalid scan arguments.');
+    if (!validateFlags(['scan', '--root', '--json', '--sarif', '--no-history', '--no-git']) ||
+        (args.includes('--json') && args.includes('--sarif'))) throw new Error('Invalid scan arguments.');
     const root = await validateRoot(option('--root') ?? '');
     const report: ScanReport = args.includes('--no-git')
       ? await scanRepository(root)
       : await generateReport(root, { includeHistory: !args.includes('--no-history') });
     if (args.includes('--json')) console.log(JSON.stringify(report, null, 2));
-    else {
-      console.log('RepoSafe: ' + report.verdict);
-      console.log('Files scanned: ' + report.stats.filesScanned + '; findings: ' + report.findings.length +
-        '; complete: ' + report.stats.complete);
-      for (const finding of report.findings) {
-        console.log('[' + finding.severity + '] ' + finding.category + '/' + finding.rule + ' ' +
-          finding.file + (finding.line ? ':' + finding.line : '') +
-          (finding.commit ? ' [commit ' + finding.commit + ']' : '') + ' — ' + finding.message);
-      }
-      if (report.baseline) console.log('Baseline: ' + report.baseline.suppressed +
-        ' suppressed (' + report.baseline.highSuppressed + ' high/critical), ' +
-        report.baseline.expired + ' expired.');
-      if (report.stats.warnings.length) console.log('Coverage warnings: ' + [...new Set(report.stats.warnings)].join(' | '));
-      console.log('No findings is NOT proof that publication is safe.');
-    }
+    else if (args.includes('--sarif')) console.log(JSON.stringify(reportToSarif(report), null, 2));
+    else console.log(formatHumanReport(report));
     process.exitCode = report.verdict === 'review_required' ? 1 : 0;
     return;
   }
