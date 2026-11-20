@@ -63,3 +63,23 @@ test('mutually exclusive SARIF/JSON flags are rejected',async()=>{
     assert.equal(r.status,2);
   });
 });
+
+
+test('SARIF and human report retain high-risk baseline suppression review after redaction',async()=>{
+  await fixture(async root=>{
+    const secret='AKIA'+'C'.repeat(16);
+    await writeFile(join(root,'secrets.txt'),'AWS_ID='+secret+'\n');
+    await writeFile(join(root,'.reposafe.json'),JSON.stringify({version:1,exceptions:[
+      {path:'secrets.txt',rule:'aws_access_key_id',reason:'Reviewed synthetic example fixture'}
+    ]}));
+    const s=run('scan','--root',root,'--no-git','--sarif');
+    assert.equal(s.status,1,s.stderr);
+    assert.ok(!s.stdout.includes(secret));
+    const d=JSON.parse(s.stdout);
+    assert.ok(d.runs[0].results.some(x=>x.ruleId==='reposafe/high_risk_baseline_suppression'));
+    const human=run('scan','--root',root,'--no-git');
+    assert.equal(human.status,1,human.stderr);
+    assert.match(human.stdout,/high\/critical findings were hidden/i);
+    assert.ok(!human.stdout.includes(secret));
+  });
+});

@@ -49,6 +49,18 @@ export function reportToSarif(report: ScanReport): object {
       },
     });
   }
+  if ((report.baseline?.highSuppressed ?? 0) > 0) {
+    const id = 'reposafe/high_risk_baseline_suppression';
+    rules.set(id, {
+      id, shortDescription: { text: 'High-risk findings were suppressed by a baseline exception.' },
+      defaultConfiguration: { level: 'warning' },
+    });
+    results.push({
+      ruleId: id, level: 'warning',
+      message: { text: 'The baseline hides one or more high/critical findings. Review these exceptions before publishing.' },
+      properties: { highRiskSuppressionCount: report.baseline!.highSuppressed },
+    });
+  }
   if (!report.stats.complete) {
     const id = 'reposafe/incomplete_scan';
     rules.set(id, {

@@ -26,7 +26,11 @@ export function formatHumanReport(report: ScanReport): string {
       output.push('   Reason: ' + item.message, '   Action: ' + item.action);
     }
   } else {
-    output.push('', 'No matching credential patterns or other findings were identified within the examined scope.');
+    if ((report.baseline?.highSuppressed ?? 0) > 0) {
+      output.push('', 'WARNING: high/critical findings were hidden by baseline exceptions. Review required.');
+    } else {
+      output.push('', 'No matching credential patterns or other findings were identified within the examined scope.');
+    }
   }
   if (report.stats.warnings.length) {
     output.push('', 'COVERAGE WARNINGS');
