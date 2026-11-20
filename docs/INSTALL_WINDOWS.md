@@ -18,7 +18,7 @@ If missing, install Node.js 22+ from https://nodejs.org/ and Git for Windows fro
 Set-Location $HOME
 git clone https://github.com/VladTepes84/RepoSafe-MCP.git
 Set-Location "$HOME\RepoSafe-MCP"
-npm.cmd install
+npm.cmd ci
 npm.cmd run check
 npm.cmd run demo
 ```

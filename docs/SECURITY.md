@@ -20,7 +20,7 @@
 | Git safety | Local `git` via `execFile` with literal args, no shell, no diff filters/textconv, 12s timeouts, 4 MiB patch cap, 100 commits | Reads repo Git config; does not inspect every object, remote setting, tags outside the selected bound, all unreferenced blobs or server-side secrets |
 | Ignore rules | `git check-ignore --no-index` and `git ls-files --cached` | Git tool required; inherited/global rules may affect ignore semantics |
 | Honest status | `review_required` on positive findings or incomplete scans | No-finding verdict is **not** a permission to publish |
-| Installation | Node 22+, official MCP SDK v2, CI tests | npm dependency supply chain and host security remain risks |
+| Installation | Node 22+, official MCP SDK v2, CI tests | npm integrity-checked lockfile and production dependency audit reduce risk but do not eliminate supply-chain/host compromise |
 
 ## Detailed threats
 

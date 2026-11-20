@@ -49,10 +49,12 @@ Requires **Node.js 22+, npm and Git** (Git is needed for history checks). RepoSa
 ```bash
 git clone https://github.com/VladTepes84/RepoSafe-MCP.git
 cd RepoSafe-MCP
-npm install
+npm ci
 npm run check
 npm run demo
 ```
+
+The committed `package-lock.json` pins npm dependencies with integrity hashes; `npm ci` verifies them.
 
 `npm run check` performs TypeScript typecheck, build, unit/security regression tests, an actual stdio MCP handshake with the official client SDK, and the synthetic Git-history scenario. `npm run demo` repeats the scenario independently and prints three expected stages. CI runs the same commands on **Ubuntu, Windows and macOS**. **CI is not a substitute for verifying the GUI client on your machine.**
 

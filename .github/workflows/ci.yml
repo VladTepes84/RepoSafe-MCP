@@ -21,17 +21,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install locked dependencies when available
-        shell: bash
-        run: |
-          if test -f package-lock.json; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
-      - name: Export generated dependency lockfile (Ubuntu only)
-        if: matrix.os == 'ubuntu-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: dependency-lockfile
-          path: package-lock.json
-          retention-days: 1
+      - name: Reproducible dependency installation (integrity-checked lockfile)
+        run: npm ci --no-audit --no-fund
       - name: Typecheck, build, unit tests, actual MCP stdio, Git demo
         run: npm run check
       - name: Dependency audit (high/critical production vulnerabilities)

@@ -18,7 +18,7 @@ Install the official Node.js 22 LTS or newer release from https://nodejs.org/ if
 cd "$HOME"
 git clone https://github.com/VladTepes84/RepoSafe-MCP.git
 cd "$HOME/RepoSafe-MCP"
-npm install
+npm ci
 npm run check
 npm run demo
 ```
@@ -66,7 +66,7 @@ VS Code **modern Copilot harness** uses top-level `mcpServers`; older editor-man
 ## Troubleshooting
 
 - `spawn ENOENT`: use the generator's `command` **absolute Node path**, not a guessed `node` or `npx`; check `ls -l "$(command -v node)"`.
-- `MODULE_NOT_FOUND`: run `npm install && npm run build` in RepoSafe. The server path must end in `dist/server.js`.
+- `MODULE_NOT_FOUND`: run `npm ci && npm run build` in RepoSafe. The server path must end in `dist/server.js`.
 - Nothing appears in chat: restart the client, inspect client MCP logs, check JSON/TOML syntax and ensure the target directory exists.
 - `review_required` on an empty sample: a non-Git target has **no Git history** to inspect. This is intentional; use `--no-git` for current-tree-only CLI mode.
 - Never use a broad folder such as `$HOME`, the filesystem root, `Downloads` or a credential store as your scan target.

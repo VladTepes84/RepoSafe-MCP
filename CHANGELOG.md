@@ -10,7 +10,7 @@ All notable changes are recorded here. Dates refer to implementation, **not a pu
 - Standalone CLI with readable/JSON output, stable exit codes, optional Git/history restrictions.
 - Native macOS/Windows client-config generator for Cursor, Claude Desktop, VS Code Copilot harness and Codex.
 - Real synthetic Git-history demo, Git and CLI tests, path/schema tests, more token patterns and filename redaction.
-- Cross-platform CI matrix and dependency audit; separate security, usage and compatibility docs.
+- Cross-platform CI matrix, production dependency audit and integrity-checked npm lockfile; separate security, usage and compatibility docs.
 
 ### Security
 - Fail-closed reporting on insufficient scan coverage; cap unusually long lines.

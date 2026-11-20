@@ -40,4 +40,4 @@ REAL OFFLINE DEMO PASS (synthetic credentials only)
 - Broader token detectors, encoded secrets, and benign fixture false-positive baselines.
 - Unicode-heavy repository path behavior on all supported filesystems.
 - Multi-branch history with huge binary diffs and external Git configuration edge cases.
-- A signed release and dependency lockfile before stable public v1.0.
+- A signed release, independent supply-chain review and expanded adversarial fixtures before stable public v1.0.

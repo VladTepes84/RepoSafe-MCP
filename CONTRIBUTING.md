@@ -5,7 +5,7 @@ RepoSafe is a minimal-permissions, read-only security project. Prefer focused PR
 Before proposing a change:
 
 ```bash
-npm install
+npm ci
 npm run check
 npm run demo
 ```
