@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { devNull } from 'node:os';
-import { checkSecrets, safeRelativePath, MAX_FINDINGS, scanRepository } from './scanner.js';
+import { checkSecrets, safeRelativePath, MAX_FINDINGS, scanRepository, scanSelectedTrackedFiles } from './scanner.js';
 import type { Finding, GitStats, ScanReport } from './types.js';
 
 const execFileAsync = promisify(execFile);
@@ -79,14 +79,16 @@ export async function scanGit(root: string, history = true): Promise<GitResults>
 
   try {
     const tracked = (await git(root, ['ls-files', '--cached', '-z'])).split('\0').filter(Boolean);
+    const selectedPaths: string[] = [];
     for (const filename of tracked) {
       // A tracked file inside an otherwise skipped dependency/cache tree is a
       // publication risk; do not return a clean verdict without inspecting it.
       if (filename.replaceAll('\\', '/').split('/').some(part => EXCLUDED_WORKING_TREE_DIRS.has(part))) {
+        selectedPaths.push(filename);
         findings.push({ category: 'git', rule: 'tracked_excluded_file', severity: 'medium',
           file: safeRelativePath(filename), message: 'Git tracks a file in a directory omitted by working-tree scanning.',
           action: 'Inspect this tracked file with an additional scanner or remove it from the Git index.' });
-        warning('Git-tracked files in dependency/cache directories require separate review.');
+        stats.warnings.push('Git tracks files in dependency/cache folders; additional targeted scanning is performed.');
       }
       if (/(?:^|\/)(?:\.env(?:\.[^/]*)?|\.npmrc|id_rsa|id_ed25519|.*\.(?:pem|p12|pfx|key))$/i.test(filename)) {
         findings.push({ category: 'git', rule: 'tracked_sensitive_file', severity: 'high',
@@ -94,6 +96,17 @@ export async function scanGit(root: string, history = true): Promise<GitResults>
           action: 'Inspect the tracked file; remove it from the index and rotate any exposed credentials. .gitignore does not untrack files.' });
         if (findings.length >= MAX_GIT_FINDINGS) { warning('Git finding limit reached.'); break; }
       }
+    }
+    if (selectedPaths.length) {
+      const scan = await scanSelectedTrackedFiles(root, selectedPaths);
+      findings.push(...scan.findings);
+      stats.trackedExcludedFilesRequested = selectedPaths.length;
+      stats.trackedExcludedFilesScanned = scan.filesScanned;
+      if (!scan.complete) {
+        stats.complete = false;
+        for (const note of scan.warnings) if (!stats.warnings.includes(note)) stats.warnings.push(note);
+      }
+      if (findings.length >= MAX_FINDINGS) warning('Git finding limit reached.');
     }
   } catch { warning('Could not inspect tracked Git files.'); }
 

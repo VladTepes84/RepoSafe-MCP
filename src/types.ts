@@ -25,6 +25,8 @@ export interface ScanStats {
 export interface GitStats {
   historyChecked: boolean;
   commitsInspected: number;
+  trackedExcludedFilesRequested?: number;
+  trackedExcludedFilesScanned?: number;
   gitAvailable: boolean;
   complete: boolean;
   warnings: string[];
