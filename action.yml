@@ -1,0 +1,56 @@
+name: 'RepoSafe MCP — read-only repository scan'
+description: 'Analyze the checked-out repository and write a redacted SARIF file without uploading source code'
+inputs:
+  fail-on-findings:
+    description: 'Fail when findings or incomplete coverage need review; false produces a report-only job'
+    required: false
+    default: 'true'
+outputs:
+  sarif-file:
+    description: 'Absolute SARIF report path in the ephemeral runner temporary directory'
+    value: ${{ steps.scan.outputs.sarif-file }}
+  scan-exit-code:
+    description: 'RepoSafe CLI exit code: 0 scoped clean, 1 review, 2 error'
+    value: ${{ steps.scan.outputs.scan-exit-code }}
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+    - name: Install RepoSafe dependencies and compile
+      shell: bash
+      run: |
+        set -euo pipefail
+        npm ci --prefix "$GITHUB_ACTION_PATH" --no-audit --no-fund
+        npm run build --prefix "$GITHUB_ACTION_PATH"
+    - name: Run RepoSafe on the checked-out workspace
+      id: scan
+      shell: bash
+      env:
+        FAIL_ON_FINDINGS: ${{ inputs.fail-on-findings }}
+      run: |
+        set -uo pipefail
+        if [[ "$FAIL_ON_FINDINGS" != "true" && "$FAIL_ON_FINDINGS" != "false" ]]; then
+          echo "::error::fail-on-findings must be true or false."
+          exit 2
+        fi
+        report="$RUNNER_TEMP/reposafe-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.sarif"
+        # GitHub executes composite run steps with bash -e; disable errexit
+        # just for this expected 0/1/2 scan status and handle it explicitly.
+        set +e
+        node "$GITHUB_ACTION_PATH/dist/cli.js" scan --root "$GITHUB_WORKSPACE" --sarif > "$report"
+        status=$?
+        set -e
+        echo "sarif-file=$report" >> "$GITHUB_OUTPUT"
+        echo "scan-exit-code=$status" >> "$GITHUB_OUTPUT"
+        if [[ "$status" -eq 2 ]]; then
+          echo "::error::RepoSafe could not scan the approved checkout."
+          exit 2
+        fi
+        if [[ "$status" -eq 1 ]]; then
+          echo "::warning::RepoSafe found possible exposures or incomplete scan coverage. Review SARIF."
+          if [[ "$FAIL_ON_FINDINGS" == "true" ]]; then exit 1; fi
+        fi
+        exit 0

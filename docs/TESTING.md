@@ -55,3 +55,10 @@ The history scanner reports the first introducing commit for added lines within 
 - `npm run test:git`: verifies content scanning of Git-tracked excluded files and failure-closed behavior for unsafe symlinks (skip only when a Windows runner lacks symlink privileges).
 - `npm run test:userflow`: `doctor` must spawn actual server + list six tools; `init` must print client config without modifying user state.
 - CI must verify on all three operating systems. Do not infer GUI functionality from tests.
+
+## v0.5 acceptance checks
+
+- `npm run test:sarif`: real CLI SARIF 2.1.0, source-value redaction, relative code locations, incomplete-scan warning, mutually exclusive output flags, human-friendly remediation.
+- `npm run test:package`: checks `npm pack --dry-run --json --ignore-scripts` output: both bins and all runtime files present, no source/tests/workflow files, limited tarball size.
+- On Ubuntu, CI runs the actual composite `action.yml` in report-only mode and validates its SARIF output file. The scan does not automatically upload results.
+- Windows and macOS test all CLI and package workflows in the main `npm run check` suite. Actual GUI client sessions remain unverified.

@@ -1,6 +1,6 @@
 {
   "name": "reposafe-mcp",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Privacy-first read-only MCP and CLI repository audit with bounded Git history checks",
   "type": "module",
   "private": true,
@@ -14,7 +14,7 @@
     "test:unit": "node --experimental-strip-types --test tests/scanner.test.mjs tests/detection.test.mjs tests/v04-detection.test.mjs tests/baseline.test.mjs",
     "test:git": "node --test tests/git.test.mjs tests/cli.test.mjs",
     "test:integration": "node --test tests/protocol.test.mjs",
-    "test": "npm run test:unit && npm run test:git && npm run test:config && npm run test:integration && npm run test:userflow",
+    "test": "npm run test:unit && npm run test:git && npm run test:config && npm run test:integration && npm run test:userflow && npm run test:sarif && npm run test:package",
     "check": "npm run typecheck && npm run build && npm test && npm run demo",
     "demo": "node tests/demo.mjs",
     "audit:deps": "npm audit --omit=dev --audit-level=high",
@@ -23,7 +23,10 @@
     "doctor": "node dist/cli.js doctor",
     "init": "node dist/cli.js init",
     "test:userflow": "node --test tests/userflow.test.mjs",
-    "pretest:unit": "npm run build"
+    "pretest:unit": "npm run build",
+    "prepack": "npm run build",
+    "test:package": "node --test tests/package.test.mjs",
+    "test:sarif": "node --test tests/sarif.test.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.3.0",
@@ -33,5 +36,16 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "typescript": "^5.8.0"
-  }
+  },
+  "bin": {
+    "reposafe": "./dist/cli.js",
+    "reposafe-mcp": "./dist/cli.js"
+  },
+  "files": [
+    "dist/",
+    "scripts/config.mjs",
+    "README.md",
+    "LICENSE",
+    "docs/"
+  ]
 }

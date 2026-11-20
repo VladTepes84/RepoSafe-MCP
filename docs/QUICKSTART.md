@@ -54,3 +54,14 @@ Exit 0 means no unsuppressed findings **in the bounded scope**, not safe-to-publ
 ## 6. Baseline for narrowly scoped false positives
 
 See [BASELINE](BASELINE.md). Entries must reference one exact relative file and rule, with a reason. High/critical suppression cannot turn a report clean.
+
+## v0.5: shorter actionable output and optional SARIF
+
+```sh
+node dist/cli.js scan --root "/ABSOLUTE/PATH/TO/APP"
+node dist/cli.js scan --root "/ABSOLUTE/PATH/TO/APP" --sarif
+```
+
+Default output shows severity counts and recommended actions. JSON and SARIF are mutually exclusive. SARIF can be redirected to a file **outside** the scanned repository. The npm tarball now declares `reposafe` and `reposafe-mcp` executable names, but npm publication is not yet performed; clone/build remains the verified install route.
+
+See [GitHub Actions](ACTIONS.md) for automatic PR scanning without enabling uploads or write permissions.

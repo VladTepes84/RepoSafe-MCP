@@ -58,3 +58,10 @@ If you believe RepoSafe leaks a secret or crosses a filesystem boundary, private
 - The report exposes counts (including high/critical suppressed), never exception comments or secret source values. An exception that hides a high/critical finding does **not** cause `no_findings_in_scope`.
 - Only exact Git-tracked paths in excluded dependency/cache directories are re-opened, with parent `lstat` checks, final `O_NOFOLLOW` where supported, canonical containment, hardlink rejection and strict size/count limits. Unsafe, oversized, binary or unreadable files fail closed.
 - No software scanner offers a portable complete defense against concurrent local filesystem races or deliberately hostile Git object/config exploits; use an OS-level sandbox for untrusted repositories.
+
+## v0.5 SARIF / GitHub Action controls
+
+- SARIF contains only sanitized relative paths, fixed messages/actions, severity, rule identifiers and bounded commit hashes. No absolute user path, match values, source snippets or baseline reason is deliberately serialized. Placeholder/redacted filenames never become SARIF artifact URIs.
+- An incomplete scan always creates a dedicated SARIF warning even if no secrets are detected.
+- The composite Action runs against the checked-out `GITHUB_WORKSPACE` and writes output to `RUNNER_TEMP`. It does not automatically upload SARIF or request any additional GitHub token permissions. npm installation in the ephemeral runner requires registry access; scanning itself remains local.
+- Third-party workflows should pin the Action by an immutable commit SHA and review supply-chain risks. Do not grant `security-events: write` unless explicitly opting into GitHub Code Scanning uploads. Avoid `pull_request_target` and privileged tokens when scanning untrusted contributions.
