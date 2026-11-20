@@ -4,7 +4,7 @@
 
 RepoSafe is a privacy-first, read-only repository scanner available as a **local Model Context Protocol (MCP) server** and **standalone CLI**. It flags possible secrets, private infrastructure references, Git-tracked credential files, ineffective `.gitignore` rules, and secrets left in *recent Git commits*. It returns **metadata only**: never source snippets or matched secret values.
 
-**Release status: v0.4.0 beta (pre-release). Not a security certification.** A clean scan is *not* evidence that a repository is safe to publish.
+**Release status: v0.5.0 beta source (pre-release). Not a security certification.** A clean scan is *not* evidence that a repository is safe to publish.
 
 [![Support RepoSafe MCP on GitHub Sponsors](https://img.shields.io/badge/Support%20RepoSafe%20MCP-GitHub%20Sponsors-EA4AAA?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/VladTepes84)
 
@@ -60,9 +60,18 @@ JSON report: severity, relative file, rule, action, coverage
 | `scan_git_history` | Scan up to 100 local commits / 4 MiB of diffs for possible lingering credentials; show a safe 12-character introducing commit ID |
 | `generate_report` | Consolidate all findings, scope, coverage and warnings |
 
-Additional CLI: `node dist/cli.js scan --root ABSOLUTE_PATH [--json] [--no-history] [--no-git]`.
+Additional CLI: `node dist/cli.js scan --root ABSOLUTE_PATH [--json|--sarif] [--no-history] [--no-git]`. The default view is a severity-sorted actionable human report.
 
 **No edits, auto-fixes, Git checkout, push, remote API calls or background processes.** The AI client cannot pass an arbitrary filesystem path to tools. All operations are restricted to the operator-defined absolute `REPOSAFE_ROOT` set when the server starts.
+
+### v0.5 usability and GitHub integration
+
+- Human-friendly CLI report sorted by severity, with a recommended action for each finding; use `--json` for structured data.
+- Redacted **SARIF 2.1.0** via `scan --sarif`, including an explicit `incomplete_scan` result when coverage fails closed.
+- npm packaging is **prepared, not published**: `bin` exposes `reposafe` and `reposafe-mcp`, restricted `files` whitelist and `prepack` build; `private: true` remains. CI checks `npm pack --dry-run`.
+- A local **composite GitHub Action** (`action.yml`) scans pull-request checkouts with read-only content permissions and writes SARIF to the runner's temporary folder. Automatic upload is **not** enabled. See [GitHub Action guide](docs/ACTIONS.md).
+
+**Remaining steps:** manual Cursor/Claude Desktop GUI validation and a separately approved npm registry publication. Source-only CI cannot prove either.
 
 ### v0.4 coverage and onboarding improvements
 
@@ -87,7 +96,7 @@ Additional CLI: `node dist/cli.js scan --root ABSOLUTE_PATH [--json] [--no-histo
 
 ## Install and verify
 
-Requires **Node.js 22+, npm and Git** (Git is needed for history checks). The source is public; clone it directly from GitHub. This is beta software, not an npm package.
+Requires **Node.js 22+, npm and Git** (Git is needed for history checks). The source is public; clone it directly from GitHub. An npm-compatible tarball and binaries are prepared and tested, but **no package has been published to the npm registry**.
 
 ```bash
 git clone https://github.com/VladTepes84/RepoSafe-MCP.git
@@ -134,6 +143,17 @@ node dist/cli.js scan --root "/absolute/path/to/your/project" --json
 ```
 
 Exit status: **0** = no findings *in the examined scope*, **1** = review required or incomplete coverage, **2** = invalid arguments or scan error. This allows adding RepoSafe to other workflows while keeping the server itself read-only.
+
+### Actionable CLI and SARIF
+
+```sh
+node dist/cli.js scan --root "/ABSOLUTE/PATH/TO/APP"
+node dist/cli.js scan --root "/ABSOLUTE/PATH/TO/APP" --sarif > reposafe.sarif
+```
+
+**Careful:** writing `reposafe.sarif` inside the scanned repository is a user shell action, not a write performed by RepoSafe; for audits prefer a file outside the target repo. SARIF contains finding metadata, not credential values. It can be uploaded to GitHub Code Scanning only when that feature is enabled and the workflow is given the required rights. The repository's example action never uploads automatically.
+
+For a read-only pull-request check, see [GitHub Actions setup](docs/ACTIONS.md).
 
 ## Real proof, not screenshots
 

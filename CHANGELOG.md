@@ -2,6 +2,15 @@
 
 Changes describe the committed source and automated test evidence, **not a security certification**.
 
+## [0.5.0] — 2026-11-20 (beta source; npm publication not performed)
+
+- Improve human-readable CLI reports with severity ordering, remediation instructions and visible coverage/baseline warnings.
+- Add redacted SARIF 2.1.0 output, with incomplete scan alerts and relative, safe file locations.
+- Prepare restricted npm tarball (`bin`, runtime file whitelist, prepack build), retaining `private: true` and verifying with `npm pack --dry-run`.
+- Add opt-in composite GitHub Action scanning checked-out repositories with no automatic SARIF upload and no write to the target repository.
+- Add cross-platform SARIF, action smoke and packaging tests.
+- Real Cursor/Claude Desktop GUI tests and npm registry publication remain unverified/not performed.
+
 ## [0.4.0] — 2026-11-20 (beta feature branch; CI/review required)
 
 - Broader database/broker URI checks and provider secret indicators.

@@ -21,7 +21,7 @@ function location(finding: Finding): object[] | undefined {
   if (!uri) return undefined;
   return [{
     physicalLocation: {
-      artifactLocation: { uri, uriBaseId: '%SRCROOT%' },
+      artifactLocation: { uri },
       ...(finding.line && finding.line > 0 ? { region: { startLine: finding.line } } : {}),
     },
   }];
@@ -65,11 +65,10 @@ export function reportToSarif(report: ScanReport): object {
     version: '2.1.0', $schema: SCHEMA,
     runs: [{
       tool: { driver: {
-        name: 'RepoSafe MCP', version: '0.4.0',
+        name: 'RepoSafe MCP', version: '0.5.0',
         informationUri: 'https://github.com/VladTepes84/RepoSafe-MCP',
         rules: [...rules.values()],
       } },
-      originalUriBaseIds: { '%SRCROOT%': { uri: 'file:///' } },
       results,
       properties: {
         verdict: report.verdict, coverageComplete: report.stats.complete,
