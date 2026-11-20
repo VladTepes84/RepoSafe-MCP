@@ -122,9 +122,12 @@ test('tracked files under skipped dependency/cache directories fail closed', asy
     git(root, 'add', '-f', 'node_modules/tracked.txt');
     const report = await generateReport(root, { includeHistory: false });
     assert.equal(report.verdict, 'review_required');
-    assert.equal(report.stats.complete, false);
+    assert.equal(report.stats.complete, true);
+    assert.equal(report.git.trackedExcludedFilesRequested, 1);
+    assert.equal(report.git.trackedExcludedFilesScanned, 1);
     assert.ok(report.findings.some(x => x.rule === 'tracked_excluded_file' && x.file.includes('node_modules')));
-    assert.ok(report.stats.warnings.some(x => x.includes('tracked files') || x.includes('Git-tracked files')));
+    assert.ok(report.findings.some(x => x.rule === 'github_token' && x.file.includes('node_modules')));
+    assert.ok(report.git.warnings.some(x => x.includes('Git tracks files')));
     assert.ok(!JSON.stringify(report).includes('ghp_' + 'T'.repeat(36)));
   });
 });
