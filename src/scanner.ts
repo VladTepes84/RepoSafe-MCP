@@ -1,5 +1,5 @@
 import { constants } from 'node:fs';
-import { open, readdir, realpath, stat } from 'node:fs/promises';
+import { open, readdir, realpath, stat, lstat } from 'node:fs/promises';
 import { isAbsolute, join, parse, relative, sep } from 'node:path';
 import type { Finding, ScanReport, ScanStats } from './types.js';
 
@@ -408,4 +408,69 @@ export async function scanRepository(approvedRoot: string): Promise<ScanReport> 
     findings: findings.sort((a, b) => a.file.localeCompare(b.file) || (a.line ?? 0) - (b.line ?? 0) || a.rule.localeCompare(b.rule)),
     stats, limitations: LIMITATIONS,
   };
+}
+
+/** Inspect ONLY exact tracked paths in normally skipped dependency/cache directories.
+ * A Git path is untrusted input; each parent component is lstat-checked before opening.
+ * Individual files are read within strict resource budgets. Nothing is executed or written.
+ */
+export async function scanSelectedTrackedFiles(approvedRoot: string, names: string[]): Promise<{
+  findings: Finding[]; filesScanned: number; bytesScanned: number; complete: boolean; warnings: string[];
+}> {
+  const root = await validateRoot(approvedRoot);
+  const findings: Finding[] = [];
+  const warnings: string[] = [];
+  let filesScanned = 0;
+  let bytesScanned = 0;
+  let complete = true;
+  const mark = (reason: string): void => { complete = false; if (!warnings.includes(reason)) warnings.push(reason); };
+  if (names.length > MAX_FILES) mark('Too many tracked excluded files to scan completely.');
+  const selected = names.slice(0, MAX_FILES);
+  for (const name of selected) {
+    if (findings.length >= MAX_FINDINGS) { mark('Tracked file finding limit reached.'); break; }
+    // Reject traversal, absolute paths, Git metadata, Windows separators and strange path components.
+    const segments = name.split('/');
+    if (!name || name.includes('\\') || isAbsolute(name) || segments.some(p => !p || p === '.' || p === '..' || p === '.git') ||
+        segments.length > MAX_DEPTH + 2) {
+      mark('A tracked file had an unsafe or excessively deep path.');
+      continue;
+    }
+    const abs = join(root, ...segments);
+    if (!contained(root, abs)) { mark('A tracked file resolved outside the approved root.'); continue; }
+    let handle: Awaited<ReturnType<typeof open>> | undefined;
+    try {
+      let cursor = root;
+      for (const [index, part] of segments.entries()) {
+        cursor = join(cursor, part);
+        const st = await lstat(cursor);
+        if (st.isSymbolicLink()) throw new Error('Symbolic link not allowed.');
+        if (index < segments.length - 1 && !st.isDirectory()) throw new Error('Parent is not a directory.');
+        if (index === segments.length - 1 && !st.isFile()) throw new Error('Not a regular file.');
+      }
+      if (!contained(root, await realpath(abs))) throw new Error('Escaped scope.');
+      if (BINARY_EXTENSIONS.has(fileExtension(name))) throw new Error('Binary/unsupported tracked file.');
+      handle = await open(abs, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+      const st = await handle.stat();
+      if (!st.isFile() || st.nlink > 1) throw new Error('Unsafe tracked file type or hardlink.');
+      if (st.size > MAX_FILE_BYTES || bytesScanned + st.size > MAX_BYTES) {
+        mark('Tracked file size or total byte limit reached.');
+        continue;
+      }
+      const buf = await handle.readFile();
+      if (buf.includes(0)) { mark('Binary tracked file could not be examined.'); continue; }
+      filesScanned++;
+      bytesScanned += buf.byteLength;
+      const lines = buf.toString('utf8').split(/\r?\n/);
+      for (const [n, line] of lines.entries()) {
+        if (line.length > MAX_LINE_CHARS) { mark('A tracked file line exceeded the analysis length limit.'); continue; }
+        for (const finding of [...checkSecrets(line, name, n + 1), ...checkPrivacy(line, name, n + 1)]) {
+          if (findings.length >= MAX_FINDINGS) { mark('Tracked file finding limit reached.'); break; }
+          findings.push({ ...finding, file: safeRelativePath(finding.file) });
+        }
+      }
+    } catch {
+      mark('One or more tracked files could not be read safely.');
+    } finally { await handle?.close(); }
+  }
+  return { findings, filesScanned, bytesScanned, complete, warnings };
 }
