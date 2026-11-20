@@ -1,0 +1,74 @@
+# macOS — verified commands for RepoSafe MCP
+
+Supported design: macOS + Node.js 22+ + Git + a local MCP client. Commands below use **Terminal** (zsh) and no package manager beyond npm. The actual binary and server paths are generated on your machine.
+
+## 1. Verify the prerequisites
+
+```zsh
+node --version
+npm --version
+git --version
+```
+
+Install the official Node.js 22 LTS or newer release from https://nodejs.org/ if Node is missing. Git is normally installed with Xcode Command Line Tools (`xcode-select --install`) or another trusted provider. Do not paste arbitrary `curl | sh` install commands.
+
+## 2. Install the checked-out source and run all tests
+
+```zsh
+cd "$HOME"
+git clone https://github.com/VladTepes84/RepoSafe-MCP.git
+cd "$HOME/RepoSafe-MCP"
+npm install
+npm run check
+npm run demo
+```
+
+**While private**, clone requires GitHub authorization. A clean `npm run check` must exit 0; `npm run demo` must print `REAL OFFLINE DEMO PASS`. No actual credential is required.
+
+## 3. Create a disposable test target (not a real project)
+
+```zsh
+mkdir -p "$HOME/Projects/reposafe-sample"
+printf '# Synthetic test project\n' > "$HOME/Projects/reposafe-sample/README.md"
+printf 'MIT\n' > "$HOME/Projects/reposafe-sample/LICENSE"
+printf '.env\n.env.*\n' > "$HOME/Projects/reposafe-sample/.gitignore"
+node dist/cli.js scan --root "$HOME/Projects/reposafe-sample" --no-git --json
+```
+
+This prints a JSON report. The *CLI-only* `--no-git` mode explicitly skips Git checks because the sample is not a Git repository. For a normal Git project, remove `--no-git` to also inspect history.
+
+## 4. Configure an MCP AI client
+
+Run **one** of the following while inside `$HOME/RepoSafe-MCP`:
+
+```zsh
+npm run config -- --client cursor --root "$HOME/Projects/reposafe-sample"
+npm run config -- --client claude --root "$HOME/Projects/reposafe-sample"
+npm run config -- --client vscode --root "$HOME/Projects/reposafe-sample"
+npm run config -- --client codex --root "$HOME/Projects/reposafe-sample"
+```
+
+The generator prints a complete configuration with **your actual Node binary path**. Paste its `reposafe` server entry into the target file indicated in the output. If that file already has other MCP servers, *merge* instead of overwriting. Paths are already correctly escaped. No VS Code/Claude/Cursor configuration is changed automatically.
+
+| Client | Destination (macOS) | How to verify |
+| --- | --- | --- |
+| Cursor | `~/.cursor/mcp.json` | Restart Cursor; Customize > MCPs; confirm 6 RepoSafe tools and run `generate_report` |
+| Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json` | Restart Claude Desktop; inspect connector/tools and call `generate_report` |
+| VS Code Copilot harness | `~/.copilot/mcp-config.json` | Choose Copilot harness; Chat: Open Customizations > MCP Servers; confirm `reposafe` |
+| Codex CLI / IDE / supported ChatGPT desktop environment | `~/.codex/config.toml` | Restart client, inspect MCP tools (e.g. `/mcp` in supported clients) |
+
+VS Code **modern Copilot harness** uses top-level `mcpServers`; older editor-managed `.vscode/mcp.json` uses **different** `servers` shape and is not the default recommended path. See [CLIENTS](CLIENTS.md).
+
+## 5. Ask in chat
+
+> Run RepoSafe `generate_report` on the pre-authorized folder and explain findings by severity. Show file names and line numbers, but never ask for or reproduce any credentials. Explain any incomplete checks.
+
+## Troubleshooting
+
+- `spawn ENOENT`: use the generator's `command` **absolute Node path**, not a guessed `node` or `npx`; check `ls -l "$(command -v node)"`.
+- `MODULE_NOT_FOUND`: run `npm install && npm run build` in RepoSafe. The server path must end in `dist/server.js`.
+- Nothing appears in chat: restart the client, inspect client MCP logs, check JSON/TOML syntax and ensure the target directory exists.
+- `review_required` on an empty sample: a non-Git target has **no Git history** to inspect. This is intentional; use `--no-git` for current-tree-only CLI mode.
+- Never use a broad folder such as `$HOME`, the filesystem root, `Downloads` or a credential store as your scan target.
+
+Verified documentation: https://prod.cursor.com/help/customization/mcp , https://modelcontextprotocol.io/docs/develop/connect-local-servers , https://code.visualstudio.com/docs/agents/reference/mcp-configuration , https://learn.chatgpt.com/docs/extend/mcp .

@@ -1,30 +1,40 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 
-test('stdio MCP handshake lists four tools and returns redacted report', { timeout: 20_000 }, async () => {
+test('stdio MCP handshake lists six tools and returns redacted report', { timeout: 20_000 }, async () => {
   const root = await mkdtemp(join(tmpdir(), 'reposafe-mcp-protocol-'));
   let client;
   try {
     await writeFile(join(root, 'README.md'), '# Synthetic test repo\n');
     await writeFile(join(root, 'LICENSE'), 'MIT\n');
-    await writeFile(join(root, '.gitignore'), '.env\n');
+    await writeFile(join(root, '.gitignore'), '.env\n.env.*\n');
+    const git = (...args) => execFileSync('git', ['-C', root, ...args], { stdio: 'pipe', timeout: 8000 });
+    git('init', '-q');
+    git('config', 'user.name', 'MCP Test');
+    git('config', 'user.email', 'mcp@example.invalid');
     const credential = 'AKIA' + 'B'.repeat(16);
     await writeFile(join(root, 'sample.txt'), `key=${credential}\n`);
+    git('add', '.');
+    git('commit', '-qm', 'synthetic exposure');
+    await writeFile(join(root, 'sample.txt'), 'safe=true\n');
+    git('add', '.');
+    git('commit', '-qm', 'remove synthetic exposure');
     const transport = new StdioClientTransport({
       command: process.execPath,
       args: [resolve('dist/server.js')],
       env: { ...process.env, REPOSAFE_ROOT: root },
     });
-    client = new Client({ name: 'reposafe-integration-test', version: '0.1.0' });
+    client = new Client({ name: 'reposafe-integration-test', version: '0.2.0' });
     await client.connect(transport);
     const names = (await client.listTools()).tools.map(x => x.name).sort();
     assert.deepEqual(names, [
-      'check_repo_readiness', 'generate_report', 'scan_private_refs', 'scan_secrets',
+      'check_git_exposure', 'check_repo_readiness', 'generate_report', 'scan_git_history', 'scan_private_refs', 'scan_secrets',
     ]);
     const res = await client.callTool({ name: 'generate_report', arguments: {} });
     assert.notEqual(res.isError, true);
@@ -34,7 +44,14 @@ test('stdio MCP handshake lists four tools and returns redacted report', { timeo
     assert.ok(text);
     const report = JSON.parse(text);
     assert.equal(report.verdict, 'review_required');
-    assert.ok(report.findings.some(x => x.rule === 'aws_access_key_id'));
+    assert.ok(report.findings.some(x => x.rule === 'git_history_aws_access_key_id'));
+    const history = await client.callTool({ name: 'scan_git_history', arguments: {} });
+    assert.ok(JSON.parse(history.content.find(x => x.type === 'text').text).findings.some(x => x.category === 'history'));
+    for (const name of names) {
+      const result = await client.callTool({ name, arguments: {} });
+      assert.notEqual(result.isError, true, `Tool failed: ${name}`);
+      assert.ok(!JSON.stringify(result).includes(credential));
+    }
   } finally {
     await client?.close();
     await rm(root, { recursive: true, force: true });

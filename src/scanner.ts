@@ -8,7 +8,8 @@ const MAX_DIRECTORIES = 2000;
 const MAX_BYTES = 10 * 1024 * 1024;
 const MAX_FILE_BYTES = 512 * 1024;
 const MAX_DEPTH = 10;
-const MAX_FINDINGS = 100;
+export const MAX_FINDINGS = 100;
+const MAX_LINE_CHARS = 8192;
 
 const IGNORED_DIRS = new Set([
   '.git', 'node_modules', 'dist', 'build', 'coverage', '.next',
@@ -24,6 +25,7 @@ const LIMITATIONS = [
   'Scans current local files only, not Git history, branches, commits, or remote repository settings.',
   'Symlinks, hard-linked files, binary files, ignored build/vendor directories, and oversized files are skipped.',
   'A clean report is NOT a guarantee that publishing is safe.',
+  'The scan runs with the operating system permissions of the MCP host; it is not an OS-level sandbox.',
 ];
 
 interface SecretRule {
@@ -56,6 +58,21 @@ const SECRET_RULES: SecretRule[] = [
     action: 'Revoke/rotate the key and load it securely at runtime.',
   },
   {
+    name: 'anthropic_key', pattern: /\bsk-ant-[A-Za-z0-9_-]{20,}\b/,
+    severity: 'high', message: 'Possible Anthropic API key.',
+    action: 'Rotate the key and remove it from files and commit history.',
+  },
+  {
+    name: 'stripe_secret', pattern: /\b(?:sk|rk)_live_[A-Za-z0-9]{16,}\b/,
+    severity: 'high', message: 'Possible Stripe live secret.',
+    action: 'Rotate the secret and use a protected runtime secret store.',
+  },
+  {
+    name: 'google_api_key', pattern: /\bAIza[0-9A-Za-z_-]{35}\b/,
+    severity: 'high', message: 'Possible Google API key.',
+    action: 'Restrict and rotate the key; check provider usage logs.',
+  },
+  {
     name: 'slack_token', pattern: /\bxox[baprs]-[A-Za-z0-9-]{20,}\b/,
     severity: 'high', message: 'Possible Slack token.',
     action: 'Revoke/rotate this token and use a secrets manager.',
@@ -68,12 +85,12 @@ const SENSITIVE_KEY = /(?:^|[_-])(?:api[_-]?key|access[_-]?token|auth[_-]?token|
 const EXAMPLE_VALUE = /^(?:\$\{|\$|<|\{|example|sample|dummy|test|change[_-]?me|replace|your[_-]?|placeholder|undefined|null|none|process\.|env\.|os\.environ)/i;
 
 // Deliberately ignore the matched value in all output. Findings contain metadata only.
-function checkSecrets(line: string, file: string, lineNumber: number): Finding[] {
+export function checkSecrets(line: string, file: string, lineNumber: number, category: 'secrets' | 'history' = 'secrets'): Finding[] {
   const findings: Finding[] = [];
   for (const rule of SECRET_RULES) {
     if (rule.pattern.test(line)) {
       findings.push({
-        category: 'secrets', rule: rule.name, severity: rule.severity,
+        category, rule: rule.name, severity: rule.severity,
         file, line: lineNumber, message: rule.message, action: rule.action,
       });
     }
@@ -81,7 +98,7 @@ function checkSecrets(line: string, file: string, lineNumber: number): Finding[]
   const match = GENERIC_ASSIGNMENT.exec(line);
   if (match && SENSITIVE_KEY.test(match[1]) && !EXAMPLE_VALUE.test(match[2])) {
     findings.push({
-      category: 'secrets', rule: 'generic_secret_assignment', severity: 'medium',
+      category, rule: 'generic_secret_assignment', severity: 'medium',
       file, line: lineNumber, message: 'Possible hardcoded credential assignment.',
       action: 'Review this assignment; move real credentials to protected configuration.',
     });
@@ -89,7 +106,7 @@ function checkSecrets(line: string, file: string, lineNumber: number): Finding[]
   return findings;
 }
 
-function checkPrivacy(line: string, file: string, lineNumber: number): Finding[] {
+export function checkPrivacy(line: string, file: string, lineNumber: number): Finding[] {
   const findings: Finding[] = [];
   if (/(?:^|[\s"'(])(?:\/Users\/[^\s/]+\/|\/home\/[^\s/]+\/|[A-Z]:\\Users\\[^\s\\]+\\)/i.test(line)) {
     findings.push({
@@ -113,6 +130,15 @@ function checkPrivacy(line: string, file: string, lineNumber: number): Finding[]
     });
   }
   return findings;
+}
+
+export function safeRelativePath(raw: string): string {
+  // Never allow an untrusted filename to carry a credential or terminal control sequence to an AI client.
+  const normalized = raw.replace(/[\x00-\x1f\x7f-\x9f]/g, '?').slice(0, 240);
+  if (SECRET_RULES.some(rule => rule.pattern.test(normalized)) || /(?:password|token|secret|key)[=:][^/\\]{8,}/i.test(normalized)) {
+    return '[REDACTED_FILE_NAME]';
+  }
+  return normalized || '[UNNAMED_FILE]';
 }
 
 function fileExtension(file: string): string {
@@ -158,7 +184,7 @@ export async function scanRepository(approvedRoot: string): Promise<ScanReport> 
       stopped = true;
       return;
     }
-    findings.push(finding);
+    findings.push({ ...finding, file: safeRelativePath(finding.file) });
   }
 
   while (toVisit.length && !stopped) {
@@ -234,6 +260,10 @@ export async function scanRepository(approvedRoot: string): Promise<ScanReport> 
         if (buffer.includes(0)) { stats.filesSkipped++; continue; }
         const lines = buffer.toString('utf8').split(/\r?\n/);
         for (let n = 0; n < lines.length; n++) {
+          if (lines[n].length > MAX_LINE_CHARS) {
+            markPartial('One or more lines exceeded the analysis length limit.');
+            continue;
+          }
           for (const f of checkSecrets(lines[n], rel, n + 1)) addFinding(f);
           for (const f of checkPrivacy(lines[n], rel, n + 1)) addFinding(f);
           if (stopped) break;
@@ -262,7 +292,7 @@ export async function scanRepository(approvedRoot: string): Promise<ScanReport> 
   // Never overstate a clean result if traversal was incomplete.
   const verdict = stats.complete && findings.length === 0 ? 'no_findings_in_scope' : 'review_required';
   return {
-    schemaVersion: '1', scanner: 'reposafe-mcp', verdict,
+    schemaVersion: '2', scanner: 'reposafe-mcp', verdict,
     findings: findings.sort((a, b) => a.file.localeCompare(b.file) || (a.line ?? 0) - (b.line ?? 0) || a.rule.localeCompare(b.rule)),
     stats, limitations: LIMITATIONS,
   };

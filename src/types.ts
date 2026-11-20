@@ -1,5 +1,5 @@
-export type Severity = 'high' | 'medium' | 'low';
-export type Category = 'secrets' | 'privacy' | 'readiness';
+export type Severity = 'critical' | 'high' | 'medium' | 'low';
+export type Category = 'secrets' | 'privacy' | 'readiness' | 'history' | 'git';
 
 export interface Finding {
   category: Category;
@@ -20,11 +20,20 @@ export interface ScanStats {
   warnings: string[];
 }
 
+export interface GitStats {
+  historyChecked: boolean;
+  commitsInspected: number;
+  gitAvailable: boolean;
+  complete: boolean;
+  warnings: string[];
+}
+
 export interface ScanReport {
-  schemaVersion: '1';
+  schemaVersion: '2';
   scanner: 'reposafe-mcp';
   verdict: 'review_required' | 'no_findings_in_scope';
   findings: Finding[];
   stats: ScanStats;
+  git?: GitStats;
   limitations: string[];
 }
