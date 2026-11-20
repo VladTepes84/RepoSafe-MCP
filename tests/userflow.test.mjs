@@ -33,7 +33,10 @@ test('init verifies MCP and prints a real host config without editing user confi
     assert.ok(r.stdout.includes('MCP handshake PASSED'));
     assert.ok(r.stdout.includes('mcpServers'));
     assert.ok(r.stdout.includes('REPOSAFE_ROOT'));
-    assert.ok(r.stdout.includes(root));
+    // The generator writes JSON-escaped canonical paths (Windows can expand 8.3 aliases).
+    const { realpath } = await import('node:fs/promises');
+    const canonical = await realpath(root);
+    assert.ok(r.stdout.includes(JSON.stringify(canonical).slice(1, -1)));
   });
 });
 test('doctor and init reject invalid scope and unknown client without leaking the path',{timeout:26000}, async()=>{
