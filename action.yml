@@ -37,8 +37,12 @@ runs:
           exit 2
         fi
         report="$RUNNER_TEMP/reposafe-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.sarif"
+        # GitHub executes composite run steps with bash -e; disable errexit
+        # just for this expected 0/1/2 scan status and handle it explicitly.
+        set +e
         node "$GITHUB_ACTION_PATH/dist/cli.js" scan --root "$GITHUB_WORKSPACE" --sarif > "$report"
         status=$?
+        set -e
         echo "sarif-file=$report" >> "$GITHUB_OUTPUT"
         echo "scan-exit-code=$status" >> "$GITHUB_OUTPUT"
         if [[ "$status" -eq 2 ]]; then
