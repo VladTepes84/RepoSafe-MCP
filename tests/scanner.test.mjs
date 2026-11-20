@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, symlink, link, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, symlink, link, rm, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { scanRepository, validateRoot } from '../src/scanner.ts';
@@ -76,13 +76,21 @@ test('finds internal hosts and local paths without echoing file lines', async ()
   });
 });
 
-test('symlinks to files outside authorized root are skipped', async () => {
+test('symlinks to files outside authorized root are skipped', async (t) => {
   const outside = await mkdtemp(join(tmpdir(), 'reposafe-outside-'));
   try {
     await writeFile(join(outside, 'secret.txt'), 'PASSWORD=do_not_read_456789\n');
     await withRepo(async dir => {
-      await symlink(join(outside, 'secret.txt'), join(dir, 'linked.txt'));
-      await symlink(outside, join(dir, 'linked-directory'));
+      try {
+        await symlink(join(outside, 'secret.txt'), join(dir, 'linked.txt'), 'file');
+        await symlink(outside, join(dir, 'linked-directory'), 'dir');
+      } catch (error) {
+        if (process.platform === 'win32' && ['EPERM', 'EACCES'].includes(error.code)) {
+          t.skip('Windows runner does not allow creating test symlinks');
+          return;
+        }
+        throw error;
+      }
       const report = await scanRepository(dir);
       assert.ok(report.stats.filesSkipped >= 2);
       assert.ok(!JSON.stringify(report).includes('do_not_read_456789'));
@@ -115,7 +123,8 @@ test('oversized files lead to incomplete verdict, not a false clean state', asyn
 test('requires explicitly provided absolute root and rejects files', async () => {
   await assert.rejects(validateRoot('.'), /absolute/);
   await withRepo(async dir => {
-    assert.equal(await validateRoot(dir), dir);
+    // macOS /var -> /private/var and Windows 8.3 short names canonicalize differently.
+    assert.equal(await validateRoot(dir), await realpath(dir));
     await assert.rejects(validateRoot(join(dir, 'README.md')), /directory/);
   });
 });
@@ -185,12 +194,31 @@ test('hard links are skipped and make scan coverage incomplete', async () => {
 });
 
 
-test('long underscore-heavy identifiers do not cause catastrophic regex backtracking', { timeout: 4000 }, async () => {
+test('long underscore-heavy identifiers are safely capped and reported as incomplete', { timeout: 4000 }, async () => {
   await withRepo(async dir => {
     const longIdentifier = 'random_' + 'segment_'.repeat(1200) + 'not_a_credential';
     await writeFile(join(dir, 'input.txt'), `const ${longIdentifier} = 1;\n`);
     const report = await scanRepository(dir);
-    assert.equal(report.stats.complete, true);
+    assert.equal(report.stats.complete, false);
     assert.equal(report.findings.length, 0);
+  });
+});
+
+test('secret-shaped filenames are masked in tool results', async () => {
+  await withRepo(async dir => {
+    const filename = 'ghp_' + 'C'.repeat(32) + '.txt';
+    await writeFile(join(dir, filename), 'PASSWORD=synthetic_test_value_12345\n');
+    const report = await scanRepository(dir);
+    assert.ok(!JSON.stringify(report).includes(filename));
+    assert.ok(report.findings.some(x => x.file === '[REDACTED_FILE_NAME]'));
+  });
+});
+
+test('overlength lines report incomplete rather than hiding a clean scan', async () => {
+  await withRepo(async dir => {
+    await writeFile(join(dir, 'verylong.txt'), 'a'.repeat(8500));
+    const report = await scanRepository(dir);
+    assert.equal(report.stats.complete, false);
+    assert.equal(report.verdict, 'review_required');
   });
 });

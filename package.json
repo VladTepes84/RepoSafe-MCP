@@ -1,7 +1,7 @@
 {
   "name": "reposafe-mcp",
-  "version": "0.1.0",
-  "description": "Local, read-only repository publication readiness checks over MCP",
+  "version": "0.2.0",
+  "description": "Privacy-first read-only MCP and CLI repository audit with bounded Git history checks",
   "type": "module",
   "private": true,
   "license": "MIT",
@@ -11,9 +11,15 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "node --experimental-strip-types --test tests/scanner.test.mjs",
-    "check": "npm run typecheck && npm test && npm run build && npm run test:integration",
-    "test:integration": "node --test tests/protocol.test.mjs"
+    "test:unit": "node --experimental-strip-types --test tests/scanner.test.mjs",
+    "test:git": "node --test tests/git.test.mjs tests/cli.test.mjs",
+    "test:integration": "node --test tests/protocol.test.mjs",
+    "test": "npm run test:unit && npm run test:git && npm run test:config && npm run test:integration",
+    "check": "npm run typecheck && npm run build && npm test && npm run demo",
+    "demo": "node tests/demo.mjs",
+    "audit:deps": "npm audit --omit=dev --audit-level=high",
+    "config": "node scripts/config.mjs",
+    "test:config": "node --test tests/config.test.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.3.0",
