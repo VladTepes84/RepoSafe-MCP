@@ -4,7 +4,25 @@
 
 RepoSafe is a privacy-first, read-only repository scanner available as a **local Model Context Protocol (MCP) server** and **standalone CLI**. It flags possible secrets, private infrastructure references, Git-tracked credential files, ineffective `.gitignore` rules, and secrets left in *recent Git commits*. It returns **metadata only**: never source snippets or matched secret values.
 
-**Current status: v0.2.0 development / private beta. Not a security certification.** A clean scan is *not* evidence that a repository is safe to publish.
+**Release status: v0.2.0 beta (pre-release). Not a security certification.** A clean scan is *not* evidence that a repository is safe to publish.
+
+## Important: Cursor and Claude Desktop are NOT yet manually verified
+
+> **Integration validation pending.** RepoSafe's installation, TypeScript build, scanner tests, actual MCP `stdio` handshake using the official MCP SDK, and synthetic Git-repository demo have passed automated CI on **Windows, macOS and Ubuntu**.
+>
+> **Cursor and Claude Desktop have NOT yet been manually tested end-to-end in their actual application interfaces.** The configuration examples below are documented and configuration generation is unit-tested, but **successful GUI integration, permissions, prompts and user experience remain UNVERIFIED**. Do not interpret protocol-level MCP testing as proof that these apps work out of the box. Other client GUI integrations are also not verified.
+>
+> This is **beta software**. Do not assume it detects all secrets, guarantees privacy in the AI host, or certifies a repository as safe to publish.
+
+### Help validate real AI clients
+
+1. Follow the exact [macOS](docs/INSTALL_MAC.md) or [Windows](docs/INSTALL_WINDOWS.md) installation guide with **Node.js 22+, npm and Git**.
+2. Run `npm ci && npm run check && npm run demo` (in PowerShell, invoke the commands separately if needed). All must pass before connecting a client.
+3. Generate the client configuration using `npm run config -- --client cursor --root ABSOLUTE_PROJECT_PATH` or replace `cursor` with `claude`; use a small **synthetic test repository**, never real credentials.
+4. Add the generated entry to the client's MCP configuration, restart/reload the client as documented, and ask it to list RepoSafe tools and call `generate_report`.
+5. Verify all six tools are visible, the report is returned, the dummy secret is never disclosed and out-of-scope paths are inaccessible. Report the operating system and client version plus **redacted** logs in a GitHub issue. Do not upload private code, credentials, or unredacted configuration.
+
+See [client compatibility and explicit verification status](docs/CLIENTS.md) and [security limitations](docs/SECURITY.md).
 
 ## A 60-second real use case
 
@@ -44,7 +62,7 @@ Additional CLI: `node dist/cli.js scan --root ABSOLUTE_PATH [--json] [--no-histo
 
 ## Install and verify
 
-Requires **Node.js 22+, npm and Git** (Git is needed for history checks). RepoSafe is currently private: only authorized collaborators can clone it. Once published, the same commands apply.
+Requires **Node.js 22+, npm and Git** (Git is needed for history checks). Cloning a private copy requires authorized GitHub access; after its visibility changes to Public, anyone can clone with the same commands.
 
 ```bash
 git clone https://github.com/VladTepes84/RepoSafe-MCP.git
