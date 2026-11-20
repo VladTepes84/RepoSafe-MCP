@@ -22,7 +22,8 @@
     "test:config": "node --test tests/config.test.mjs",
     "doctor": "node dist/cli.js doctor",
     "init": "node dist/cli.js init",
-    "test:userflow": "node --test tests/userflow.test.mjs"
+    "test:userflow": "node --test tests/userflow.test.mjs",
+    "pretest:unit": "npm run build"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.3.0",

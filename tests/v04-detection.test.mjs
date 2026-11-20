@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { checkSecrets } from '../src/scanner.ts';
+import { checkSecrets } from '../dist/scanner.js';
 
 const db = [
   'mysql://reporter:syntheticPassword123@mysql.example.invalid/app',

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { checkSecrets, safeRelativePath, scanRepository } from '../src/scanner.ts';
+import { checkSecrets, safeRelativePath, scanRepository } from '../dist/scanner.js';
 
 const jwt = [
   Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url'),

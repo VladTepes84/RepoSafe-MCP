@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { scanRepository } from '../src/scanner.ts';
+import { scanRepository } from '../dist/scanner.js';
 
 async function withRepo(fn) {
   const root = await mkdtemp(join(tmpdir(),'reposafe-baseline-'));
