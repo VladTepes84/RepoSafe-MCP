@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "reposafe": {
+      "command": "node",
+      "args": ["/ABSOLUTE/PATH/RepoSafe-MCP/dist/server.js"],
+      "env": {
+        "REPOSAFE_ROOT": "/ABSOLUTE/PATH/TO/REPOSITORY/YOU/AUTHORIZE"
+      }
+    }
+  }
+}
