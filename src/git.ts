@@ -131,7 +131,9 @@ export async function scanGit(root: string, history = true): Promise<GitResults>
       }
       if (line.startsWith('+++ b/')) { currentFile = safeRelativePath(line.slice(6)); continue; }
       if (line.startsWith('+++ ') || line.startsWith('--- ') || line.startsWith('diff ') || line.startsWith('@@')) continue;
-      if (!line.startsWith('+') && !line.startsWith('-')) continue;
+      // Only additions can attribute an exposed value to the commit being inspected.
+      // A removed line belongs to its parent, not to this commit's final tree.
+      if (!line.startsWith('+')) continue;
       if (line.length > 8193) { warning('Long lines in Git history were not analyzed.'); continue; }
       for (const finding of checkSecrets(line.slice(1), currentFile, 0, 'history')) {
         if (findings.length >= MAX_GIT_FINDINGS) { warning('Git finding limit reached.'); break; }
