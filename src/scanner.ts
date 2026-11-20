@@ -12,8 +12,8 @@ export const MAX_FINDINGS = 100;
 const MAX_LINE_CHARS = 8192;
 
 const IGNORED_DIRS = new Set([
-  '.git', 'node_modules', 'dist', 'build', 'coverage', '.next',
-  '.venv', 'venv', '__pycache__', '.turbo', '.cache', 'vendor',
+  '.git', 'node_modules', 'coverage', '.next',
+  '.venv', 'venv', '__pycache__', '.turbo', '.cache',
 ]);
 const BINARY_EXTENSIONS = new Set([
   '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.pdf', '.zip',
@@ -23,7 +23,7 @@ const BINARY_EXTENSIONS = new Set([
 const LIMITATIONS = [
   'Heuristic checks; false negatives and false positives are possible.',
   'Scans current local files only, not Git history, branches, commits, or remote repository settings.',
-  'Symlinks, hard-linked files, binary files, ignored build/vendor directories, and oversized files are skipped.',
+  'Symlinks, hard-linked files, binary files, dependency/cache directories, and oversized files are skipped. dist/build/vendor ARE scanned.',
   'A clean report is NOT a guarantee that publishing is safe.',
   'The scan runs with the operating system permissions of the MCP host; it is not an OS-level sandbox.',
 ];
@@ -53,7 +53,7 @@ const SECRET_RULES: SecretRule[] = [
     action: 'Revoke and replace the token; keep it out of tracked files.',
   },
   {
-    name: 'openai_key', pattern: /\bsk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{20,}\b/,
+    name: 'openai_key', pattern: /\bsk-(?!ant-)(?:proj-|svcacct-)?[A-Za-z0-9_-]{20,}\b/,
     severity: 'high', message: 'Possible API key.',
     action: 'Revoke/rotate the key and load it securely at runtime.',
   },
@@ -77,12 +77,39 @@ const SECRET_RULES: SecretRule[] = [
     severity: 'high', message: 'Possible Slack token.',
     action: 'Revoke/rotate this token and use a secrets manager.',
   },
+  {
+    name: 'sendgrid_api_key', pattern: /\bSG\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}\b/,
+    severity: 'high', message: 'Possible SendGrid API key.',
+    action: 'Revoke/rotate the SendGrid key and move it into a secrets manager.',
+  },
+  {
+    name: 'npm_access_token', pattern: /\bnpm_[A-Za-z0-9_-]{24,}\b/,
+    severity: 'high', message: 'Possible npm access token.',
+    action: 'Revoke the token and use protected npm authentication configuration.',
+  },
+  {
+    name: 'jwt_token', pattern: /\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{16,}\b/,
+    severity: 'high', message: 'Possible signed JSON Web Token (JWT).',
+    action: 'Treat a real authentication JWT as exposed; revoke or expire its access.',
+  },
 ];
 
 // Fixed-width key token + one suffix check prevents regex backtracking on long underscore sequences.
 const GENERIC_ASSIGNMENT = /(?:^|[\s"'{,])([A-Za-z][A-Za-z0-9_-]{0,95})\s*["']?\s*[:=]\s*["']?([^\s,'";#}]{8,})/i;
 const SENSITIVE_KEY = /(?:^|[_-])(?:api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret|secret[_-]?access[_-]?key|secret[_-]?key|password|passwd|secret|token)$/i;
 const EXAMPLE_VALUE = /^(?:\$\{|\$|<|\{|example|sample|dummy|test|change[_-]?me|replace|your[_-]?|placeholder|undefined|null|none|process\.|env\.|os\.environ)/i;
+
+function shannonEntropy(value: string): number {
+  if (!value) return 0;
+  const counts = new Map<string, number>();
+  for (const ch of value) counts.set(ch, (counts.get(ch) ?? 0) + 1);
+  let entropy = 0;
+  for (const count of counts.values()) {
+    const p = count / value.length;
+    entropy -= p * Math.log2(p);
+  }
+  return entropy;
+}
 
 // Deliberately ignore the matched value in all output. Findings contain metadata only.
 export function checkSecrets(line: string, file: string, lineNumber: number, category: 'secrets' | 'history' = 'secrets'): Finding[] {
@@ -95,12 +122,51 @@ export function checkSecrets(line: string, file: string, lineNumber: number, cat
       });
     }
   }
+  // Provider-specific matches take precedence over a generic finding for the same value.
   const match = GENERIC_ASSIGNMENT.exec(line);
-  if (match && SENSITIVE_KEY.test(match[1]) && !EXAMPLE_VALUE.test(match[2])) {
+  if (match && SENSITIVE_KEY.test(match[1]) && !EXAMPLE_VALUE.test(match[2]) &&
+      !SECRET_RULES.some(rule => rule.pattern.test(match[2]))) {
     findings.push({
       category, rule: 'generic_secret_assignment', severity: 'medium',
       file, line: lineNumber, message: 'Possible hardcoded credential assignment.',
       action: 'Review this assignment; move real credentials to protected configuration.',
+    });
+  }
+
+  // .npmrc often contains an unprefixed secret, e.g. //registry.npmjs.org/:_authToken=...
+  const npmAuth = /(?:^|[:\s])_authToken\s*=\s*["']?([^\s"'#;]{12,})/i.exec(line);
+  if (npmAuth && !EXAMPLE_VALUE.test(npmAuth[1]) &&
+      !SECRET_RULES.some(rule => rule.pattern.test(npmAuth[1]))) {
+    findings.push({
+      category, rule: 'npmrc_auth_token', severity: 'high', file, line: lineNumber,
+      message: 'Possible npm registry authentication token.',
+      action: 'Revoke/rotate the token, do not commit .npmrc credentials, and use CI secrets.',
+    });
+  }
+
+  // Parse URI userinfo instead of guessing that every postgres URL has a password.
+  const postgresUri = /\bpostgres(?:ql)?:\/\/[^\s"'<>]+/i.exec(line)?.[0];
+  if (postgresUri) {
+    try {
+      const url = new URL(postgresUri.replace(/[),;]+$/, ''));
+      if (url.username && url.password && !EXAMPLE_VALUE.test(decodeURIComponent(url.password))) {
+        findings.push({
+          category, rule: 'postgres_connection_password', severity: 'high', file, line: lineNumber,
+          message: 'PostgreSQL connection URI contains a username and embedded password.',
+          action: 'Rotate the credential if exposed and supply the database URL through protected configuration.',
+        });
+      }
+    } catch { /* Malformed URI; no credential value is returned. */ }
+  }
+
+  // Conservative entropy check for unknown bearer credentials; don't duplicate a named token.
+  const bearer = /\bBearer\s+([A-Za-z0-9._~+/-]{24,}={0,2})\b/i.exec(line)?.[1];
+  if (bearer && !EXAMPLE_VALUE.test(bearer) && !SECRET_RULES.some(rule => rule.pattern.test(bearer)) &&
+      shannonEntropy(bearer) >= 3.5) {
+    findings.push({
+      category, rule: 'high_entropy_bearer', severity: 'medium', file, line: lineNumber,
+      message: 'Possible high-entropy bearer credential.',
+      action: 'Verify whether this is a live authorization credential and rotate it if exposed.',
     });
   }
   return findings;
@@ -135,7 +201,7 @@ export function checkPrivacy(line: string, file: string, lineNumber: number): Fi
 export function safeRelativePath(raw: string): string {
   // Never allow an untrusted filename to carry a credential or terminal control sequence to an AI client.
   const normalized = raw.replace(/[\x00-\x1f\x7f-\x9f]/g, '?').slice(0, 240);
-  if (SECRET_RULES.some(rule => rule.pattern.test(normalized)) || /(?:password|token|secret|key)[=:][^/\\]{8,}/i.test(normalized)) {
+  if (SECRET_RULES.some(rule => rule.pattern.test(normalized)) || /(?:password|token|secret|key)[=:][^/\\]{8,}/i.test(normalized) || /postgres(?:ql)?:\/\/[^/\\\s]+:[^@/\\\s]+@/i.test(normalized) || /_authToken=[^/\\\s]{8,}/i.test(normalized)) {
     return '[REDACTED_FILE_NAME]';
   }
   return normalized || '[UNNAMED_FILE]';
