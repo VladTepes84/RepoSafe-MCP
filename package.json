@@ -1,6 +1,6 @@
 {
   "name": "reposafe-mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Privacy-first read-only MCP and CLI repository audit with bounded Git history checks",
   "type": "module",
   "private": true,
@@ -11,7 +11,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test:unit": "node --experimental-strip-types --test tests/scanner.test.mjs",
+    "test:unit": "node --experimental-strip-types --test tests/scanner.test.mjs tests/detection.test.mjs",
     "test:git": "node --test tests/git.test.mjs tests/cli.test.mjs",
     "test:integration": "node --test tests/protocol.test.mjs",
     "test": "npm run test:unit && npm run test:git && npm run test:config && npm run test:integration",

@@ -19,8 +19,8 @@ REAL OFFLINE DEMO PASS (synthetic credentials only)
 
 | Suite | Mechanism / expected result |
 | --- | --- |
-| `npm run test:unit` | Native Node test runner: dummy credentials, private paths, link skipping, resource budgets, redaction, binary files, path safety |
-| `npm run test:git` | Real `git init`, `git add`, `git commit`, secret deletion, tracked `.env`, ignore patterns, nested-root refusal, CLI exit codes |
+| `npm run test:unit` | Native Node test runner: existing security tests plus v0.3 provider fixtures, false positives, duplicates, build/vendor detection and filename redaction |
+| `npm run test:git` | Real `git init`, `git add`, `git commit`, secret deletion, introducing-commit IDs, tracked excluded files, hostile fsmonitor config, Git env injection, tracked `.env`, CLI exit codes |
 | `npm run test:config` | Native Windows / macOS configuration path and schema simulation for Cursor, Claude, VS Code, Codex |
 | `npm run test:integration` | Starts real compiled server via official MCP stdio client SDK, lists 6 tools, calls report and checks no raw token leakage |
 | `npm run typecheck` | TypeScript strict typecheck |
@@ -41,3 +41,10 @@ REAL OFFLINE DEMO PASS (synthetic credentials only)
 - Unicode-heavy repository path behavior on all supported filesystems.
 - Multi-branch history with huge binary diffs and external Git configuration edge cases.
 - A signed release, independent supply-chain review and expanded adversarial fixtures before stable public v1.0.
+## v0.3 adversarial fixtures
+
+Run `npm run test:unit` for both positive and negative provider fixtures; `npm run test:git` for real commits and attempted fsmonitor execution; `npm run test:integration` for actual MCP tool calls; `npm run demo` for committed-and-deleted synthetic credentials. Only dummy values are used.
+
+The test for a malicious Git fsmonitor configuration checks that no marker is written while RepoSafe reads Git. Passing it does **not** establish safety against all Git configuration/environment exploit paths.
+
+The history scanner reports the first introducing commit for added lines within its bounded scope. Older or unreachable commits, binary secrets, huge diffs and tokens encoded beyond the supported patterns can still escape detection.

@@ -19,7 +19,8 @@ test('stdio MCP handshake lists six tools and returns redacted report', { timeou
     git('config', 'user.name', 'MCP Test');
     git('config', 'user.email', 'mcp@example.invalid');
     const credential = 'AKIA' + 'B'.repeat(16);
-    await writeFile(join(root, 'sample.txt'), `key=${credential}\n`);
+    const npmToken = 'npm_' + 'R'.repeat(36);
+    await writeFile(join(root, 'sample.txt'), `key=${credential}\nNPM_TOKEN=${npmToken}\n`);
     git('add', '.');
     git('commit', '-qm', 'synthetic exposure');
     await writeFile(join(root, 'sample.txt'), 'safe=true\n');
@@ -40,11 +41,13 @@ test('stdio MCP handshake lists six tools and returns redacted report', { timeou
     assert.notEqual(res.isError, true);
     const output = JSON.stringify(res);
     assert.ok(!output.includes(credential));
+    assert.ok(!output.includes(npmToken));
     const text = res.content.find(x => x.type === 'text')?.text;
     assert.ok(text);
     const report = JSON.parse(text);
     assert.equal(report.verdict, 'review_required');
     assert.ok(report.findings.some(x => x.rule === 'git_history_aws_access_key_id'));
+    assert.ok(report.findings.some(x => x.rule === 'git_history_npm_access_token' && /^[a-f\d]{12}$/.test(x.commit ?? '')));
     const history = await client.callTool({ name: 'scan_git_history', arguments: {} });
     assert.ok(JSON.parse(history.content.find(x => x.type === 'text').text).findings.some(x => x.category === 'history'));
     for (const name of names) {

@@ -1,23 +1,27 @@
 # Changelog
 
-All notable changes are recorded here. Dates refer to implementation, **not a public release**.
+Changes describe the committed source and automated test evidence, **not a security certification**.
 
-## [Unreleased] — 2026-11-20 (private development)
+## [0.3.0] — 2026-11-20 (public beta)
 
-### Added
-- Git-aware read-only checks: tracked sensitive files and actual `.env` ignore behavior.
-- Bounded Git diff-history search for previously committed secrets, without token values in output.
-- Standalone CLI with readable/JSON output, stable exit codes, optional Git/history restrictions.
-- Native macOS/Windows client-config generator for Cursor, Claude Desktop, VS Code Copilot harness and Codex.
-- Real synthetic Git-history demo, Git and CLI tests, path/schema tests, more token patterns and filename redaction.
-- Cross-platform CI matrix, production dependency audit and integrity-checked npm lockfile; separate security, usage and compatibility docs.
+### Detection engineering
+- Add JWT, SendGrid, npm access tokens, unprefixed `.npmrc` auth values, PostgreSQL connection URI passwords and conservative entropy-based Bearer detection.
+- Suppress overlapping provider/generic findings (especially Anthropic vs. generic OpenAI `sk-`).
+- Inspect text in `dist/`, `build/`, and `vendor/`; report tracked files still excluded by dependency/cache skipping as incomplete coverage.
+- Emit short commit IDs on history findings; only attribute exposures to **added lines** in a commit diff.
 
-### Security
-- Fail-closed reporting on insufficient scan coverage; cap unusually long lines.
-- Existing symlink/hard-link safeguards and explicit `REPOSAFE_ROOT` remain enforced.
+### Git safety and assurance
+- Ignore inherited Git configuration-injection environment variables; disable fsmonitor and lazy fetch, suppress external Git diff behavior.
+- Add synthetic provider, false-positive, filename-redaction, history-provenance and hostile Git-config regression tests.
+- Continue official MCP stdio integration and Windows/macOS/Linux GitHub Actions checks.
 
-### Known limits
-- Git history bounded to 100 commits/4 MiB patch; no full credential certification or GUI client verification.
+### Limitations
+- No cloud credential verification, no complete Git object scan, no GUI client acceptance test, and no assurance against all hostile repository configurations.
+
+## [0.2.0] — 2026-11-20 (public beta)
+- Read-only tracked-file and `.gitignore` checks; bounded Git history scan.
+- Standalone CLI, client config generator, synthetic demo, OS-specific guides and 3-OS CI.
+- Fail-closed resource limits and audit of locked production dependencies.
 
 ## [0.1.0] — 2026-11-20
-- Initial local read-only MCP scanner with four tools, README, MIT and first CI tests.
+- Initial local read-only MCP scanner with four tools, README, MIT and CI tests.
