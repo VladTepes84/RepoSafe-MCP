@@ -20,3 +20,13 @@ Only use synthetic fixtures in public issues. No token values or source snippets
 **History:** only additions in the 100 most recent commits across local refs are examined, subject to the 4 MiB output limit. Findings include a 12-character introducing commit prefix, not a matched value. Rewriting history alone does not revoke credentials.
 
 **Validation:** run `npm ci`, `npm run check`, `npm run audit:deps` and inspect cross-platform CI results. Use independent security scanners (for example, Gitleaks and TruffleHog) and human review for higher assurance. Successful CI does not verify Cursor or Claude Desktop graphical integrations.
+
+## v0.4 additions (heuristics)
+
+- Database/broker URI userinfo passwords for MySQL/MariaDB, MongoDB/SRV, Redis/TLS and AMQP/TLS. PostgreSQL remains reported as `postgres_connection_password` for compatibility; other protocols use `database_uri_password`.
+- GitLab `glpat-`, Hugging Face `hf_`, DigitalOcean token prefixes, Twilio API key SID (metadata identifier, **not** itself proof of credential exposure), Slack and Discord incoming webhook URLs, Azure Storage `AccountKey=` and GCP JSON private-key headers.
+- The scanner does not verify whether a token is active. Some providers use other credential formats; unknown formats can be missed.
+
+**False-positive control:** read `docs/BASELINE.md` before enabling any exceptions. An exception is exact-match and always visible in suppressed counters; high/critical matches cannot make the overall verdict clean.
+
+**Tracked files:** Git-tracked files in normally skipped dependency/cache directories are now scanned directly under budgets. Even where readable, the existing `tracked_excluded_file` alert remains to highlight that such files are tracked. Missing, binary, linked or excessive files cause incomplete scan status.
