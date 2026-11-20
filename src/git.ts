@@ -74,7 +74,7 @@ export async function scanGit(root: string, history = true): Promise<GitResults>
     try {
       await git(root, ['check-ignore', '-q', '--no-index', '--', candidate]);
     } catch (error) {
-      const code = (error as NodeJS.ErrnoException & { code?: number | string }).code;
+      const code = (error as { code?: unknown }).code;
       if (code !== 1) { warning('Could not verify Git ignore patterns.'); continue; }
       findings.push({ category: 'readiness', rule: 'env_not_gitignored', severity: 'medium',
         file: '.gitignore', message: `Git does not ignore ${candidate}.`,
