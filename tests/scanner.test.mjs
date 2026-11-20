@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, symlink, link, rm, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { scanRepository, validateRoot } from '../src/scanner.ts';
+import { scanRepository, validateRoot } from '../dist/scanner.js';
 
 async function withRepo(fn) {
   const dir = await mkdtemp(join(tmpdir(), 'reposafe-mcp-test-'));

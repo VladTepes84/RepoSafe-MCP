@@ -25,6 +25,8 @@ export interface ScanStats {
 export interface GitStats {
   historyChecked: boolean;
   commitsInspected: number;
+  trackedExcludedFilesRequested?: number;
+  trackedExcludedFilesScanned?: number;
   gitAvailable: boolean;
   complete: boolean;
   warnings: string[];
@@ -38,4 +40,6 @@ export interface ScanReport {
   stats: ScanStats;
   git?: GitStats;
   limitations: string[];
+  /** Exact-match baseline exceptions; counts are disclosed, reasons never returned to AI. */
+  baseline?: { entries: number; suppressed: number; highSuppressed: number; expired: number };
 }

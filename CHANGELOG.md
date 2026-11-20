@@ -2,6 +2,15 @@
 
 Changes describe the committed source and automated test evidence, **not a security certification**.
 
+## [0.4.0] — 2026-11-20 (beta feature branch; CI/review required)
+
+- Broader database/broker URI checks and provider secret indicators.
+- Bounded symlink-safe inspection of exact Git-tracked paths under normally skipped dependency/cache directories.
+- `.reposafe.json` exact-path/rule baseline with strict parser, expiration, visible counts and high-risk fail-closed behavior.
+- `doctor` does an actual MCP stdio handshake; `init` prints configurations after that handshake without writing to the user machine.
+- Synthetic positive/benign benchmark fixtures, baseline and tracked-file regressions and CLI user-flow tests.
+- No npm publication, GUI verification, or silent host configuration edits.
+
 ## [0.3.0] — 2026-11-20 (public beta)
 
 ### Detection engineering

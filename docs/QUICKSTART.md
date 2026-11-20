@@ -1,0 +1,56 @@
+# RepoSafe v0.4 — verify, scan and connect
+
+**Requirements:** Node.js 22+, npm, Git and permission to read only the target repository. No paid API key, cloud account or hosted service is required.
+
+## 1. Install from the public GitHub repository
+
+```sh
+git clone https://github.com/VladTepes84/RepoSafe-MCP.git
+cd RepoSafe-MCP
+npm ci
+npm run build
+npm run check
+```
+
+On Windows PowerShell execute the same commands in a PowerShell session with `git`, `node` and `npm` on PATH. No bash-specific syntax is required.
+
+## 2. Verify the actual MCP handshake
+
+macOS example:
+```sh
+node dist/cli.js doctor --root "$HOME/Projects/example-app"
+```
+Windows PowerShell example:
+```powershell
+node dist/cli.js doctor --root "$HOME\Projects\example-app"
+```
+Replace the path with an existing non-system folder. Expected result includes `RepoSafe doctor PASS` and **six MCP tools**. This is a real stdio protocol connection, not a graphical Cursor/Claude acceptance test.
+
+## 3. Generate an exact configuration without overwriting any files
+
+```sh
+node dist/cli.js init --root "/ABSOLUTE/PATH/TO/APP" --client cursor
+node dist/cli.js init --root "/ABSOLUTE/PATH/TO/APP" --client claude
+```
+
+On Windows use the corresponding absolute drive path (e.g. `C:\Users\tester\Projects\example-app`). The program prints the appropriate configuration and the destination client config path. **The command is read-only and does not change user files.**
+
+## 4. Real GUI smoke test (manual, not yet verified)
+
+- Merge the printed `reposafe` server entry into Cursor/Claude Desktop's MCP configuration, preserving existing servers.
+- Restart the app, approve the locally scoped tool and ask: "List RepoSafe's tools. Call generate_report on the previously authorized project. Never quote source or credential values."
+- Confirm tool discovery, a redacted structured report and no requests for directories outside `REPOSAFE_ROOT`.
+- Note exact OS, client version, approval behavior and *sanitized* errors. Never share passwords, private code or file content in an issue.
+- **Until these GUI steps have actually been run and evidenced, client usability remains NOT VERIFIED.**
+
+## 5. Scan without an AI client
+
+```sh
+node dist/cli.js scan --root "/ABSOLUTE/PATH/TO/APP" --json
+```
+
+Exit 0 means no unsuppressed findings **in the bounded scope**, not safe-to-publish certification. Exit 1 requires review, including incomplete scans. Exit 2 means invalid invocation or runtime failure.
+
+## 6. Baseline for narrowly scoped false positives
+
+See [BASELINE](BASELINE.md). Entries must reference one exact relative file and rule, with a reason. High/critical suppression cannot turn a report clean.

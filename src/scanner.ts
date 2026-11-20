@@ -1,7 +1,8 @@
 import { constants } from 'node:fs';
-import { open, readdir, realpath, stat } from 'node:fs/promises';
+import { open, readdir, realpath, stat, lstat } from 'node:fs/promises';
 import { isAbsolute, join, parse, relative, sep } from 'node:path';
 import type { Finding, ScanReport, ScanStats } from './types.js';
+import { applyBaseline } from './baseline.js';
 
 const MAX_FILES = 1000;
 const MAX_DIRECTORIES = 2000;
@@ -92,6 +93,47 @@ const SECRET_RULES: SecretRule[] = [
     severity: 'high', message: 'Possible signed JSON Web Token (JWT).',
     action: 'Treat a real authentication JWT as exposed; revoke or expire its access.',
   },
+
+  {
+    name: 'gitlab_token', pattern: /\bglpat-[A-Za-z0-9_-]{16,}\b/,
+    severity: 'high', message: 'Possible GitLab personal access token.',
+    action: 'Revoke or rotate the GitLab token and use a protected secret store.',
+  },
+  {
+    name: 'huggingface_token', pattern: /\bhf_[A-Za-z0-9]{30,}\b/,
+    severity: 'high', message: 'Possible Hugging Face access token.',
+    action: 'Revoke/rotate the Hugging Face token and use a protected secret store.',
+  },
+  {
+    name: 'digitalocean_token', pattern: /\b(?:dop|doo|dor)_v1_[A-Za-z0-9]{32,}\b/,
+    severity: 'high', message: 'Possible DigitalOcean access token.',
+    action: 'Revoke/rotate the DigitalOcean token and check account activity.',
+  },
+  {
+    name: 'twilio_api_key_sid', pattern: /\bSK[a-fA-F0-9]{32}\b/,
+    severity: 'medium', message: 'Possible Twilio API key SID (identifier, not necessarily its secret).',
+    action: 'Review whether the associated Twilio API key secret is exposed.',
+  },
+  {
+    name: 'slack_webhook', pattern: /https:\/\/hooks\.slack\.com\/services\/[A-Za-z0-9]{8,}\/[A-Za-z0-9]{8,}\/[A-Za-z0-9]{16,}/i,
+    severity: 'high', message: 'Possible Slack incoming webhook URL.',
+    action: 'Rotate the Slack webhook if exposed and remove it from source code.',
+  },
+  {
+    name: 'discord_webhook', pattern: /https:\/\/(?:discord(?:app)?\.com)\/api\/webhooks\/[0-9]{15,22}\/[A-Za-z0-9_-]{20,}/i,
+    severity: 'high', message: 'Possible Discord incoming webhook URL.',
+    action: 'Delete or rotate the webhook and use protected configuration.',
+  },
+  {
+    name: 'azure_storage_key', pattern: /\bAccountKey=[A-Za-z0-9+/]{60,}={0,2}/,
+    severity: 'high', message: 'Possible Azure Storage account key in connection configuration.',
+    action: 'Rotate the Azure Storage key and use managed identity or secure configuration.',
+  },
+  {
+    name: 'gcp_service_account_private_key', pattern: /["']private_key["']\s*:\s*["']-----BEGIN (?:RSA )?PRIVATE KEY-----/,
+    severity: 'high', message: 'Possible GCP service account private key in JSON configuration.',
+    action: 'Revoke the service account key and use workload identity or a secret store.',
+  },
 ];
 
 // Fixed-width key token + one suffix check prevents regex backtracking on long underscore sequences.
@@ -115,6 +157,7 @@ function shannonEntropy(value: string): number {
 export function checkSecrets(line: string, file: string, lineNumber: number, category: 'secrets' | 'history' = 'secrets'): Finding[] {
   const findings: Finding[] = [];
   for (const rule of SECRET_RULES) {
+    if (rule.name === 'private_key_block' && SECRET_RULES.some(r => r.name === 'gcp_service_account_private_key' && r.pattern.test(line))) continue;
     if (rule.pattern.test(line)) {
       findings.push({
         category, rule: rule.name, severity: rule.severity,
@@ -144,19 +187,23 @@ export function checkSecrets(line: string, file: string, lineNumber: number, cat
     });
   }
 
-  // Parse URI userinfo instead of guessing that every postgres URL has a password.
-  const postgresUri = /\bpostgres(?:ql)?:\/\/[^\s"'<>]+/i.exec(line)?.[0];
-  if (postgresUri) {
+  // Generic database and broker URI userinfo; preserve the Postgres rule for compatibility.
+  // A URL without a password is not a secret. Parsing is bounded by MAX_LINE_CHARS.
+  const databaseUri = /\b(?:postgres(?:ql)?|mysql|mariadb|mongodb(?:\+srv)?|redis(?:s)?|amqp(?:s)?):\/\/[^\s"'<>]+/i.exec(line)?.[0];
+  if (databaseUri) {
     try {
-      const url = new URL(postgresUri.replace(/[),;]+$/, ''));
-      if (url.username && url.password && !EXAMPLE_VALUE.test(decodeURIComponent(url.password))) {
+      const url = new URL(databaseUri.replace(/[),;]+$/, ''));
+      const password = decodeURIComponent(url.password);
+      if (url.username && password && !EXAMPLE_VALUE.test(password)) {
+        const postgres = url.protocol === 'postgres:' || url.protocol === 'postgresql:';
         findings.push({
-          category, rule: 'postgres_connection_password', severity: 'high', file, line: lineNumber,
-          message: 'PostgreSQL connection URI contains a username and embedded password.',
-          action: 'Rotate the credential if exposed and supply the database URL through protected configuration.',
+          category, rule: postgres ? 'postgres_connection_password' : 'database_uri_password',
+          severity: 'high', file, line: lineNumber,
+          message: postgres ? 'PostgreSQL URI contains embedded authentication credentials.' : 'Database or broker URI contains embedded authentication credentials.',
+          action: 'Rotate the exposed credential and supply connection configuration securely.',
         });
       }
-    } catch { /* Malformed URI; no credential value is returned. */ }
+    } catch { /* Invalid URI; do not return contents or claim it was scanned. */ }
   }
 
   // Conservative entropy check for unknown bearer credentials; don't duplicate a named token.
@@ -201,7 +248,7 @@ export function checkPrivacy(line: string, file: string, lineNumber: number): Fi
 export function safeRelativePath(raw: string): string {
   // Never allow an untrusted filename to carry a credential or terminal control sequence to an AI client.
   const normalized = raw.replace(/[\x00-\x1f\x7f-\x9f]/g, '?').slice(0, 240);
-  if (SECRET_RULES.some(rule => rule.pattern.test(normalized)) || /(?:password|token|secret|key)[=:][^/\\]{8,}/i.test(normalized) || /postgres(?:ql)?:\/\/[^/\\\s]+:[^@/\\\s]+@/i.test(normalized) || /_authToken=[^/\\\s]{8,}/i.test(normalized)) {
+  if (SECRET_RULES.some(rule => rule.pattern.test(normalized)) || /(?:password|token|secret|key)[=:][^/\\]{8,}/i.test(normalized) || /(?:postgres(?:ql)?|mysql|mariadb|mongodb(?:\+srv)?|rediss?|amqps?):\/\/[^/\\\s]+:[^@/\\\s]+@/i.test(normalized) || /_authToken=[^/\\\s]{8,}/i.test(normalized)) {
     return '[REDACTED_FILE_NAME]';
   }
   return normalized || '[UNNAMED_FILE]';
@@ -229,7 +276,7 @@ export async function validateRoot(configuredPath: string): Promise<string> {
   return root;
 }
 
-export async function scanRepository(approvedRoot: string): Promise<ScanReport> {
+export async function scanRepository(approvedRoot: string, options: { skipBaseline?: boolean } = {}): Promise<ScanReport> {
   const root = await validateRoot(approvedRoot);
   const stats: ScanStats = {
     filesScanned: 0, directoriesVisited: 0, bytesScanned: 0,
@@ -357,9 +404,75 @@ export async function scanRepository(approvedRoot: string): Promise<ScanReport> 
   }
   // Never overstate a clean result if traversal was incomplete.
   const verdict = stats.complete && findings.length === 0 ? 'no_findings_in_scope' : 'review_required';
-  return {
+  const report: ScanReport = {
     schemaVersion: '2', scanner: 'reposafe-mcp', verdict,
     findings: findings.sort((a, b) => a.file.localeCompare(b.file) || (a.line ?? 0) - (b.line ?? 0) || a.rule.localeCompare(b.rule)),
     stats, limitations: LIMITATIONS,
   };
+  return options.skipBaseline ? report : applyBaseline(report, root);
+}
+
+/** Inspect ONLY exact tracked paths in normally skipped dependency/cache directories.
+ * A Git path is untrusted input; each parent component is lstat-checked before opening.
+ * Individual files are read within strict resource budgets. Nothing is executed or written.
+ */
+export async function scanSelectedTrackedFiles(approvedRoot: string, names: string[]): Promise<{
+  findings: Finding[]; filesScanned: number; bytesScanned: number; complete: boolean; warnings: string[];
+}> {
+  const root = await validateRoot(approvedRoot);
+  const findings: Finding[] = [];
+  const warnings: string[] = [];
+  let filesScanned = 0;
+  let bytesScanned = 0;
+  let complete = true;
+  const mark = (reason: string): void => { complete = false; if (!warnings.includes(reason)) warnings.push(reason); };
+  if (names.length > MAX_FILES) mark('Too many tracked excluded files to scan completely.');
+  const selected = names.slice(0, MAX_FILES);
+  for (const name of selected) {
+    if (findings.length >= MAX_FINDINGS) { mark('Tracked file finding limit reached.'); break; }
+    // Reject traversal, absolute paths, Git metadata, Windows separators and strange path components.
+    const segments = name.split('/');
+    if (!name || name.includes('\\') || isAbsolute(name) || segments.some(p => !p || p === '.' || p === '..' || p === '.git') ||
+        segments.length > MAX_DEPTH + 2) {
+      mark('A tracked file had an unsafe or excessively deep path.');
+      continue;
+    }
+    const abs = join(root, ...segments);
+    if (!contained(root, abs)) { mark('A tracked file resolved outside the approved root.'); continue; }
+    let handle: Awaited<ReturnType<typeof open>> | undefined;
+    try {
+      let cursor = root;
+      for (const [index, part] of segments.entries()) {
+        cursor = join(cursor, part);
+        const st = await lstat(cursor);
+        if (st.isSymbolicLink()) throw new Error('Symbolic link not allowed.');
+        if (index < segments.length - 1 && !st.isDirectory()) throw new Error('Parent is not a directory.');
+        if (index === segments.length - 1 && !st.isFile()) throw new Error('Not a regular file.');
+      }
+      if (!contained(root, await realpath(abs))) throw new Error('Escaped scope.');
+      if (BINARY_EXTENSIONS.has(fileExtension(name))) throw new Error('Binary/unsupported tracked file.');
+      handle = await open(abs, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+      const st = await handle.stat();
+      if (!st.isFile() || st.nlink > 1) throw new Error('Unsafe tracked file type or hardlink.');
+      if (st.size > MAX_FILE_BYTES || bytesScanned + st.size > MAX_BYTES) {
+        mark('Tracked file size or total byte limit reached.');
+        continue;
+      }
+      const buf = await handle.readFile();
+      if (buf.includes(0)) { mark('Binary tracked file could not be examined.'); continue; }
+      filesScanned++;
+      bytesScanned += buf.byteLength;
+      const lines = buf.toString('utf8').split(/\r?\n/);
+      for (const [n, line] of lines.entries()) {
+        if (line.length > MAX_LINE_CHARS) { mark('A tracked file line exceeded the analysis length limit.'); continue; }
+        for (const finding of [...checkSecrets(line, name, n + 1), ...checkPrivacy(line, name, n + 1)]) {
+          if (findings.length >= MAX_FINDINGS) { mark('Tracked file finding limit reached.'); break; }
+          findings.push({ ...finding, file: safeRelativePath(finding.file) });
+        }
+      }
+    } catch {
+      mark('One or more tracked files could not be read safely.');
+    } finally { await handle?.close(); }
+  }
+  return { findings, filesScanned, bytesScanned, complete, warnings };
 }

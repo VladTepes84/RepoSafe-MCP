@@ -48,3 +48,10 @@ Run `npm run test:unit` for both positive and negative provider fixtures; `npm r
 The test for a malicious Git fsmonitor configuration checks that no marker is written while RepoSafe reads Git. Passing it does **not** establish safety against all Git configuration/environment exploit paths.
 
 The history scanner reports the first introducing commit for added lines within its bounded scope. Older or unreachable commits, binary secrets, huge diffs and tokens encoded beyond the supported patterns can still escape detection.
+
+## v0.4 execution
+
+- `npm run test:unit`: previous scanner tests plus 30 synthetic positive fixtures (across service and DB families), 20 benign fixtures and strict baseline tests.
+- `npm run test:git`: verifies content scanning of Git-tracked excluded files and failure-closed behavior for unsafe symlinks (skip only when a Windows runner lacks symlink privileges).
+- `npm run test:userflow`: `doctor` must spawn actual server + list six tools; `init` must print client config without modifying user state.
+- CI must verify on all three operating systems. Do not infer GUI functionality from tests.

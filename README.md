@@ -4,7 +4,7 @@
 
 RepoSafe is a privacy-first, read-only repository scanner available as a **local Model Context Protocol (MCP) server** and **standalone CLI**. It flags possible secrets, private infrastructure references, Git-tracked credential files, ineffective `.gitignore` rules, and secrets left in *recent Git commits*. It returns **metadata only**: never source snippets or matched secret values.
 
-**Release status: v0.3.0 beta (pre-release). Not a security certification.** A clean scan is *not* evidence that a repository is safe to publish.
+**Release status: v0.4.0 beta (pre-release). Not a security certification.** A clean scan is *not* evidence that a repository is safe to publish.
 
 [![Support RepoSafe MCP on GitHub Sponsors](https://img.shields.io/badge/Support%20RepoSafe%20MCP-GitHub%20Sponsors-EA4AAA?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/VladTepes84)
 
@@ -64,6 +64,17 @@ Additional CLI: `node dist/cli.js scan --root ABSOLUTE_PATH [--json] [--no-histo
 
 **No edits, auto-fixes, Git checkout, push, remote API calls or background processes.** The AI client cannot pass an arbitrary filesystem path to tools. All operations are restricted to the operator-defined absolute `REPOSAFE_ROOT` set when the server starts.
 
+### v0.4 coverage and onboarding improvements
+
+- Expanded database/broker URL credential detection for **MySQL, MariaDB, MongoDB/SRV, Redis/TLS and AMQP/TLS**, retaining the existing PostgreSQL rule.
+- Added heuristic indicators for **GitLab, Hugging Face, DigitalOcean, Twilio API key IDs, Slack/Discord webhook URLs, Azure Storage account keys and GCP service-account key material**.
+- Git-tracked files under excluded dependency/cache directories are now **read directly within strict file/byte/path budgets**, with a review warning. Unsafe links, binary files, and unreadable content fail closed.
+- Strict `.reposafe.json` exact-path/exact-rule exceptions with mandatory explanation, optional expiration and suppression counts. High/critical exceptions never yield a clean verdict; malformed policies fail closed.
+- `reposafe doctor` validates Node, Git, the authorized folder and actually connects to the local server via the official MCP client to discover all six tools.
+- `reposafe init` performs the same handshake and **prints** an exact client configuration without writing or changing any host files.
+
+**Neither `doctor` nor `init` proves Cursor/Claude Desktop GUI functionality.** Those app tests remain pending. See [the v0.4 user guide](docs/QUICKSTART.md) and [baseline security rules](docs/BASELINE.md).
+
 ### v0.3 detection improvements
 
 - Heuristic coverage now includes **JWT, SendGrid, npm tokens (including `.npmrc` auth entries), PostgreSQL connection URI passwords**, and high-entropy bearer credentials, in addition to existing providers.
@@ -89,6 +100,17 @@ npm run demo
 The committed `package-lock.json` pins npm dependencies with integrity hashes; `npm ci` verifies them.
 
 `npm run check` performs TypeScript typecheck, build, unit/security regression tests, an actual stdio MCP handshake with the official client SDK, and the synthetic Git-history scenario. `npm run demo` repeats the scenario independently and prints three expected stages. CI runs the same commands on **Ubuntu, Windows and macOS**. **CI is not a substitute for verifying the GUI client on your machine.**
+
+### Run the self-check and generate a verified client configuration
+
+After `npm ci && npm run build`, run:
+
+```bash
+node dist/cli.js doctor --root "/absolute/path/to/project"
+node dist/cli.js init --root "/absolute/path/to/project" --client cursor
+```
+
+`doctor` actually starts RepoSafe over stdio and discovers six MCP tools. `init` also prints the target client configuration but **does not overwrite** any user files or claim the GUI application itself was tested. The authorized directory must be a specific existing absolute path.
 
 ### Generate a real MCP configuration for your computer
 
@@ -132,6 +154,12 @@ The demo **actually** (1) initializes a temporary Git repository with no finding
 **Limitations are important:** this is *not an OS sandbox*; a malicious local process can race filesystem changes; Git history coverage is bounded (100 recent commits across refs, 4 MiB of patch output), not every blob or dangling object. Detection is heuristic and can miss encoded/binary values and credential formats. Running Git reads repository metadata; use only projects you trust. The AI host may have *other* tools with broader permissions. Do not use RepoSafe as a substitute for manual review and established Git secret scanners.
 
 Read the complete [security model, threat scenarios and safe operations](docs/SECURITY.md), [use cases](docs/USE_CASES.md), [changelog](CHANGELOG.md), and [contributing guidelines](CONTRIBUTING.md).
+
+## Test scope and disclosure
+
+The automated v0.4 corpus covers at least 30 synthetic positive credential cases and 20 benign examples, alongside baseline, tracked-file and CLI handshake tests. These are fixtures, **not a measured accuracy rate on real-world repositories**. Live tokens are never required.
+
+`npm ci`, `npm run check`, `npm run audit:deps` and the GitHub Actions matrix must all pass for release readiness. GUI apps still require separate verification and must not be marked as validated on that basis.
 
 ## Licensing and costs
 

@@ -51,3 +51,10 @@ If you believe RepoSafe leaks a secret or crosses a filesystem boundary, private
 - **Important residual risk:** Git still parses `.git/config`, the index and object database. RepoSafe does not guarantee safety when inspecting arbitrary malicious Git repositories; scan hostile input only in a restricted OS container or VM.
 - History findings include a **12-character abbreviated commit hash for newly added secret patterns**. A deletion-only diff is not labeled as the commit that introduced the secret. Commit IDs are repository metadata and can be visible to the configured AI client.
 - Added provider patterns and conservative entropy detection are intentionally heuristic; do not interpret the absence of a finding as proof that all credentials were found.
+
+## v0.4 baseline / selected tracked file constraints
+
+- `.reposafe.json` is local repository content and must be treated as **untrusted policy input**. The parser accepts only a small schema, at most 16 KiB and 100 exact path/rule exceptions. No glob or directory wildcard is allowed. Operators should review every baseline change before merging a PR.
+- The report exposes counts (including high/critical suppressed), never exception comments or secret source values. An exception that hides a high/critical finding does **not** cause `no_findings_in_scope`.
+- Only exact Git-tracked paths in excluded dependency/cache directories are re-opened, with parent `lstat` checks, final `O_NOFOLLOW` where supported, canonical containment, hardlink rejection and strict size/count limits. Unsafe, oversized, binary or unreadable files fail closed.
+- No software scanner offers a portable complete defense against concurrent local filesystem races or deliberately hostile Git object/config exploits; use an OS-level sandbox for untrusted repositories.

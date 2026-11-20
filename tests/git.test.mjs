@@ -122,9 +122,12 @@ test('tracked files under skipped dependency/cache directories fail closed', asy
     git(root, 'add', '-f', 'node_modules/tracked.txt');
     const report = await generateReport(root, { includeHistory: false });
     assert.equal(report.verdict, 'review_required');
-    assert.equal(report.stats.complete, false);
+    assert.equal(report.stats.complete, true);
+    assert.equal(report.git.trackedExcludedFilesRequested, 1);
+    assert.equal(report.git.trackedExcludedFilesScanned, 1);
     assert.ok(report.findings.some(x => x.rule === 'tracked_excluded_file' && x.file.includes('node_modules')));
-    assert.ok(report.stats.warnings.some(x => x.includes('tracked files') || x.includes('Git-tracked files')));
+    assert.ok(report.findings.some(x => x.rule === 'github_token' && x.file.includes('node_modules')));
+    assert.ok(report.git.warnings.some(x => x.includes('Git tracks files')));
     assert.ok(!JSON.stringify(report).includes('ghp_' + 'T'.repeat(36)));
   });
 });
@@ -154,4 +157,40 @@ test('Git fsmonitor and injected Git configuration cannot run a malicious comman
       }
     }
   });
+});
+
+
+test('Git-tracked secrets under node_modules are scanned under strict budgets', async()=>{
+  await withGitRepo(async root=>{
+    const {mkdir}=await import('node:fs/promises');
+    await mkdir(join(root,'node_modules'));
+    const synthetic='ghp_'+'M'.repeat(36);
+    await writeFile(join(root,'node_modules','secret.js'),'GITHUB_TOKEN='+synthetic+'\n');
+    git(root,'add','-f','node_modules/secret.js');
+    const report=await generateReport(root,{includeHistory:false});
+    assert.equal(report.git.trackedExcludedFilesRequested,1);
+    assert.equal(report.git.trackedExcludedFilesScanned,1);
+    assert.ok(report.findings.some(x=>x.file==='node_modules/secret.js' && x.rule==='github_token'));
+    assert.ok(!JSON.stringify(report).includes(synthetic));
+  });
+});
+
+test('Symlinked tracked file cannot traverse outside the permitted root',async(t)=>{
+  const {symlink,mkdtemp:temp,rm:remove}=await import('node:fs/promises');
+  const outside=await temp(join(tmpdir(),'reposafe-outside-v04-'));
+  try{
+    const secret='ghp_'+'O'.repeat(36);
+    await writeFile(join(outside,'outside.txt'),'GITHUB_TOKEN='+secret+'\n');
+    await withGitRepo(async root=>{
+      const {mkdir}=await import('node:fs/promises');
+      await mkdir(join(root,'node_modules'));
+      try {await symlink(join(outside,'outside.txt'),join(root,'node_modules','link.txt'));}
+      catch(e){if(process.platform==='win32' && ['EPERM','EACCES'].includes(e.code)){t.skip('No symlink privilege');return;} throw e;}
+      git(root,'add','-f','node_modules/link.txt');
+      const report=await generateReport(root,{includeHistory:false});
+      assert.equal(report.stats.complete,false);
+      assert.equal(report.git.trackedExcludedFilesScanned,0);
+      assert.ok(!JSON.stringify(report).includes(secret));
+    });
+  } finally {await remove(outside,{recursive:true,force:true});}
 });

@@ -70,3 +70,14 @@ Restart the client and find `reposafe` in its MCP panel or tool list. Ask: **“
 - Cursor organization network controls may prevent local stdio servers on Windows if sandboxing is enforced; ask your administrator rather than disabling protections.
 
 Official references: https://prod.cursor.com/help/customization/mcp , https://modelcontextprotocol.io/docs/develop/connect-local-servers , https://code.visualstudio.com/docs/agents/reference/mcp-configuration , https://learn.chatgpt.com/docs/extend/mcp .
+## v0.4: validated local MCP self-check (does not change client files)
+
+Run the following from the cloned RepoSafe-MCP directory after `npm ci` and `npm run build`. Replace `ABSOLUTE_PROJECT_PATH` with an existing local repository directory.
+
+```text
+node dist/cli.js doctor --root "ABSOLUTE_PROJECT_PATH"
+node dist/cli.js init --root "ABSOLUTE_PROJECT_PATH" --client cursor
+node dist/cli.js init --root "ABSOLUTE_PROJECT_PATH" --client claude
+```
+
+`doctor` must return `RepoSafe doctor PASS` and six tools. `init` prints the exact configuration target and JSON for the current computer. **Copy/merge it manually; neither command edits client config.** A real Cursor or Claude Desktop GUI session has NOT yet been verified on this platform. See [QUICKSTART](QUICKSTART.md).

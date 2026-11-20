@@ -1,6 +1,6 @@
 # MCP client compatibility — 20 November 2026
 
-**Three distinct claims must not be conflated:** (1) the vendor documents local `stdio` MCP support; (2) RepoSafe's **real SDK integration test** succeeds in CI; (3) a person has tested RepoSafe inside the actual GUI client. This project currently verifies **(1) and (2), not (3)**. Some clients require specific versions, subscriptions, approvals or settings.
+**Three distinct claims must not be conflated:** (1) the vendor documents local `stdio` MCP support; (2) RepoSafe's **real SDK integration test** succeeds in CI; (3) a person has tested RepoSafe inside the actual GUI client. This project currently verifies **(1) and (2), not (3)**. v0.4 adds a CLI `doctor` that launches the *real RepoSafe MCP server* through the official SDK and verifies six tools, but this still does NOT constitute a Cursor or Claude GUI test. Some clients require specific versions, subscriptions, approvals or settings.
 
 | Client / AI | Local stdio MCP according to vendor docs | RepoSafe configuration | RepoSafe in-product test |
 | --- | --- | --- | --- |
