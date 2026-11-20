@@ -1,6 +1,6 @@
 {
   "name": "reposafe-mcp",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Privacy-first read-only MCP and CLI repository audit with bounded Git history checks",
   "type": "module",
   "private": true,
@@ -14,20 +14,23 @@
     "test:unit": "node --experimental-strip-types --test tests/scanner.test.mjs tests/detection.test.mjs",
     "test:git": "node --test tests/git.test.mjs tests/cli.test.mjs",
     "test:integration": "node --test tests/protocol.test.mjs",
-    "test": "npm run test:unit && npm run test:git && npm run test:config && npm run test:integration",
+    "test": "npm run test:unit && npm run test:git && npm run test:config && npm run test:integration && npm run test:userflow",
     "check": "npm run typecheck && npm run build && npm test && npm run demo",
     "demo": "node tests/demo.mjs",
     "audit:deps": "npm audit --omit=dev --audit-level=high",
     "config": "node scripts/config.mjs",
-    "test:config": "node --test tests/config.test.mjs"
+    "test:config": "node --test tests/config.test.mjs",
+    "doctor": "node dist/cli.js doctor",
+    "init": "node dist/cli.js init",
+    "test:userflow": "node --test tests/userflow.test.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.3.0",
-    "zod": "^4.2.0"
+    "zod": "^4.2.0",
+    "@modelcontextprotocol/client": "^2.3.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "typescript": "^5.8.0",
-    "@modelcontextprotocol/client": "^2.3.0"
+    "typescript": "^5.8.0"
   }
 }
