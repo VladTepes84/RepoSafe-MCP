@@ -3,6 +3,7 @@ import { promisify } from 'node:util';
 import { devNull } from 'node:os';
 import { checkSecrets, safeRelativePath, MAX_FINDINGS, scanRepository, scanSelectedTrackedFiles } from './scanner.js';
 import type { Finding, GitStats, ScanReport } from './types.js';
+import { applyBaseline } from './baseline.js';
 
 const execFileAsync = promisify(execFile);
 const MAX_COMMITS = 100;
@@ -164,10 +165,10 @@ export async function scanGit(root: string, history = true): Promise<GitResults>
 }
 
 export async function generateReport(root: string, options: { includeGit?: boolean; includeHistory?: boolean } = {}): Promise<ScanReport> {
-  const report = await scanRepository(root);
+  const report = await scanRepository(root, { skipBaseline: true });
   if (options.includeGit === false) {
     report.limitations.push('Git metadata and history not requested.');
-    return report;
+    return applyBaseline(report, root);
   }
   const g = await scanGit(root, options.includeHistory !== false);
   report.git = g.stats;
@@ -184,5 +185,5 @@ export async function generateReport(root: string, options: { includeGit?: boole
   report.verdict = report.stats.complete && report.findings.length === 0 ? 'no_findings_in_scope' : 'review_required';
   report.limitations = report.limitations.filter(x => !x.startsWith('Scans current local files only'));
   report.limitations.push('Git history checks only bounded patches (up to 100 commits and 4 MiB output); unreachable/dangling objects and remote settings are not inspected.');
-  return report;
+  return applyBaseline(report, root);
 }

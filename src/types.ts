@@ -40,4 +40,6 @@ export interface ScanReport {
   stats: ScanStats;
   git?: GitStats;
   limitations: string[];
+  /** Exact-match baseline exceptions; counts are disclosed, reasons never returned to AI. */
+  baseline?: { entries: number; suppressed: number; highSuppressed: number; expired: number };
 }

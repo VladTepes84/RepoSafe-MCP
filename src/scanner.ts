@@ -2,6 +2,7 @@ import { constants } from 'node:fs';
 import { open, readdir, realpath, stat, lstat } from 'node:fs/promises';
 import { isAbsolute, join, parse, relative, sep } from 'node:path';
 import type { Finding, ScanReport, ScanStats } from './types.js';
+import { applyBaseline } from './baseline.js';
 
 const MAX_FILES = 1000;
 const MAX_DIRECTORIES = 2000;
@@ -275,7 +276,7 @@ export async function validateRoot(configuredPath: string): Promise<string> {
   return root;
 }
 
-export async function scanRepository(approvedRoot: string): Promise<ScanReport> {
+export async function scanRepository(approvedRoot: string, options: { skipBaseline?: boolean } = {}): Promise<ScanReport> {
   const root = await validateRoot(approvedRoot);
   const stats: ScanStats = {
     filesScanned: 0, directoriesVisited: 0, bytesScanned: 0,
@@ -403,11 +404,12 @@ export async function scanRepository(approvedRoot: string): Promise<ScanReport> 
   }
   // Never overstate a clean result if traversal was incomplete.
   const verdict = stats.complete && findings.length === 0 ? 'no_findings_in_scope' : 'review_required';
-  return {
+  const report: ScanReport = {
     schemaVersion: '2', scanner: 'reposafe-mcp', verdict,
     findings: findings.sort((a, b) => a.file.localeCompare(b.file) || (a.line ?? 0) - (b.line ?? 0) || a.rule.localeCompare(b.rule)),
     stats, limitations: LIMITATIONS,
   };
+  return options.skipBaseline ? report : applyBaseline(report, root);
 }
 
 /** Inspect ONLY exact tracked paths in normally skipped dependency/cache directories.
