@@ -6,6 +6,10 @@ RepoSafe is a privacy-first, read-only repository scanner available as a **local
 
 **Release status: v0.2.0 beta (pre-release). Not a security certification.** A clean scan is *not* evidence that a repository is safe to publish.
 
+[![Support RepoSafe MCP on GitHub Sponsors](https://img.shields.io/badge/Support%20RepoSafe%20MCP-GitHub%20Sponsors-EA4AAA?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/VladTepes84)
+
+**Support this open-source project:** RepoSafe MCP is free and MIT-licensed. If it helps you audit repositories, you can [sponsor the maintainer on GitHub](https://github.com/sponsors/VladTepes84) to support maintenance, security testing, and documentation. Contributions are **entirely optional** and do not unlock extra features, hosted services, or privileged access.
+
 ## Important: Cursor and Claude Desktop are NOT yet manually verified
 
 > **Integration validation pending.** RepoSafe's installation, TypeScript build, scanner tests, actual MCP `stdio` handshake using the official MCP SDK, and synthetic Git-repository demo have passed automated CI on **Windows, macOS and Ubuntu**.
