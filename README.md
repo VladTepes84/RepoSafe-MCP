@@ -4,7 +4,7 @@
 
 RepoSafe is a privacy-first, read-only repository scanner available as a **local Model Context Protocol (MCP) server** and **standalone CLI**. It flags possible secrets, private infrastructure references, Git-tracked credential files, ineffective `.gitignore` rules, and secrets left in *recent Git commits*. It returns **metadata only**: never source snippets or matched secret values.
 
-**Release status: v0.2.0 beta (pre-release). Not a security certification.** A clean scan is *not* evidence that a repository is safe to publish.
+**Release status: v0.3.0 beta (pre-release). Not a security certification.** A clean scan is *not* evidence that a repository is safe to publish.
 
 [![Support RepoSafe MCP on GitHub Sponsors](https://img.shields.io/badge/Support%20RepoSafe%20MCP-GitHub%20Sponsors-EA4AAA?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/VladTepes84)
 
@@ -57,16 +57,26 @@ JSON report: severity, relative file, rule, action, coverage
 | `scan_private_refs` | Detect internal hostnames, local user paths and GitHub links requiring verification |
 | `check_repo_readiness` | Check README, license, `.gitignore` and real Git ignore behavior |
 | `check_git_exposure` | Identify tracked sensitive filenames and ineffective `.env` ignore rules |
-| `scan_git_history` | Scan up to 100 local commits / 4 MiB of diffs for possible lingering credentials |
+| `scan_git_history` | Scan up to 100 local commits / 4 MiB of diffs for possible lingering credentials; show a safe 12-character introducing commit ID |
 | `generate_report` | Consolidate all findings, scope, coverage and warnings |
 
 Additional CLI: `node dist/cli.js scan --root ABSOLUTE_PATH [--json] [--no-history] [--no-git]`.
 
 **No edits, auto-fixes, Git checkout, push, remote API calls or background processes.** The AI client cannot pass an arbitrary filesystem path to tools. All operations are restricted to the operator-defined absolute `REPOSAFE_ROOT` set when the server starts.
 
+### v0.3 detection improvements
+
+- Heuristic coverage now includes **JWT, SendGrid, npm tokens (including `.npmrc` auth entries), PostgreSQL connection URI passwords**, and high-entropy bearer credentials, in addition to existing providers.
+- **Provider-specific findings are deduplicated** against generic assignments (including Anthropic vs. OpenAI `sk-` patterns).
+- `dist/`, `build/`, and `vendor/` **are scanned**, because generated or vendored content can be committed and published.
+- If Git tracks content in omitted dependency/cache directories (e.g. `node_modules/`), RepoSafe reports **incomplete coverage**, not a clean bill of health.
+- Local Git operations ignore host Git config injections, disable filesystem-monitor hooks and automatic lazy fetches, and associate history findings with the introducing commit.
+
+**Coverage is intentionally incomplete:** not every secret syntax or binary format is recognized; entropy detection is conservative. See [detection matrix and false-negative policy](docs/DETECTION.md). A beta scan never certifies that a repository is safe.
+
 ## Install and verify
 
-Requires **Node.js 22+, npm and Git** (Git is needed for history checks). Cloning a private copy requires authorized GitHub access; after its visibility changes to Public, anyone can clone with the same commands.
+Requires **Node.js 22+, npm and Git** (Git is needed for history checks). The source is public; clone it directly from GitHub. This is beta software, not an npm package.
 
 ```bash
 git clone https://github.com/VladTepes84/RepoSafe-MCP.git
@@ -114,7 +124,7 @@ The demo **actually** (1) initializes a temporary Git repository with no finding
 ## Security design and boundaries
 
 - Local-only, no authentication secret, no listening port, no telemetry, no runtime network calls.
-- Git is invoked **only for read-only local operations** (`rev-parse`, `ls-files`, `check-ignore`, `log`), with `execFile` (not a shell), timeout, bounded output, no textconv or external diffs, no fetch, and no checkout.
+- Git is invoked **only for read-only local operations** (`rev-parse`, `ls-files`, `check-ignore`, `log`), with `execFile` (not a shell), timeout, bounded output, an isolated global/system Git configuration, disabled fsmonitor/textconv/external diffs and lazy fetches, no fetch, and no checkout.
 - The filesystem scope is explicitly approved; root-of-drive scans are refused. Symlinks are skipped; hard-linked files are skipped as incomplete. File and output budgets limit resource use.
 - Tools never return matching token values or source snippets; suspected secret-containing filenames are redacted. Errors do not expose absolute paths or file contents.
 - Incomplete scans are **not** classified as clean. Repositories with inaccessible Git history or too much data require manual review.

@@ -7,6 +7,8 @@ export interface Finding {
   severity: Severity;
   file: string;
   line?: number;
+  /** Abbreviated Git commit ID for history findings; never contains a secret value. */
+  commit?: string;
   message: string;
   action: string;
 }

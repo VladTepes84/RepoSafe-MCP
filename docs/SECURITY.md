@@ -17,7 +17,7 @@
 | Link avoidance | Skip symlinks and hard links, canonical path checks, `O_NOFOLLOW` where supported | Races with a malicious concurrent local process cannot be excluded |
 | Read and output budgets | 1,000 files / 2,000 dirs / depth 10 / 512 KiB per file / 10 MiB total / max 100 findings / line length 8192 | Files and lines above budgets are **not fully analyzed**; coverage is flagged incomplete |
 | Redaction | Never serialize matching source text; sanitize sensitive-looking file names | Heuristic matching can miss secrets concealed in filenames or unsupported formats |
-| Git safety | Local `git` via `execFile` with literal args, no shell, no diff filters/textconv, 12s timeouts, 4 MiB patch cap, 100 commits | Reads repo Git config; does not inspect every object, remote setting, tags outside the selected bound, all unreferenced blobs or server-side secrets |
+| Git safety | Local `git` via `execFile` with literal args, no shell; inherited configuration injection is stripped; fsmonitor, external diffs and lazy fetch disabled; 12s timeout, 4 MiB patch cap, 100 commits | Git still parses local repository metadata/config; not a full malicious-repo sandbox; does not inspect every object, unreferenced blob or remote secret |
 | Ignore rules | `git check-ignore --no-index` and `git ls-files --cached` | Git tool required; inherited/global rules may affect ignore semantics |
 | Honest status | `review_required` on positive findings or incomplete scans | No-finding verdict is **not** a permission to publish |
 | Installation | Node 22+, official MCP SDK v2, CI tests | npm integrity-checked lockfile and production dependency audit reduce risk but do not eliminate supply-chain/host compromise |
@@ -30,7 +30,7 @@
 - **Unexpected network access:** RepoSafe's code contains no outbound HTTP/fetch and Git commands do not fetch. However, npm installation, an AI client, or other extensions on the same machine can use the network; RepoSafe does not enforce a system firewall.
 - **TOCTOU / Windows file reparse points:** the Node filesystem API cannot provide a portable, formally race-free openat-style capability on all platforms. Path canonicalization and symlink skipping are mitigations, not a hardened sandbox.
 - **Large repos / excessive diffs:** scanning is bounded and reports incompleteness; do not rely on a clean verdict where coverage is incomplete.
-- **Secrets in ignored/binary/encoded files:** many are skipped or unrecognized. Use additional established scanners and manual review.
+- **Secrets in ignored/binary/encoded files:** dependency/cache trees and binary data can be skipped or unrecognized; tracked excluded paths trigger an incomplete-review outcome. `dist/`, `build/`, and `vendor/` are scanned. Use established scanners and manual review.
 - **No external action:** flags are informative, never proof of key validity or exploitability.
 
 ## Security-sensitive operating recommendations
@@ -45,3 +45,9 @@
 ## Disclosures and limitation of warranty
 
 If you believe RepoSafe leaks a secret or crosses a filesystem boundary, privately contact the maintainer through an appropriate security reporting channel; **do not post a live credential**. MIT license disclaims warranty; the software does not make a legal compliance or security certification claim.
+## v0.3 Git execution hardening and limits
+
+- The subprocess discards `GIT_CONFIG_PARAMETERS`, `GIT_CONFIG_COUNT` and numbered `GIT_CONFIG_KEY_*/VALUE_*` settings inherited from the AI client, and disables `core.fsmonitor`, Git pager, external diff/textconv and lazy-fetch paths. No shell is used by RepoSafe itself.
+- **Important residual risk:** Git still parses `.git/config`, the index and object database. RepoSafe does not guarantee safety when inspecting arbitrary malicious Git repositories; scan hostile input only in a restricted OS container or VM.
+- History findings include a **12-character abbreviated commit hash for newly added secret patterns**. A deletion-only diff is not labeled as the commit that introduced the secret. Commit IDs are repository metadata and can be visible to the configured AI client.
+- Added provider patterns and conservative entropy detection are intentionally heuristic; do not interpret the absence of a finding as proof that all credentials were found.

@@ -70,3 +70,88 @@ test('Git history with no commits can still be inspected; explicit opt-out is re
     assert.ok(report.stats.warnings.some(x => x.includes('disabled')));
   });
 });
+
+
+test('history findings pinpoint the introducing commit, not the removal commit', async () => {
+  await withGitRepo(async root => {
+    const token = 'ghp_' + 'J'.repeat(36);
+    await writeFile(join(root, 'token.txt'), 'GITHUB_TOKEN=' + token + '\n');
+    git(root, 'add', 'token.txt');
+    git(root, 'commit', '-qm', 'introduce synthetic token');
+    const introduced = git(root, 'rev-parse', 'HEAD').trim().slice(0, 12);
+    await writeFile(join(root, 'token.txt'), 'export const clean=true;\n');
+    git(root, 'add', 'token.txt');
+    git(root, 'commit', '-qm', 'remove synthetic token');
+    const removal = git(root, 'rev-parse', 'HEAD').trim().slice(0, 12);
+    const findings = (await scanGit(root, true)).findings.filter(f => f.rule === 'git_history_github_token');
+    assert.equal(findings.length, 1);
+    assert.equal(findings[0].commit, introduced);
+    assert.notEqual(findings[0].commit, removal);
+    assert.ok(!JSON.stringify(findings).includes(token));
+  });
+});
+
+test('Git history checks additional credential formats and omits values', async () => {
+  await withGitRepo(async root => {
+    const sg = 'SG.' + 'Q'.repeat(22) + '.' + 'T'.repeat(43);
+    const npm = 'npm_' + 'K'.repeat(36);
+    const postgres = 'postgres://svc:synthetic%40P4ssword@db.example.invalid/app';
+    const jwt = [
+      Buffer.from(JSON.stringify({ alg: 'HS256' })).toString('base64url'),
+      Buffer.from(JSON.stringify({ sub: 'demo-person' })).toString('base64url'),
+      'PzT3hK8dQ0sV6nF2mR5wG7xL9yA1cB4e',
+    ].join('.');
+    await writeFile(join(root, 'secrets.txt'),
+      ['SENDGRID_API_KEY=' + sg, 'NPM_TOKEN=' + npm, 'DATABASE_URL=' + postgres, 'JWT=' + jwt].join('\n'));
+    git(root, 'add', 'secrets.txt');
+    git(root, 'commit', '-qm', 'synthetic credential history');
+    const introduced = git(root, 'rev-parse', 'HEAD').trim().slice(0, 12);
+    const result = await scanGit(root, true);
+    for (const rule of ['git_history_sendgrid_api_key', 'git_history_npm_access_token', 'git_history_postgres_connection_password', 'git_history_jwt_token']) {
+      assert.ok(result.findings.some(x => x.rule === rule && x.commit === introduced), rule);
+    }
+    for (const secret of [sg, npm, postgres, jwt]) assert.ok(!JSON.stringify(result).includes(secret));
+  });
+});
+
+test('tracked files under skipped dependency/cache directories fail closed', async () => {
+  await withGitRepo(async root => {
+    const { mkdir } = await import('node:fs/promises');
+    await mkdir(join(root, 'node_modules'));
+    await writeFile(join(root, 'node_modules', 'tracked.txt'), 'GITHUB_TOKEN=ghp_' + 'T'.repeat(36));
+    git(root, 'add', '-f', 'node_modules/tracked.txt');
+    const report = await generateReport(root, { includeHistory: false });
+    assert.equal(report.verdict, 'review_required');
+    assert.equal(report.stats.complete, false);
+    assert.ok(report.findings.some(x => x.rule === 'tracked_excluded_file' && x.file.includes('node_modules')));
+    assert.ok(report.stats.warnings.some(x => x.includes('tracked files') || x.includes('Git-tracked files')));
+    assert.ok(!JSON.stringify(report).includes('ghp_' + 'T'.repeat(36)));
+  });
+});
+
+test('Git fsmonitor and injected Git configuration cannot run a malicious command', async () => {
+  await withGitRepo(async root => {
+    const { existsSync } = await import('node:fs');
+    const marker = join(root, '.git', 'fsmonitor-executed');
+    const script = join(root, '.git', 'malicious-fsmonitor.cjs');
+    await writeFile(script, 'require("node:fs").writeFileSync(' + JSON.stringify(marker) + ', "ran");\n');
+    git(root, 'config', 'core.fsmonitor', '"' + process.execPath + '" "' + script + '"');
+    const old = [process.env.GIT_CONFIG_COUNT, process.env.GIT_CONFIG_KEY_0, process.env.GIT_CONFIG_VALUE_0];
+    process.env.GIT_CONFIG_COUNT = '1';
+    process.env.GIT_CONFIG_KEY_0 = 'core.fsmonitor';
+    process.env.GIT_CONFIG_VALUE_0 = '"' + process.execPath + '" "' + script + '"';
+    try {
+      const result = await scanGit(root, false);
+      assert.equal(result.stats.gitAvailable, true);
+      assert.equal(result.stats.complete, true);
+      assert.equal(existsSync(marker), false);
+    } finally {
+      for (const [key, previous] of [
+        ['GIT_CONFIG_COUNT',old[0]], ['GIT_CONFIG_KEY_0',old[1]], ['GIT_CONFIG_VALUE_0',old[2]],
+      ]) {
+        if (previous === undefined) delete process.env[key];
+        else process.env[key] = previous;
+      }
+    }
+  });
+});
