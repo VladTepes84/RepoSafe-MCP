@@ -8,13 +8,15 @@ const execFileAsync = promisify(execFile);
 const MAX_COMMITS = 100;
 const MAX_PATCH_BYTES = 4 * 1024 * 1024;
 const GIT_TIMEOUT_MS = 12_000;
+// Git for Windows expects the native NUL device, not Node's \\.\NUL spelling.
+const GIT_NULL = process.platform === 'win32' ? 'NUL' : devNull;
 const MAX_GIT_FINDINGS = MAX_FINDINGS;
 
 // Never use a shell, fetch, checkout, filters, hooks or textconv. No repository content is executed.
 // On-disk .git/config still has to be trusted; only run on a root explicitly approved by the operator.
 async function git(root: string, args: string[], maxBuffer = 1024 * 1024): Promise<string> {
   const { stdout } = await execFileAsync('git', [
-    '-C', root, '-c', `core.hooksPath=${devNull}`, '-c', 'core.pager=cat',
+    '-C', root, '-c', `core.hooksPath=${GIT_NULL}`, '-c', 'core.pager=cat',
     ...args,
   ], {
     timeout: GIT_TIMEOUT_MS,
@@ -24,7 +26,7 @@ async function git(root: string, args: string[], maxBuffer = 1024 * 1024): Promi
     env: {
       ...process.env,
       GIT_CONFIG_NOSYSTEM: '1',
-      GIT_CONFIG_GLOBAL: devNull,
+      GIT_CONFIG_GLOBAL: GIT_NULL,
       GIT_OPTIONAL_LOCKS: '0',
       GIT_TERMINAL_PROMPT: '0',
       GIT_PAGER: 'cat',
