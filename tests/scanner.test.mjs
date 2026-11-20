@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, symlink, link, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, symlink, link, rm, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { scanRepository, validateRoot } from '../src/scanner.ts';
@@ -123,7 +123,8 @@ test('oversized files lead to incomplete verdict, not a false clean state', asyn
 test('requires explicitly provided absolute root and rejects files', async () => {
   await assert.rejects(validateRoot('.'), /absolute/);
   await withRepo(async dir => {
-    assert.equal(await validateRoot(dir), dir);
+    // macOS /var -> /private/var and Windows 8.3 short names canonicalize differently.
+    assert.equal(await validateRoot(dir), await realpath(dir));
     await assert.rejects(validateRoot(join(dir, 'README.md')), /directory/);
   });
 });
