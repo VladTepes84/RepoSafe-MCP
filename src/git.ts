@@ -11,12 +11,26 @@ const GIT_TIMEOUT_MS = 12_000;
 // Git for Windows expects the native NUL device, not Node's \\.\NUL spelling.
 const GIT_NULL = process.platform === 'win32' ? 'NUL' : devNull;
 const MAX_GIT_FINDINGS = MAX_FINDINGS;
+// These directories are skipped by the working-tree scanner. Git-tracked files
+// inside them must never silently disappear from a publication-readiness report.
+const EXCLUDED_WORKING_TREE_DIRS = new Set([
+  'node_modules', 'coverage', '.next', '.venv', 'venv', '__pycache__', '.turbo', '.cache',
+]);
 
 // Never use a shell, fetch, checkout, filters, hooks or textconv. No repository content is executed.
 // On-disk .git/config still has to be trusted; only run on a root explicitly approved by the operator.
 async function git(root: string, args: string[], maxBuffer = 1024 * 1024): Promise<string> {
+  // Do not inherit Git config injection from the MCP host environment.
+  const environment = { ...process.env };
+  for (const key of Object.keys(environment)) {
+    if (key === 'GIT_CONFIG_PARAMETERS' || key === 'GIT_CONFIG_COUNT' ||
+        /^GIT_CONFIG_(?:KEY|VALUE)_\d+$/.test(key) ||
+        key === 'GIT_EXTERNAL_DIFF' || key === 'GIT_DIFF_OPTS') delete environment[key];
+  }
   const { stdout } = await execFileAsync('git', [
-    '-C', root, '-c', `core.hooksPath=${GIT_NULL}`, '-c', 'core.pager=cat',
+    '--no-pager', '-C', root, '-c', `core.hooksPath=${GIT_NULL}`,
+    '-c', 'core.pager=cat', '-c', 'core.fsmonitor=false',
+    '-c', `core.attributesFile=${GIT_NULL}`, '-c', 'diff.external=',
     ...args,
   ], {
     timeout: GIT_TIMEOUT_MS,
@@ -24,11 +38,14 @@ async function git(root: string, args: string[], maxBuffer = 1024 * 1024): Promi
     windowsHide: true,
     encoding: 'utf8',
     env: {
-      ...process.env,
+      ...environment,
       GIT_CONFIG_NOSYSTEM: '1',
       GIT_CONFIG_GLOBAL: GIT_NULL,
+      GIT_CONFIG_SYSTEM: GIT_NULL,
       GIT_OPTIONAL_LOCKS: '0',
       GIT_TERMINAL_PROMPT: '0',
+      GIT_NO_LAZY_FETCH: '1',
+      GIT_ATTR_NOSYSTEM: '1',
       GIT_PAGER: 'cat',
     },
   });
@@ -63,6 +80,14 @@ export async function scanGit(root: string, history = true): Promise<GitResults>
   try {
     const tracked = (await git(root, ['ls-files', '--cached', '-z'])).split('\0').filter(Boolean);
     for (const filename of tracked) {
+      // A tracked file inside an otherwise skipped dependency/cache tree is a
+      // publication risk; do not return a clean verdict without inspecting it.
+      if (filename.replaceAll('\\', '/').split('/').some(part => EXCLUDED_WORKING_TREE_DIRS.has(part))) {
+        findings.push({ category: 'git', rule: 'tracked_excluded_file', severity: 'medium',
+          file: safeRelativePath(filename), message: 'Git tracks a file in a directory omitted by working-tree scanning.',
+          action: 'Inspect this tracked file with an additional scanner or remove it from the Git index.' });
+        warning('Git-tracked files in dependency/cache directories require separate review.');
+      }
       if (/(?:^|\/)(?:\.env(?:\.[^/]*)?|\.npmrc|id_rsa|id_ed25519|.*\.(?:pem|p12|pfx|key))$/i.test(filename)) {
         findings.push({ category: 'git', rule: 'tracked_sensitive_file', severity: 'high',
           file: safeRelativePath(filename), message: 'Potential credential file is tracked by Git.',
@@ -95,8 +120,15 @@ export async function scanGit(root: string, history = true): Promise<GitResults>
     ], MAX_PATCH_BYTES);
     stats.historyChecked = true;
     let currentFile = '[GIT_HISTORY]';
+    let currentCommit: string | undefined;
     for (const line of patch.split(/\r?\n/)) {
-      if (line.startsWith('RS_COMMIT_START:')) { stats.commitsInspected++; currentFile = '[GIT_HISTORY]'; continue; }
+      if (line.startsWith('RS_COMMIT_START:')) {
+        stats.commitsInspected++;
+        const hash = line.slice('RS_COMMIT_START:'.length).trim();
+        currentCommit = /^[a-f0-9]{40,64}$/i.test(hash) ? hash.slice(0, 12) : undefined;
+        currentFile = '[GIT_HISTORY]';
+        continue;
+      }
       if (line.startsWith('+++ b/')) { currentFile = safeRelativePath(line.slice(6)); continue; }
       if (line.startsWith('+++ ') || line.startsWith('--- ') || line.startsWith('diff ') || line.startsWith('@@')) continue;
       if (!line.startsWith('+') && !line.startsWith('-')) continue;
@@ -105,7 +137,7 @@ export async function scanGit(root: string, history = true): Promise<GitResults>
         if (findings.length >= MAX_GIT_FINDINGS) { warning('Git finding limit reached.'); break; }
         // Commit hashes and matched values are intentionally omitted.
         findings.push({ ...finding, file: safeRelativePath(finding.file), line: undefined,
-          rule: `git_history_${finding.rule}`,
+          commit: currentCommit, rule: `git_history_${finding.rule}`,
           message: 'Possible credential remains in the Git history.',
           action: 'Treat the credential as exposed, rotate it, and review history before publishing. Rewriting history alone does not revoke it.' });
       }
