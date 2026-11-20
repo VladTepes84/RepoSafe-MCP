@@ -1,6 +1,7 @@
 name: Security and cross-platform integration
 on:
   push:
+    branches: [main]
   pull_request:
 permissions:
   contents: read
@@ -24,6 +25,13 @@ jobs:
         shell: bash
         run: |
           if test -f package-lock.json; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+      - name: Export generated dependency lockfile (Ubuntu only)
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-lockfile
+          path: package-lock.json
+          retention-days: 1
       - name: Typecheck, build, unit tests, actual MCP stdio, Git demo
         run: npm run check
       - name: Dependency audit (high/critical production vulnerabilities)
