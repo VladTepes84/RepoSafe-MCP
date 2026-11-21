@@ -70,3 +70,9 @@ The history scanner reports the first introducing commit for added lines within 
 - `tests/userflow.test.mjs`: `init --dry-run` still makes a real MCP connection and prints configuration only.
 - Existing tests still cover malicious Git fsmonitor and Git environment configuration, symlink safety, MCP stdio and restricted npm tarball manifest.
 - Windows/macOS/Linux CI must all complete successfully at the **same commit** before integration. No graphical client acceptance evidence is invented.
+
+## v0.6 Linux-only distribution/supply-chain smoke
+
+- `tests/package-install.test.mjs` creates an **actual local npm tarball**, installs it to a disposable directory and runs its `reposafe --help` and real `doctor` MCP handshake. No `npm publish` or write to a user's system-wide npm installation occurs.
+- CI generates a CycloneDX dependency SBOM using `npm sbom` and validates the JSON structure. The generated file stays in ephemeral runner storage; it is **not uploaded, signed, or automatically released**.
+- Windows/macOS still run the main package-manifest test and full regression suite. The full tarball installation test is Linux-only until additional runners are explicitly added.
