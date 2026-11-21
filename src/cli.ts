@@ -21,13 +21,13 @@ const EXPECTED_TOOLS = [
 ];
 function help(): void {
   console.log([
-    'RepoSafe MCP v0.5 | offline read-only repository auditor',
+    'RepoSafe MCP v0.6 | offline read-only repository auditor',
     '',
     'Usage:',
     '  reposafe scan --root ABSOLUTE_PATH [--json|--sarif] [--no-history] [--no-git]',
-    '       [--history-depth 1..500] [--since YYYY-MM-DD] [--max-diff-size 1..16] [--current-branch]',
+    '       [--history-depth 1..500] [--since YYYY-MM-DD] [--max-diff-size MiB:1..16] [--current-branch]',
     '  reposafe doctor --root ABSOLUTE_PATH [--json]',
-    '  reposafe init --root ABSOLUTE_PATH --client cursor|claude|vscode|codex',
+    '  reposafe init --root ABSOLUTE_PATH --client cursor|claude|vscode|codex [--dry-run]',
     '  npm run demo',
     '',
     'init PRINTS configuration only: it never writes a client config or installs hooks.',
@@ -44,6 +44,11 @@ function option(flag: string): string | undefined {
 
 function errorReason(error: unknown): string {
   const message = error instanceof Error ? error.message : '';
+  if (message.includes('Node.js 22+')) return 'NODE_UNSUPPORTED: use Node.js version 22 or newer.';
+  if (message.includes('GIT_NOT_AVAILABLE')) return 'GIT_UNAVAILABLE: install Git and ensure the executable is in PATH.';
+  if (message.includes('Invalid') || message.includes('History options conflict')) {
+    return 'INVALID_OPTIONS: check --help for allowed flags, combinations and safe history limits.';
+  }
   if (message.includes('absolute path')) return 'ROOT_NOT_ABSOLUTE: use a fully qualified existing directory.';
   if (message.includes('Filesystem root')) return 'ROOT_TOO_BROAD: select a specific repository, not a drive root.';
   if (message.includes('reference a directory')) return 'ROOT_NOT_DIRECTORY: select a directory.';
@@ -55,13 +60,20 @@ function errorReason(error: unknown): string {
 async function doctor(root: string): Promise<{ status: 'pass'; node: string; git: string; tools: string[]; approvedRoot: true }> {
   if (parseInt(process.versions.node, 10) < 22) throw new Error('Node.js 22+ required.');
   const approved = await validateRoot(root);
-  const gitVersion = execFileSync('git', ['--version'], { encoding: 'utf8', timeout: 8000, windowsHide: true }).trim();
+  let gitVersion: string;
+  try {
+    gitVersion = execFileSync('git', ['--version'], {
+      encoding: 'utf8', timeout: 8000, windowsHide: true,
+    }).trim();
+  } catch {
+    throw new Error('GIT_NOT_AVAILABLE');
+  }
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [serverPath],
     env: { ...process.env, REPOSAFE_ROOT: approved },
   });
-  const client = new Client({ name: 'reposafe-doctor', version: '0.5.0' });
+  const client = new Client({ name: 'reposafe-doctor', version: '0.6.0' });
   try {
     await client.connect(transport);
     const tools = (await client.listTools()).tools.map(x => x.name).sort();
@@ -127,7 +139,7 @@ async function main(): Promise<void> {
     return;
   }
   if (command === 'doctor' || command === 'init') {
-    const allowed = command === 'doctor' ? ['doctor', '--root', '--json'] : ['init', '--root', '--client'];
+    const allowed = command === 'doctor' ? ['doctor', '--root', '--json'] : ['init', '--root', '--client', '--dry-run'];
     if (!validateFlags(allowed)) throw new Error('Invalid doctor/init arguments.');
     const root = option('--root') ?? '';
     if (command === 'init' && (!option('--client') || !['cursor','claude','vscode','codex'].includes(option('--client')!)))
@@ -144,7 +156,7 @@ async function main(): Promise<void> {
     });
     console.log('RepoSafe init: real MCP handshake PASSED; approved root and six tools validated.');
     process.stdout.write(output);
-    console.log('No client file was changed. Add/merge the entry manually, restart the app and verify tool calls.');
+    console.log('DRY RUN: no client file was changed. Add/merge the entry manually, restart the app and verify tool calls.');
     return;
   }
   throw new Error('Invalid command.');

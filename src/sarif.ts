@@ -77,7 +77,7 @@ export function reportToSarif(report: ScanReport): object {
     version: '2.1.0', $schema: SCHEMA,
     runs: [{
       tool: { driver: {
-        name: 'RepoSafe MCP', version: '0.5.0',
+        name: 'RepoSafe MCP', version: '0.6.0',
         informationUri: 'https://github.com/VladTepes84/RepoSafe-MCP',
         rules: [...rules.values()],
       } },

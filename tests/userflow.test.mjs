@@ -46,3 +46,13 @@ test('doctor and init reject invalid scope and unknown client without leaking th
     assert.ok(!r.stderr.includes('/unlikely-nonexistent-reposafe-path-781'));
   }
 });
+
+
+test('explicit init --dry-run remains no-write and verifies real MCP handshake', { timeout:26000 },async()=>{
+  await fixture(async root=>{
+    const r=run('init','--root',root,'--client','cursor','--dry-run');
+    assert.equal(r.status,0,r.stderr);
+    assert.ok(r.stdout.includes('MCP handshake PASSED'));
+    assert.ok(r.stdout.includes('DRY RUN'));
+  });
+});
