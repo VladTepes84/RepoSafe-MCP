@@ -73,3 +73,10 @@ If you believe RepoSafe leaks a secret or crosses a filesystem boundary, private
 - Base64 values are decoded **in memory only for heuristic detection**, not returned to an AI client, GitHub Action or SARIF. Encoding is not encryption and does not make secrets safe to commit.
 - Windows junction/reparse-point races remain an unproven boundary; the existing canonical-path/handle checks are mitigations, not an OS sandbox. For hostile repositories use a nonprivileged VM/container with read-only mounts and disabled network access.
 - A `--since` / branch-only scan intentionally examines less history. Its output includes scope warnings; the absence of findings is never proof that older or other-branch objects are safe.
+
+## v0.7 GitHub-source installation and onboarding boundaries
+
+- Installing from `github:OWNER/REPO#SHA` uses Git and npm to download code, dependencies and execute the package's build script. Installation is **not a read-only action** on the installation directory or npm cache; run only pinned and reviewed revisions from trusted owners.
+- `npm install --prefix DIR` creates files only in the selected installation prefix and npm's cache (subject to npm behavior), whereas RepoSafe scans the **separate** approved `REPOSAFE_ROOT` without modifying it.
+- The `init` command never writes client configuration; `--json` does not imply automatic registration. Do not let an untrusted script merge or overwrite existing MCP servers.
+- An actual MCP SDK handshake is not an end-to-end GUI acceptance test. No client user permissions or approvals have been independently exercised.

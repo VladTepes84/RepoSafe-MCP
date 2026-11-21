@@ -49,3 +49,11 @@ For `scan_git_history` and `generate_report`, MCP callers may request a **bounde
 There is still no tool argument for a repository path; the operator-approved `REPOSAFE_ROOT` remains fixed. The accepted depth/patch limits are hard-coded ceilings (500 commits and 16 MiB). This protocol-level capability does not constitute a Cursor/Claude Desktop GUI acceptance test.
 
 **GUI verification remains NOT VERIFIED:** document actual client version, OS, required approvals and redacted output only after a person runs the workflow inside each application.
+
+## v0.7 machine-readable first-run config
+
+`reposafe init --root ABSOLUTE_PATH --client cursor|claude|vscode|codex --json` first performs an actual MCP `stdio` handshake and then outputs JSON with the target configuration file and the generated entry. `verifiedProtocol: true` means only the SDK handshake/tool discovery passed. `verifiedGUI: false` remains true until a real client GUI session has been tested and documented. `writesFiles: false` confirms the initialization command never changes user client files.
+
+The standalone `npm run config -- --client ... --root ... --json` can render a configuration without invoking a server; it correctly sets `verifiedProtocol: false`.
+
+See [FIRST_RUN.md](FIRST_RUN.md). Client-specific launch, approval prompts and UI details are still unverified, and user-supplied installation experiences should not be treated as security guarantees without reproducible evidence.

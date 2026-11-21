@@ -4,11 +4,24 @@
 
 RepoSafe is a privacy-first, read-only repository scanner available as a **local Model Context Protocol (MCP) server** and **standalone CLI**. It flags possible secrets, private infrastructure references, Git-tracked credential files, ineffective `.gitignore` rules, and secrets left in *recent Git commits*. It returns **metadata only**: never source snippets or matched secret values.
 
-**Release status: v0.6.0 beta source (pre-release). Not a security certification.** A clean scan is *not* evidence that a repository is safe to publish.
+**Release status: v0.7.0 beta source (pre-release). Not a security certification.** A clean scan is *not* evidence that a repository is safe to publish.
 
 [![Support RepoSafe MCP on GitHub Sponsors](https://img.shields.io/badge/Support%20RepoSafe%20MCP-GitHub%20Sponsors-EA4AAA?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/VladTepes84)
 
 **Support this open-source project:** RepoSafe MCP is free and MIT-licensed. If it helps you audit repositories, you can [sponsor the maintainer on GitHub](https://github.com/sponsors/VladTepes84) to support maintenance, security testing, and documentation. Contributions are **entirely optional** and do not unlock extra features, hosted services, or privileged access.
+
+## Quick start — without cloning or compiling
+
+To install the current **public GitHub source** into a dedicated local folder, without a system-wide installation or an npm registry publication:
+
+```sh
+npm install --prefix "$HOME/.reposafe" --no-audit --no-fund "github:VladTepes84/RepoSafe-MCP#main"
+node "$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js" init --root "/ABSOLUTE/PATH/TO/PROJECT" --client cursor
+```
+
+Requires Node.js 22+ and Git. Replace the example root with an existing directory you own. The first command installs dependencies and runs the package's build script in the dedicated folder; it **does write to that installation folder and npm's cache**, but RepoSafe does not write inside the scanned repository. The second command validates a real local MCP connection and **prints** the configuration for manual merging into the client. Neither command registers a client or claims GUI verification.
+
+**Supply-chain:** `#main` is convenient but *mutable*. For repeatable installs replace it with `#<reviewed-40-character-commit-SHA>`; do not run arbitrary GitHub code that you have not reviewed. A quick Windows PowerShell variant and first-run checklist are in [FIRST_RUN.md](docs/FIRST_RUN.md). A beta npm package has **not** been published to the npm registry.
 
 ## Important: Cursor and Claude Desktop are NOT yet manually verified
 
@@ -63,6 +76,12 @@ JSON report: severity, relative file, rule, action, coverage
 Additional CLI: `node dist/cli.js scan --root ABSOLUTE_PATH [--json|--sarif] [--no-history] [--no-git]`. The default view is a severity-sorted actionable human report.
 
 **No edits, auto-fixes, Git checkout, push, remote API calls or background processes.** The AI client cannot pass an arbitrary filesystem path to tools. All operations are restricted to the operator-defined absolute `REPOSAFE_ROOT` set when the server starts.
+
+### v0.7 first-run improvements
+
+- **GitHub-source install without clone and manual TypeScript compilation**, using npm's Git-based installation into a dedicated prefix. A CI smoke tests the exact source commit and performs a real MCP handshake.
+- `reposafe init --json` is machine-readable: includes the target config filename, client-format content, six discovered tools, `verifiedProtocol: true`, `verifiedGUI: false`, and `writesFiles: false`. The plain-text flow also prints the first real-client test prompt.
+- Dedicated [five-minute onboarding checklist](docs/FIRST_RUN.md) for macOS and Windows. The GUI test is **not claimed** until manually performed.
 
 ### v0.6 bounded Git history and configuration-format coverage
 

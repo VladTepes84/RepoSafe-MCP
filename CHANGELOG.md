@@ -2,6 +2,15 @@
 
 Changes describe the committed source and automated test evidence, **not a security certification**.
 
+## [0.7.0] — 2026-11-21 (beta source)
+
+- Prepare a direct **GitHub-source npm installation** into a dedicated user-controlled prefix, avoiding a manual clone, `npm ci` and build. Verify with a pinned-source Linux acceptance test before documenting the path as tested.
+- Improve `init` with `--json`: an actual local MCP handshake, safe generated client config and explicit separation of verified SDK protocol, unverified GUI and no-write status.
+- Add a first-run guide for macOS and Windows and a concrete user prompt for first real GUI acceptance.
+- Keep repository audit read-only and npm registry publishing disabled (`private: true`).
+
+**Not claimed:** Cursor/Claude Desktop GUI integration validation, a published npm package, or no filesystem writes by npm's own installer.
+
 ## [0.6.0] — 2026-11-21 (beta source; no npm registry publication)
 
 - Add bounded operator-selectable history: commit count (1..500), date, current branch, patch output cap (1..16 MiB), with validation in CLI and MCP tools.
