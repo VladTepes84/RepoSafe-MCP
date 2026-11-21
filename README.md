@@ -19,7 +19,7 @@ npm install --prefix "$HOME/.reposafe" --no-audit --no-fund "github:VladTepes84/
 node "$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js" init --root "/ABSOLUTE/PATH/TO/PROJECT" --client cursor
 ```
 
-Requires Node.js 22+ and Git. Replace the example root with an existing directory you own. The first command installs dependencies and runs the package's build script in the dedicated folder; it **does write to that installation folder and npm's cache**, but RepoSafe does not write inside the scanned repository. The second command validates a real local MCP connection and **prints** the configuration for manual merging into the client. Neither command registers a client or claims GUI verification.
+Requires Node.js 22+ and Git. Replace the example root with an existing directory you own. The first command installs dependencies and runs the package's prepare build script in the dedicated folder; it **does write to that installation folder and npm's cache**, but RepoSafe does not write inside the scanned repository. The second command validates a real local MCP connection and **prints** the configuration for manual merging into the client. Neither command registers a client or claims GUI verification.
 
 **Supply-chain:** `#main` is convenient but *mutable*. For repeatable installs replace it with `#<reviewed-40-character-commit-SHA>`; do not run arbitrary GitHub code that you have not reviewed. A quick Windows PowerShell variant and first-run checklist are in [FIRST_RUN.md](docs/FIRST_RUN.md). A beta npm package has **not** been published to the npm registry.
 

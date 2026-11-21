@@ -83,3 +83,5 @@ The history scanner reports the first introducing commit for added lines within 
 - The standalone config generator has its own JSON-mode test with `verifiedProtocol: false`.
 - A Linux runner installs the **exact PR/head commit** directly from public GitHub using npm's `github:` specifier into a disposable prefix, then calls `doctor` and `init --json` from the installed package. This is not npm registry publication and does not modify a user's computer.
 - The existing Windows/macOS/Linux matrix runs all standard tests. A CI success does not validate the actual Cursor/Claude Desktop graphical interfaces.
+
+- Git-based npm dependencies require the package `prepare` lifecycle to compile `dist/` before packaging. A local `prepack` smoke alone is insufficient: the GitHub source test confirms that the installed entrypoint actually exists.

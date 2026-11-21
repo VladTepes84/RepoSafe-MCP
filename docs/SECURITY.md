@@ -76,7 +76,7 @@ If you believe RepoSafe leaks a secret or crosses a filesystem boundary, private
 
 ## v0.7 GitHub-source installation and onboarding boundaries
 
-- Installing from `github:OWNER/REPO#SHA` uses Git and npm to download code, dependencies and execute the package's build script. Installation is **not a read-only action** on the installation directory or npm cache; run only pinned and reviewed revisions from trusted owners.
+- Installing from `github:OWNER/REPO#SHA` uses Git and npm to download code, dependencies and execute the package's prepare build script. Installation is **not a read-only action** on the installation directory or npm cache; run only pinned and reviewed revisions from trusted owners.
 - `npm install --prefix DIR` creates files only in the selected installation prefix and npm's cache (subject to npm behavior), whereas RepoSafe scans the **separate** approved `REPOSAFE_ROOT` without modifying it.
 - The `init` command never writes client configuration; `--json` does not imply automatic registration. Do not let an untrusted script merge or overwrite existing MCP servers.
 - An actual MCP SDK handshake is not an end-to-end GUI acceptance test. No client user permissions or approvals have been independently exercised.

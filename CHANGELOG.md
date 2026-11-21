@@ -26,7 +26,7 @@ Changes describe the committed source and automated test evidence, **not a secur
 
 - Improve human-readable CLI reports with severity ordering, remediation instructions and visible coverage/baseline warnings.
 - Add redacted SARIF 2.1.0 output, with incomplete scan alerts and relative, safe file locations.
-- Prepare restricted npm tarball (`bin`, runtime file whitelist, prepack build), retaining `private: true` and verifying with `npm pack --dry-run`.
+- Prepare restricted npm tarball (`bin`, runtime file whitelist, prepare build), retaining `private: true` and verifying with `npm pack --dry-run`.
 - Add opt-in composite GitHub Action scanning checked-out repositories with no automatic SARIF upload and no write to the target repository.
 - Add cross-platform SARIF, action smoke and packaging tests.
 - Real Cursor/Claude Desktop GUI tests and npm registry publication remain unverified/not performed.
