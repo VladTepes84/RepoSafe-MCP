@@ -1,4 +1,4 @@
-# MCP client compatibility — 20 November 2026
+# MCP client compatibility — 21 November 2026
 
 **Three distinct claims must not be conflated:** (1) the vendor documents local `stdio` MCP support; (2) RepoSafe's **real SDK integration test** succeeds in CI; (3) a person has tested RepoSafe inside the actual GUI client. This project currently verifies **(1) and (2), not (3)**. v0.4 adds a CLI `doctor` that launches the *real RepoSafe MCP server* through the official SDK and verifies six tools, but this still does NOT constitute a Cursor or Claude GUI test. Some clients require specific versions, subscriptions, approvals or settings.
 
@@ -32,3 +32,20 @@
 `Cursor` / `Claude Desktop` use `mcpServers` with `command`, `args`, `env`. **VS Code's current Copilot harness** uses *portable* `mcpServers` and should specify `type: stdio`; the older `.vscode/mcp.json` editor-managed format uses `servers` and is being phased out. **Codex** uses TOML under `[mcp_servers.reposafe]`. Do not reuse a JSON fragment as TOML or use the wrong VS Code configuration format.
 
 The `npm run config` generator makes these four variants deterministically for the machine on which it runs; unit tests cover both Windows and macOS rendering, but do not imply successful GUI acceptance.
+
+## v0.6 optional history parameters
+
+For `scan_git_history` and `generate_report`, MCP callers may request a **bounded subset of Git history** without choosing a new root:
+
+```json
+{
+  "historyDepth": 200,
+  "since": "2026-01-01",
+  "maxDiffSizeMiB": 8,
+  "currentBranchOnly": true
+}
+```
+
+There is still no tool argument for a repository path; the operator-approved `REPOSAFE_ROOT` remains fixed. The accepted depth/patch limits are hard-coded ceilings (500 commits and 16 MiB). This protocol-level capability does not constitute a Cursor/Claude Desktop GUI acceptance test.
+
+**GUI verification remains NOT VERIFIED:** document actual client version, OS, required approvals and redacted output only after a person runs the workflow inside each application.

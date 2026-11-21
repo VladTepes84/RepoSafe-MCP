@@ -65,3 +65,19 @@ node dist/cli.js scan --root "/ABSOLUTE/PATH/TO/APP" --sarif
 Default output shows severity counts and recommended actions. JSON and SARIF are mutually exclusive. SARIF can be redirected to a file **outside** the scanned repository. The npm tarball now declares `reposafe` and `reposafe-mcp` executable names, but npm publication is not yet performed; clone/build remains the verified install route.
 
 See [GitHub Actions](ACTIONS.md) for automatic PR scanning without enabling uploads or write permissions.
+
+## v0.6: choose a bounded Git history window
+
+```sh
+node dist/cli.js scan --root "/ABSOLUTE/PATH/TO/APP" --history-depth 250 --max-diff-size 8 --current-branch
+node dist/cli.js scan --root "/ABSOLUTE/PATH/TO/APP" --since 2026-01-01 --json
+```
+
+The diff size parameter is in **MiB** and is capped at 16; maximum commit count is 500. A date or branch selection does not imply coverage outside the selected window. Avoid unnecessary high caps on large repositories.
+
+`init` is already read-only; optional `--dry-run` makes that guarantee explicit:
+```sh
+node dist/cli.js init --root "/ABSOLUTE/PATH/TO/APP" --client cursor --dry-run
+```
+
+No client settings are written. See [remediation guidance](REMEDIATION.md) for practical follow-up actions that RepoSafe does **not** perform for you.

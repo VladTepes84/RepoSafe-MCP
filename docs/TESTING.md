@@ -62,3 +62,11 @@ The history scanner reports the first introducing commit for added lines within 
 - `npm run test:package`: checks `npm pack --dry-run --json --ignore-scripts` output: both bins and all runtime files present, no source/tests/workflow files, limited tarball size.
 - On Ubuntu, CI runs the actual composite `action.yml` in report-only mode and validates its SARIF output file. The scan does not automatically upload results.
 - Windows and macOS test all CLI and package workflows in the main `npm run check` suite. Actual GUI client sessions remain unverified.
+
+## v0.6 evidence targets
+
+- New suite `tests/structured-config.test.mjs`: Spring/application properties, Terraform variable defaults, Kubernetes `kind: Secret` encoded credentials, benign ConfigMaps/placeholders, redaction and the bounded tracked-file path.
+- New suite `tests/history-options.test.mjs`: depth truncation, expanded history, current-branch/date windows, invalid bounds/dates, CLI error codes and redacted JSON.
+- `tests/userflow.test.mjs`: `init --dry-run` still makes a real MCP connection and prints configuration only.
+- Existing tests still cover malicious Git fsmonitor and Git environment configuration, symlink safety, MCP stdio and restricted npm tarball manifest.
+- Windows/macOS/Linux CI must all complete successfully at the **same commit** before integration. No graphical client acceptance evidence is invented.

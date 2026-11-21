@@ -2,6 +2,17 @@
 
 Changes describe the committed source and automated test evidence, **not a security certification**.
 
+## [0.6.0] — 2026-11-21 (beta source; no npm registry publication)
+
+- Add bounded operator-selectable history: commit count (1..500), date, current branch, patch output cap (1..16 MiB), with validation in CLI and MCP tools.
+- Inspect dotted application properties, Terraform sensitive variable defaults and carefully scoped Base64 Kubernetes Secret data.
+- Preserve existing path and byte budgets, redacted metadata-only findings, fail-closed history truncation warnings and no-write execution.
+- Improve `doctor` errors and provide an explicit `init --dry-run` alias (still prints configuration only).
+- Add synthetic regression fixtures for newly covered formats, negative cases, rejected options and selected history windows.
+- Add practical remediation guidance without changing Git or secrets on the user's behalf.
+
+**Not done:** actual GUI tests in Cursor/Claude Desktop, npm registry publication, releases/signing, arbitrary trusted-user claims, or exhaustive parsing of configuration formats.
+
 ## [0.5.0] — 2026-11-20 (beta source; npm publication not performed)
 
 - Improve human-readable CLI reports with severity ordering, remediation instructions and visible coverage/baseline warnings.
