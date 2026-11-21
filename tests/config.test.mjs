@@ -29,6 +29,7 @@ test('generator refuses relative roots even if config client name is valid',()=>
 test('generator JSON mode is parseable and never claims real GUI or protocol tests',async()=>{
   const {mkdtemp,rm}=await import('node:fs/promises');
   const {tmpdir}=await import('node:os');
+  const {join}=await import('node:path');
   const root=await mkdtemp(join(tmpdir(),'reposafe-config-json-'));
   try {
     const {spawnSync}=await import('node:child_process');
