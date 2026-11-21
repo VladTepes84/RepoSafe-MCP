@@ -37,13 +37,29 @@ export function makeClientConfig({ client, platform, home, appdata, root, node =
 const main = async () => {
   const args = process.argv.slice(2);
   if (args.includes('--help') || !args.length) {
-    console.log('Generate exact local MCP configuration (no files are changed).\nUsage: npm run config -- --client cursor|claude|vscode|codex --root /ABSOLUTE/PATH/TO/APP');
+    console.log('Generate local MCP configuration (read-only).\nUsage: npm run config -- --client cursor|claude|vscode|codex --root ABSOLUTE_PATH [--json]');
     return;
   }
   const value = flag => args[args.indexOf(flag) + 1];
-  if (args.length !== 4 || !args.includes('--client') || !args.includes('--root')) throw new Error('Use --client and --root only.');
+  const flags = args.filter(value => value.startsWith('--'));
+  if (args.length !== (args.includes('--json') ? 5 : 4) ||
+      flags.filter(value => value === '--client').length !== 1 ||
+      flags.filter(value => value === '--root').length !== 1 ||
+      flags.filter(value => value === '--json').length > 1 ||
+      flags.some(value => !['--client','--root','--json'].includes(value))) {
+    throw new Error('Use --client and --root, optionally --json.');
+  }
   const root = await realpath(value('--root'));
   const data = makeClientConfig({ client: value('--client'), platform: process.platform, home: homedir(), appdata: process.env.APPDATA, root });
+  if (args.includes('--json')) {
+    console.log(JSON.stringify({
+      client: data.client, targetFile: data.file, format: data.format,
+      content: data.content, verifiedProtocol: false,
+      verifiedGUI: false, writesFiles: false,
+      note: 'Generated configuration only. Real MCP handshake and client GUI are not tested by this script.',
+    }, null, 2));
+    return;
+  }
   console.log(`Configuration target: ${data.file}\n\n${data.content}`);
   console.log('Merge only the reposafe entry into an existing configuration. Never overwrite other MCP servers. Restart the client and verify tool discovery.');
 };
