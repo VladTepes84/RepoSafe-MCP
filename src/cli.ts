@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
-import { generateReport } from './git.js';
+import { generateReport, type HistoryScanOptions } from './git.js';
 import { scanRepository, validateRoot } from './scanner.js';
 import type { ScanReport } from './types.js';
 import { reportToSarif } from './sarif.js';
@@ -25,6 +25,7 @@ function help(): void {
     '',
     'Usage:',
     '  reposafe scan --root ABSOLUTE_PATH [--json|--sarif] [--no-history] [--no-git]',
+    '       [--history-depth 1..500] [--since YYYY-MM-DD] [--max-diff-size 1..16] [--current-branch]',
     '  reposafe doctor --root ABSOLUTE_PATH [--json]',
     '  reposafe init --root ABSOLUTE_PATH --client cursor|claude|vscode|codex',
     '  npm run demo',
@@ -77,24 +78,48 @@ function validateFlags(allowed: string[]): boolean {
   for (let i = 1; i < args.length; i++) {
     const arg = args[i];
     if (!flags.has(arg)) return false;
-    if (arg === '--root' || arg === '--client') {
+    if (['--root', '--client', '--history-depth', '--since', '--max-diff-size'].includes(arg)) {
       i++;
       if (!args[i] || args[i].startsWith('--')) return false;
     }
   }
   return args.filter(x => x === '--root').length === 1 &&
-    args.filter(x => x === '--client').length <= 1;
+    ['--client', '--history-depth', '--since', '--max-diff-size'].every(flag => args.filter(x => x === flag).length <= 1);
 }
 
 async function main(): Promise<void> {
   if (!command || command === '--help' || command === '-h') { help(); return; }
   if (command === 'scan') {
-    if (!validateFlags(['scan', '--root', '--json', '--sarif', '--no-history', '--no-git']) ||
+    if (!validateFlags(['scan', '--root', '--json', '--sarif', '--no-history', '--no-git',
+          '--history-depth', '--since', '--max-diff-size', '--current-branch']) ||
         (args.includes('--json') && args.includes('--sarif'))) throw new Error('Invalid scan arguments.');
+    const historyFlags = ['--history-depth', '--since', '--max-diff-size', '--current-branch'];
+    if ((args.includes('--no-git') || args.includes('--no-history')) &&
+        historyFlags.some(flag => args.includes(flag))) throw new Error('History options conflict with a disabled history scan.');
+    function boundedInteger(flag: string, max: number): number | undefined {
+      const raw = option(flag);
+      if (!args.includes(flag)) return undefined;
+      if (!raw || !/^[1-9][0-9]*$/.test(raw)) throw new Error('Invalid numeric scan option.');
+      const value = Number(raw);
+      if (!Number.isSafeInteger(value) || value > max) throw new Error('History scan option exceeds its safe limit.');
+      return value;
+    }
+    const since = option('--since');
+    if (args.includes('--since') && (!since || !/^\d{4}-\d{2}-\d{2}$/.test(since) ||
+        Number.isNaN(Date.parse(since + 'T00:00:00Z')) ||
+        new Date(since + 'T00:00:00Z').toISOString().slice(0, 10) !== since)) {
+      throw new Error('Invalid --since date.');
+    }
+    const historyOptions: HistoryScanOptions = {
+      depth: boundedInteger('--history-depth', 500),
+      maxDiffSizeMiB: boundedInteger('--max-diff-size', 16),
+      since,
+      currentBranchOnly: args.includes('--current-branch'),
+    };
     const root = await validateRoot(option('--root') ?? '');
     const report: ScanReport = args.includes('--no-git')
       ? await scanRepository(root)
-      : await generateReport(root, { includeHistory: !args.includes('--no-history') });
+      : await generateReport(root, { includeHistory: !args.includes('--no-history'), historyOptions });
     if (args.includes('--json')) console.log(JSON.stringify(report, null, 2));
     else if (args.includes('--sarif')) console.log(JSON.stringify(reportToSarif(report), null, 2));
     else console.log(formatHumanReport(report));

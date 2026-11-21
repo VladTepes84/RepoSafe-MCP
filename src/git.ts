@@ -6,8 +6,37 @@ import type { Finding, GitStats, ScanReport } from './types.js';
 import { applyBaseline } from './baseline.js';
 
 const execFileAsync = promisify(execFile);
-const MAX_COMMITS = 100;
-const MAX_PATCH_BYTES = 4 * 1024 * 1024;
+const DEFAULT_MAX_COMMITS = 100;
+const DEFAULT_PATCH_MIB = 4;
+const ABSOLUTE_MAX_COMMITS = 500;
+const ABSOLUTE_MAX_PATCH_MIB = 16;
+
+export interface HistoryScanOptions {
+  depth?: number;
+  since?: string;
+  maxDiffSizeMiB?: number;
+  currentBranchOnly?: boolean;
+}
+function boundedHistoryOptions(options: HistoryScanOptions): Required<HistoryScanOptions> {
+  const depth = options.depth ?? DEFAULT_MAX_COMMITS;
+  const maxDiffSizeMiB = options.maxDiffSizeMiB ?? DEFAULT_PATCH_MIB;
+  const since = options.since ?? '';
+  if (!Number.isInteger(depth) || depth < 1 || depth > ABSOLUTE_MAX_COMMITS) {
+    throw new Error('History depth is outside the safe 1..500 range.');
+  }
+  if (!Number.isInteger(maxDiffSizeMiB) || maxDiffSizeMiB < 1 || maxDiffSizeMiB > ABSOLUTE_MAX_PATCH_MIB) {
+    throw new Error('Maximum history diff size is outside the safe 1..16 MiB range.');
+  }
+  if (since && (!/^\d{4}-\d{2}-\d{2}$/.test(since) ||
+      Number.isNaN(Date.parse(since + 'T00:00:00Z')) ||
+      new Date(since + 'T00:00:00Z').toISOString().slice(0, 10) !== since)) {
+    throw new Error('History --since must be a valid ISO calendar date YYYY-MM-DD.');
+  }
+  if (options.currentBranchOnly !== undefined && typeof options.currentBranchOnly !== 'boolean') {
+    throw new Error('History branch scope must be boolean.');
+  }
+  return { depth, since, maxDiffSizeMiB, currentBranchOnly: options.currentBranchOnly ?? false };
+}
 const GIT_TIMEOUT_MS = 12_000;
 // Git for Windows expects the native NUL device, not Node's \\.\NUL spelling.
 const GIT_NULL = process.platform === 'win32' ? 'NUL' : devNull;
@@ -55,7 +84,9 @@ async function git(root: string, args: string[], maxBuffer = 1024 * 1024): Promi
 
 export interface GitResults { findings: Finding[]; stats: GitStats }
 
-export async function scanGit(root: string, history = true): Promise<GitResults> {
+export async function scanGit(root: string, history = true, limits: HistoryScanOptions = {}): Promise<GitResults> {
+  // Validate before any Git operation; invalid options must fail rather than silently relax limits.
+  const window = boundedHistoryOptions(limits);
   const findings: Finding[] = [];
   const stats: GitStats = { historyChecked: false, commitsInspected: 0, gitAvailable: false, complete: true, warnings: [] };
   const warning = (message: string): void => { stats.complete = false; if (!stats.warnings.includes(message)) stats.warnings.push(message); };
@@ -128,10 +159,15 @@ export async function scanGit(root: string, history = true): Promise<GitResults>
     return { findings, stats };
   }
   try {
-    const patch = await git(root, [
-      'log', '--all', `--max-count=${MAX_COMMITS}`, '--no-ext-diff', '--no-textconv',
-      '--no-renames', '--format=RS_COMMIT_START:%H', '--unified=0', '-p',
-    ], MAX_PATCH_BYTES);
+    const logArgs = [
+      'log', ...(window.currentBranchOnly ? [] : ['--all']),
+      `--max-count=${window.depth}`,
+      ...(window.since ? [`--since=${window.since}T00:00:00Z`] : []),
+      '--no-ext-diff', '--no-textconv', '--no-renames',
+      '--format=RS_COMMIT_START:%H', '--unified=0', '-p',
+      ...(window.currentBranchOnly ? ['HEAD'] : []),
+    ];
+    const patch = await git(root, logArgs, window.maxDiffSizeMiB * 1024 * 1024);
     stats.historyChecked = true;
     let currentFile = '[GIT_HISTORY]';
     let currentCommit: string | undefined;
@@ -159,18 +195,24 @@ export async function scanGit(root: string, history = true): Promise<GitResults>
       }
       if (findings.length >= MAX_GIT_FINDINGS) break;
     }
-    if (stats.commitsInspected === MAX_COMMITS) warning('Git history coverage is limited to the most recent 100 commits across refs.');
+    if (stats.commitsInspected === window.depth) warning('History depth limit reached; older commits are outside the selected scan.');
+    if (window.since || window.currentBranchOnly) {
+      stats.warnings.push('History was restricted by operator options; commits outside that window/scope were not inspected.');
+    }
+    if (window.since && stats.commitsInspected === 0) {
+      warning('Selected history window has no inspected commits; history coverage cannot be inferred.');
+    }
   } catch { warning('Git history could not be fully scanned (size, timeout, permissions, or Git error).'); }
   return { findings, stats };
 }
 
-export async function generateReport(root: string, options: { includeGit?: boolean; includeHistory?: boolean } = {}): Promise<ScanReport> {
+export async function generateReport(root: string, options: { includeGit?: boolean; includeHistory?: boolean; historyOptions?: HistoryScanOptions } = {}): Promise<ScanReport> {
   const report = await scanRepository(root, { skipBaseline: true });
   if (options.includeGit === false) {
     report.limitations.push('Git metadata and history not requested.');
     return applyBaseline(report, root);
   }
-  const g = await scanGit(root, options.includeHistory !== false);
+  const g = await scanGit(root, options.includeHistory !== false, options.historyOptions);
   report.git = g.stats;
   report.findings = [...report.findings, ...g.findings].slice(0, MAX_FINDINGS);
   if (report.findings.length === MAX_FINDINGS) {
@@ -184,6 +226,6 @@ export async function generateReport(root: string, options: { includeGit?: boole
   report.findings.sort((a, b) => a.file.localeCompare(b.file) || (a.line ?? 0) - (b.line ?? 0) || a.rule.localeCompare(b.rule));
   report.verdict = report.stats.complete && report.findings.length === 0 ? 'no_findings_in_scope' : 'review_required';
   report.limitations = report.limitations.filter(x => !x.startsWith('Scans current local files only'));
-  report.limitations.push('Git history checks only bounded patches (up to 100 commits and 4 MiB output); unreachable/dangling objects and remote settings are not inspected.');
+  report.limitations.push('Git history is always bounded (default: 100 commits and 4 MiB output; operator caps: 500 commits and 16 MiB). Unreachable/dangling objects and remote settings are not inspected.');
   return applyBaseline(report, root);
 }
