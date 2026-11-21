@@ -4,7 +4,7 @@
 
 RepoSafe is a privacy-first, read-only repository scanner available as a **local Model Context Protocol (MCP) server** and **standalone CLI**. It flags possible secrets, private infrastructure references, Git-tracked credential files, ineffective `.gitignore` rules, and secrets left in *recent Git commits*. It returns **metadata only**: never source snippets or matched secret values.
 
-**Release status: v0.5.0 beta source (pre-release). Not a security certification.** A clean scan is *not* evidence that a repository is safe to publish.
+**Release status: v0.6.0 beta source (pre-release). Not a security certification.** A clean scan is *not* evidence that a repository is safe to publish.
 
 [![Support RepoSafe MCP on GitHub Sponsors](https://img.shields.io/badge/Support%20RepoSafe%20MCP-GitHub%20Sponsors-EA4AAA?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/VladTepes84)
 
@@ -64,6 +64,16 @@ Additional CLI: `node dist/cli.js scan --root ABSOLUTE_PATH [--json|--sarif] [--
 
 **No edits, auto-fixes, Git checkout, push, remote API calls or background processes.** The AI client cannot pass an arbitrary filesystem path to tools. All operations are restricted to the operator-defined absolute `REPOSAFE_ROOT` set when the server starts.
 
+### v0.6 bounded Git history and configuration-format coverage
+
+- Operator-selectable, **strictly bounded** Git history windows: `--history-depth 1..500`, `--since YYYY-MM-DD`, `--max-diff-size 1..16` (MiB), and `--current-branch`. Defaults remain 100 commits and 4 MiB. MCP history/report tools accept the equivalent optional numeric/date/boolean arguments. No tool can change `REPOSAFE_ROOT`.
+- More precise detection for **Spring/application properties**, Terraform hardcoded sensitive variable defaults, and Kubernetes `kind: Secret` **Base64-encoded credentials**. Base64 is encoding, not encryption.
+- `reposafe init --dry-run` explicitly documents the existing read-only behavior. Better diagnostics identify Git missing from PATH and unsupported Node versions.
+- Additional synthetic positive/benign fixtures, strict scan-limit validation, and explicit history-scope warnings. Findings still contain metadata only.
+- [Remediation guidance](docs/REMEDIATION.md) explains secret rotation and Git index/history review **without executing destructive commands**.
+
+**Limitations:** this is not a comprehensive Terraform/YAML parser; source history patch inspection remains line-oriented and does not fully reconstruct multi-line files. GUI Cursor/Claude testing and npm registry publication remain outstanding.
+
 ### v0.5 usability and GitHub integration
 
 - Human-friendly CLI report sorted by severity, with a recommended action for each finding; use `--json` for structured data.
@@ -89,7 +99,7 @@ Additional CLI: `node dist/cli.js scan --root ABSOLUTE_PATH [--json|--sarif] [--
 - Heuristic coverage now includes **JWT, SendGrid, npm tokens (including `.npmrc` auth entries), PostgreSQL connection URI passwords**, and high-entropy bearer credentials, in addition to existing providers.
 - **Provider-specific findings are deduplicated** against generic assignments (including Anthropic vs. OpenAI `sk-` patterns).
 - `dist/`, `build/`, and `vendor/` **are scanned**, because generated or vendored content can be committed and published.
-- If Git tracks content in omitted dependency/cache directories (e.g. `node_modules/`), RepoSafe reports **incomplete coverage**, not a clean bill of health.
+- Git-tracked files in omitted dependency/cache directories (e.g. `node_modules/`) are **read under separate budgets** and remain flagged for review. Unsafe or unreadable files cause incomplete coverage.
 - Local Git operations ignore host Git config injections, disable filesystem-monitor hooks and automatic lazy fetches, and associate history findings with the introducing commit.
 
 **Coverage is intentionally incomplete:** not every secret syntax or binary format is recognized; entropy detection is conservative. See [detection matrix and false-negative policy](docs/DETECTION.md). A beta scan never certifies that a repository is safe.
@@ -143,6 +153,18 @@ node dist/cli.js scan --root "/absolute/path/to/your/project" --json
 ```
 
 Exit status: **0** = no findings *in the examined scope*, **1** = review required or incomplete coverage, **2** = invalid arguments or scan error. This allows adding RepoSafe to other workflows while keeping the server itself read-only.
+
+### Bounded history controls (v0.6)
+
+```bash
+# 250 commits, 8 MiB of patch output, current branch only
+node dist/cli.js scan --root "/ABSOLUTE/PATH/TO/APP" --history-depth 250 --max-diff-size 8 --current-branch
+
+# Since a calendar date, bounded by the commit and byte limits
+node dist/cli.js scan --root "/ABSOLUTE/PATH/TO/APP" --since 2026-01-01 --json
+```
+
+The MCP `generate_report` and `scan_git_history` tools accept `historyDepth`, `since`, `maxDiffSizeMiB` and `currentBranchOnly`. Omitted fields retain safe defaults. A date or branch restriction is explicitly marked as **limited coverage**; no clean report certifies all Git history. The CLI rejects malformed numbers/dates and options combined with `--no-history` or `--no-git`.
 
 ### Actionable CLI and SARIF
 

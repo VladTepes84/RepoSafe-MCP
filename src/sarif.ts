@@ -77,7 +77,7 @@ export function reportToSarif(report: ScanReport): object {
     version: '2.1.0', $schema: SCHEMA,
     runs: [{
       tool: { driver: {
-        name: 'RepoSafe MCP', version: '0.5.0',
+        name: 'RepoSafe MCP', version: '0.6.0',
         informationUri: 'https://github.com/VladTepes84/RepoSafe-MCP',
         rules: [...rules.values()],
       } },
@@ -87,6 +87,13 @@ export function reportToSarif(report: ScanReport): object {
         filesScanned: report.stats.filesScanned,
         baselineSuppressed: report.baseline?.suppressed ?? 0,
         baselineHighSuppressed: report.baseline?.highSuppressed ?? 0,
+        ...(report.git?.historyWindow ? { gitHistory: {
+          inspectedCommits: report.git.commitsInspected,
+          maxCommits: report.git.historyWindow.maxCommits,
+          maxDiffSizeMiB: report.git.historyWindow.maxDiffSizeMiB,
+          since: report.git.historyWindow.since ?? null,
+          currentBranchOnly: report.git.historyWindow.currentBranchOnly,
+        } } : {}),
       },
     }],
   };

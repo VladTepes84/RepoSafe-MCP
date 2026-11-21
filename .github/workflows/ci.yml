@@ -38,3 +38,14 @@ jobs:
         env:
           SARIF_PATH: ${{ steps.action.outputs.sarif-file }}
         run: node --input-type=module -e "import {readFileSync} from 'node:fs'; const data=JSON.parse(readFileSync(process.env.SARIF_PATH,'utf8')); if(data.version!=='2.1.0') process.exit(1)"
+      - name: Verify production tarball installation in isolated prefix (Linux only)
+        if: runner.os == 'Linux'
+        run: node tests/package-install.test.mjs
+      - name: Generate and validate local dependency SBOM (Linux only)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm sbom --sbom-format cyclonedx > "$RUNNER_TEMP/reposafe-sbom.json"
+          node --input-type=module -e "import {readFileSync} from 'node:fs'; const d=JSON.parse(readFileSync(process.env.RUNNER_TEMP+'/reposafe-sbom.json','utf8')); if(d.bomFormat!=='CycloneDX') process.exit(1)"
+

@@ -27,14 +27,28 @@ function selectReport(report: ScanReport, category?: Category): object {
 }
 
 function createServer(): McpServer {
-  const server = new McpServer({ name: 'reposafe-mcp', version: '0.2.0' });
+  const server = new McpServer({ name: 'reposafe-mcp', version: '0.6.0' });
+  const historySchema = z.object({
+    historyDepth: z.number().int().min(1).max(500).optional(),
+    since: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    maxDiffSizeMiB: z.number().int().min(1).max(16).optional(),
+    currentBranchOnly: z.boolean().optional(),
+  }).strict();
+  const noArgsSchema = z.object({}).strict();
   const register = (name: string, description: string, category?: Category): void => {
-    server.registerTool(name, { description, inputSchema: z.object({}) }, async () => {
+    const inputSchema = category === 'history' || !category ? historySchema : noArgsSchema;
+    server.registerTool(name, { description, inputSchema }, async (args) => {
       try {
+        const opts = args as { historyDepth?: number; since?: string; maxDiffSizeMiB?: number; currentBranchOnly?: boolean };
+        const historyOptions = {
+          depth: opts.historyDepth, since: opts.since,
+          maxDiffSizeMiB: opts.maxDiffSizeMiB, currentBranchOnly: opts.currentBranchOnly,
+        };
         const report = category === 'git' || category === 'history'
-          ? await generateReport(root, { includeHistory: category === 'history' })
+          ? await generateReport(root, { includeHistory: category === 'history',
+              ...(category === 'history' ? { historyOptions } : {}) })
           : category === 'readiness' ? await generateReport(root, { includeHistory: false })
-          : category ? await scanRepository(root) : await generateReport(root);
+          : category ? await scanRepository(root) : await generateReport(root, { historyOptions });
         return { content: [{ type: 'text' as const, text: JSON.stringify(selectReport(report, category), null, 2) }] };
       } catch {
         // Never disclose file contents or local absolute paths in error messages.

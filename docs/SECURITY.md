@@ -65,3 +65,11 @@ If you believe RepoSafe leaks a secret or crosses a filesystem boundary, private
 - An incomplete scan always creates a dedicated SARIF warning even if no secrets are detected.
 - The composite Action runs against the checked-out `GITHUB_WORKSPACE` and writes output to `RUNNER_TEMP`. It does not automatically upload SARIF or request any additional GitHub token permissions. npm installation in the ephemeral runner requires registry access; scanning itself remains local.
 - Third-party workflows should pin the Action by an immutable commit SHA and review supply-chain risks. Do not grant `security-events: write` unless explicitly opting into GitHub Code Scanning uploads. Avoid `pull_request_target` and privileged tokens when scanning untrusted contributions.
+
+## v0.6 history controls and structured formats
+
+- Requested history windows are validated and **capped** before Git runs. No arbitrary Git command, revision string or new filesystem root is accepted. Even an increased limit cannot exceed 500 commits or 16 MiB of patch output.
+- Contextual Terraform and Kubernetes detection examines already-bounded text within the approved repository. No template execution, YAML deserialization, shell, filesystem write or network operation is added.
+- Base64 values are decoded **in memory only for heuristic detection**, not returned to an AI client, GitHub Action or SARIF. Encoding is not encryption and does not make secrets safe to commit.
+- Windows junction/reparse-point races remain an unproven boundary; the existing canonical-path/handle checks are mitigations, not an OS sandbox. For hostile repositories use a nonprivileged VM/container with read-only mounts and disabled network access.
+- A `--since` / branch-only scan intentionally examines less history. Its output includes scope warnings; the absence of findings is never proof that older or other-branch objects are safe.
