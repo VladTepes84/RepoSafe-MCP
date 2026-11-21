@@ -50,6 +50,23 @@ test('stdio MCP handshake lists six tools and returns redacted report', { timeou
     assert.ok(report.findings.some(x => x.rule === 'git_history_npm_access_token' && /^[a-f\d]{12}$/.test(x.commit ?? '')));
     const history = await client.callTool({ name: 'scan_git_history', arguments: {} });
     assert.ok(JSON.parse(history.content.find(x => x.type === 'text').text).findings.some(x => x.category === 'history'));
+
+    // Request a bounded single-commit history window via the actual MCP protocol.
+    const limited = await client.callTool({name:'scan_git_history',
+      arguments:{historyDepth:1,maxDiffSizeMiB:1,currentBranchOnly:true}});
+    assert.notEqual(limited.isError,true);
+    const scoped=JSON.parse(limited.content.find(x=>x.type==='text').text);
+    assert.equal(scoped.git.commitsInspected,1);
+    assert.ok(scoped.git.warnings.some(x=>x.includes('operator options')));
+    assert.ok(!JSON.stringify(limited).includes(credential));
+    // Zod input validation must reject out-of-range AI arguments.
+    let rejected=false;
+    try {
+      const invalid=await client.callTool({name:'scan_git_history',arguments:{historyDepth:501}});
+      rejected=invalid.isError===true;
+    } catch { rejected=true; }
+    assert.equal(rejected,true);
+
     for (const name of names) {
       const result = await client.callTool({ name, arguments: {} });
       assert.notEqual(result.isError, true, `Tool failed: ${name}`);
