@@ -10,6 +10,13 @@ export function formatHumanReport(report: ScanReport): string {
       ' | Files: ' + report.stats.filesScanned + ' | Findings: ' + report.findings.length,
     'Severity: ' + order.map(s => s + '=' + count[s]).join('  '),
   ];
+  if (report.git?.historyWindow) {
+    const w = report.git.historyWindow;
+    output.push('Git history: inspected ' + report.git.commitsInspected +
+      ' commits (cap ' + w.maxCommits + ', ' + w.maxDiffSizeMiB + ' MiB' +
+      (w.since ? ', since ' + w.since : '') +
+      (w.currentBranchOnly ? ', current branch only' : ', all local refs') + ').');
+  }
   if (report.baseline) output.push(
     'Baseline: ' + report.baseline.suppressed + ' suppressed (' +
       report.baseline.highSuppressed + ' high/critical), ' + report.baseline.expired + ' expired.',

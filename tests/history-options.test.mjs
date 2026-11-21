@@ -31,6 +31,8 @@ test('depth caps restrict history results and report truncated coverage',async()
     git('add','credential.txt');git('commit','-qm','remove token');
     const limited=await scanGit(root,true,{depth:1,maxDiffSizeMiB:1});
     assert.equal(limited.stats.commitsInspected,1);
+    assert.equal(limited.stats.historyWindow.maxCommits,1);
+    assert.equal(limited.stats.historyWindow.maxDiffSizeMiB,1);
     assert.ok(limited.stats.warnings.some(s=>s.includes('depth limit')));
     assert.ok(!limited.findings.some(f=>f.rule==='git_history_github_token'));
     const expanded=await scanGit(root,true,{depth:3,maxDiffSizeMiB:1});
@@ -44,6 +46,8 @@ test('branch-only and since options are accepted and explicitly restrict coverag
     const limited=await scanGit(root,true,{depth:20,since:today,currentBranchOnly:true,maxDiffSizeMiB:2});
     assert.ok(limited.stats.historyChecked);
     assert.ok(limited.stats.warnings.some(x=>x.includes('operator options')));
+    assert.equal(limited.stats.historyWindow.since,today);
+    assert.equal(limited.stats.historyWindow.currentBranchOnly,true);
   });
 });
 test('invalid history bounds and calendar dates are rejected before Git starts',async()=>{

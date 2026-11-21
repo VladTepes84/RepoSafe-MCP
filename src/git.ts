@@ -88,7 +88,10 @@ export async function scanGit(root: string, history = true, limits: HistoryScanO
   // Validate before any Git operation; invalid options must fail rather than silently relax limits.
   const window = boundedHistoryOptions(limits);
   const findings: Finding[] = [];
-  const stats: GitStats = { historyChecked: false, commitsInspected: 0, gitAvailable: false, complete: true, warnings: [] };
+  const stats: GitStats = { historyChecked: false, commitsInspected: 0, gitAvailable: false, complete: true, warnings: [],
+    ...(history ? { historyWindow: { maxCommits: window.depth, maxDiffSizeMiB: window.maxDiffSizeMiB,
+      ...(window.since ? { since: window.since } : {}), currentBranchOnly: window.currentBranchOnly } } : {}),
+  };
   const warning = (message: string): void => { stats.complete = false; if (!stats.warnings.includes(message)) stats.warnings.push(message); };
   let inside = '';
   try {
