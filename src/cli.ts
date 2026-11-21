@@ -21,16 +21,16 @@ const EXPECTED_TOOLS = [
 ];
 function help(): void {
   console.log([
-    'RepoSafe MCP v0.6 | offline read-only repository auditor',
+    'RepoSafe MCP v0.7 | offline read-only repository auditor',
     '',
     'Usage:',
     '  reposafe scan --root ABSOLUTE_PATH [--json|--sarif] [--no-history] [--no-git]',
     '       [--history-depth 1..500] [--since YYYY-MM-DD] [--max-diff-size MiB:1..16] [--current-branch]',
     '  reposafe doctor --root ABSOLUTE_PATH [--json]',
-    '  reposafe init --root ABSOLUTE_PATH --client cursor|claude|vscode|codex [--dry-run]',
+    '  reposafe init --root ABSOLUTE_PATH --client cursor|claude|vscode|codex [--dry-run] [--json]',
     '  npm run demo',
     '',
-    'init PRINTS configuration only: it never writes a client config or installs hooks.',
+    'init verifies MCP and PRINTS configuration only; --json produces structured onboarding output.',
     'doctor performs a real local stdio MCP handshake and six-tool discovery.',
     'Exit codes: 0=pass/clean in scoped scan; 1=review required; 2=usage or runtime failure.',
     'Use synthetic data for security tests; never paste real credentials in bug reports.',
@@ -73,7 +73,7 @@ async function doctor(root: string): Promise<{ status: 'pass'; node: string; git
     args: [serverPath],
     env: { ...process.env, REPOSAFE_ROOT: approved },
   });
-  const client = new Client({ name: 'reposafe-doctor', version: '0.6.0' });
+  const client = new Client({ name: 'reposafe-doctor', version: '0.7.0' });
   try {
     await client.connect(transport);
     const tools = (await client.listTools()).tools.map(x => x.name).sort();
@@ -139,7 +139,7 @@ async function main(): Promise<void> {
     return;
   }
   if (command === 'doctor' || command === 'init') {
-    const allowed = command === 'doctor' ? ['doctor', '--root', '--json'] : ['init', '--root', '--client', '--dry-run'];
+    const allowed = command === 'doctor' ? ['doctor', '--root', '--json'] : ['init', '--root', '--client', '--dry-run', '--json'];
     if (!validateFlags(allowed)) throw new Error('Invalid doctor/init arguments.');
     const root = option('--root') ?? '';
     if (command === 'init' && (!option('--client') || !['cursor','claude','vscode','codex'].includes(option('--client')!)))
@@ -151,12 +151,24 @@ async function main(): Promise<void> {
         ' | MCP handshake: ' + result.tools.length + ' tools available');
       return;
     }
-    const output = execFileSync(process.execPath, [configScript, '--client', option('--client')!, '--root', root], {
+    const output = execFileSync(process.execPath, [configScript, '--client', option('--client')!,
+      '--root', root, ...(args.includes('--json') ? ['--json'] : [])], {
       encoding: 'utf8', timeout: 10000, windowsHide: true,
     });
+    if (args.includes('--json')) {
+      const config = JSON.parse(output) as Record<string, unknown>;
+      console.log(JSON.stringify({
+        ...config, verifiedProtocol: true, verifiedGUI: false, writesFiles: false,
+        discoveredTools: result.tools,
+        nextStep: 'Merge the RepoSafe entry into the client config manually, restart the client, and verify a real GUI tool call.',
+      }, null, 2));
+      return;
+    }
     console.log('RepoSafe init: real MCP handshake PASSED; approved root and six tools validated.');
     process.stdout.write(output);
     console.log('DRY RUN: no client file was changed. Add/merge the entry manually, restart the app and verify tool calls.');
+    console.log('In the client ask: "Use RepoSafe generate_report for my approved repository and summarize findings without quoting secrets."');
+    console.log('GUI acceptance remains UNVERIFIED until a real client session succeeds.');
     return;
   }
   throw new Error('Invalid command.');

@@ -81,3 +81,15 @@ node dist/cli.js init --root "/ABSOLUTE/PATH/TO/APP" --client cursor --dry-run
 ```
 
 No client settings are written. See [remediation guidance](REMEDIATION.md) for practical follow-up actions that RepoSafe does **not** perform for you.
+
+## v0.7 GitHub-source installation (no clone/build steps)
+
+See [FIRST_RUN.md](FIRST_RUN.md) for a concise macOS/Windows installation, verified MCP `init` and first GUI tool call.
+
+Machine-readable config generation:
+
+```sh
+node dist/cli.js init --root "/ABSOLUTE/PATH/TO/APP" --client cursor --json
+```
+
+Its JSON object includes `targetFile`, `format`, `content`, `discoveredTools`, `verifiedProtocol`, `verifiedGUI` and `writesFiles`. The server is actually contacted, but the GUI application is **not**. Scripts must not interpret `verifiedProtocol` as permission to edit or overwrite the user's existing client config.

@@ -41,6 +41,12 @@ jobs:
       - name: Verify production tarball installation in isolated prefix (Linux only)
         if: runner.os == 'Linux'
         run: node tests/package-install.test.mjs
+      - name: Fresh install directly from pinned GitHub source and MCP onboarding (Linux only)
+        if: runner.os == 'Linux'
+        env:
+          REPOSAFE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node tests/github-install.test.mjs
+
       - name: Generate and validate local dependency SBOM (Linux only)
         if: runner.os == 'Linux'
         shell: bash

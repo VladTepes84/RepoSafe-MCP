@@ -76,3 +76,12 @@ The history scanner reports the first introducing commit for added lines within 
 - `tests/package-install.test.mjs` creates an **actual local npm tarball**, installs it to a disposable directory and runs its `reposafe --help` and real `doctor` MCP handshake. No `npm publish` or write to a user's system-wide npm installation occurs.
 - CI generates a CycloneDX dependency SBOM using `npm sbom` and validates the JSON structure. The generated file stays in ephemeral runner storage; it is **not uploaded, signed, or automatically released**.
 - Windows/macOS still run the main package-manifest test and full regression suite. The full tarball installation test is Linux-only until additional runners are explicitly added.
+
+## v0.7 GitHub-source first-run acceptance
+
+- Four real `init --json` tool discovery calls (Cursor, Claude, VS Code, Codex) in CI, asserting pure machine-readable JSON, six tools, and no false claim of GUI verification or file writes.
+- The standalone config generator has its own JSON-mode test with `verifiedProtocol: false`.
+- A Linux runner installs the **exact PR/head commit** directly from public GitHub using npm's `github:` specifier into a disposable prefix, then calls `doctor` and `init --json` from the installed package. This is not npm registry publication and does not modify a user's computer.
+- The existing Windows/macOS/Linux matrix runs all standard tests. A CI success does not validate the actual Cursor/Claude Desktop graphical interfaces.
+
+- Git-based npm dependencies require the package `prepare` lifecycle to compile `dist/` before packaging. A local `prepack` smoke alone is insufficient: the GitHub source test confirms that the installed entrypoint actually exists.
