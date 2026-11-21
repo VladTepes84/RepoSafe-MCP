@@ -176,6 +176,25 @@ export function checkSecrets(line: string, file: string, lineNumber: number, cat
     });
   }
 
+  // Structured configuration keys can include dots (e.g. spring.datasource.password)
+  // and therefore are not covered by the simple environment-assignment matcher.
+  if (/(?:^|\/)(?:[^/]+\.(?:properties|ya?ml|tfvars|tf)|\.env(?:\.[^/]*)?|appsettings(?:\.[^/]*)?\.json)$/i.test(file)) {
+    const assignment = /^\s*["']?([A-Za-z][A-Za-z0-9_.-]{0,120})["']?\s*[:=]\s*["']?([^\s"'#;,}]{8,})/.exec(line);
+    if (assignment) {
+      const key = assignment[1].split('.').at(-1) ?? '';
+      const value = assignment[2];
+      if (SENSITIVE_KEY.test(key) && !EXAMPLE_VALUE.test(value) &&
+          !findings.some(f => f.rule === 'generic_secret_assignment') &&
+          !SECRET_RULES.some(rule => rule.pattern.test(value))) {
+        findings.push({
+          category, rule: 'structured_config_secret', severity: 'medium', file, line: lineNumber,
+          message: 'Possible embedded credential in structured application configuration.',
+          action: 'Remove the value from committed configuration and use protected runtime secrets.',
+        });
+      }
+    }
+  }
+
   // .npmrc often contains an unprefixed secret, e.g. //registry.npmjs.org/:_authToken=...
   const npmAuth = /(?:^|[:\s])_authToken\s*=\s*["']?([^\s"'#;]{12,})/i.exec(line);
   if (npmAuth && !EXAMPLE_VALUE.test(npmAuth[1]) &&
@@ -215,6 +234,68 @@ export function checkSecrets(line: string, file: string, lineNumber: number, cat
       message: 'Possible high-entropy bearer credential.',
       action: 'Verify whether this is a live authorization credential and rotate it if exposed.',
     });
+  }
+  return findings;
+}
+
+/** Conservative multi-line checks for Terraform variable defaults and Kubernetes Secret
+ * data values. Called only after bounded text files are loaded. No source contents escape.
+ * Git patch-history scanning remains line-only and is not claimed to support these contexts.
+ */
+export function checkStructuredFile(lines: string[], file: string): Finding[] {
+  const findings: Finding[] = [];
+  const record = (rule: string, lineNumber: number, message: string, action: string): void => {
+    findings.push({ category: 'secrets', rule, severity: 'high', file, line: lineNumber, message, action });
+  };
+  if (/\.(?:tf|tfvars)$/i.test(file)) {
+    let variable = '';
+    for (const [index, line] of lines.entries()) {
+      if (line.length > MAX_LINE_CHARS) { variable = ''; continue; }
+      const match = /^\s*variable\s+"([A-Za-z][A-Za-z0-9_-]{0,95})"\s*\{/.exec(line);
+      if (match) variable = match[1];
+      if (variable && SENSITIVE_KEY.test(variable)) {
+        const value = /\bdefault\s*=\s*["']([^"'#]{8,})["']/.exec(line)?.[1];
+        if (value && !EXAMPLE_VALUE.test(value) && !SECRET_RULES.some(rule => rule.pattern.test(value))) {
+          record('terraform_sensitive_default', index + 1,
+            'Terraform variable holding a credential has a hardcoded default.',
+            'Remove the default and supply the value through an appropriate secured secret mechanism.');
+        }
+      }
+      if (line.includes('}')) variable = '';
+    }
+  }
+  if (!/\.ya?ml$/i.test(file)) return findings;
+  let start = 0;
+  for (let i = 0; i <= lines.length; i++) {
+    if (i !== lines.length && !/^\s*---\s*$/.test(lines[i])) continue;
+    const doc = lines.slice(start, i);
+    if (doc.some(line => /^\s*kind:\s*Secret(?:\s*(?:#.*)?)?$/i.test(line))) {
+      let dataIndent = -1;
+      for (const [offset, line] of doc.entries()) {
+        if (line.length > MAX_LINE_CHARS) { dataIndent = -1; continue; }
+        const indent = (line.match(/^\s*/) ?? [''])[0].length;
+        if (/^\s*data:\s*(?:#.*)?$/.test(line)) { dataIndent = indent; continue; }
+        if (dataIndent < 0) continue;
+        if (line.trim() && indent <= dataIndent) { dataIndent = -1; continue; }
+        const match = /^\s+["']?([A-Za-z][A-Za-z0-9_.-]{0,95})["']?\s*:\s*["']?([A-Za-z0-9+/]{12,}={0,2})["']?\s*(?:#.*)?$/.exec(line);
+        if (!match) continue;
+        const key = match[1].split('.').at(-1) ?? '';
+        if (!SENSITIVE_KEY.test(key) && !/^(?:tls\.key|private-key)$/i.test(match[1])) continue;
+        const encoded = match[2];
+        try {
+          if (encoded.length > 4096 || encoded.length % 4 === 1) continue;
+          const decoded = Buffer.from(encoded, 'base64');
+          if (decoded.length < 8 || decoded.length > 3072) continue;
+          if (decoded.toString('base64').replace(/=+$/, '') !== encoded.replace(/=+$/, '')) continue;
+          const value = decoded.toString('utf8');
+          if (value.includes('\uFFFD') || !/^[\x20-\x7e]+$/.test(value) || EXAMPLE_VALUE.test(value)) continue;
+          record('kubernetes_encoded_secret', start + offset + 1,
+            'Kubernetes Secret data contains an embedded Base64-encoded credential candidate.',
+            'Do not commit active Kubernetes Secret values; rotate compromised credentials and use a managed secret source.');
+        } catch { /* Invalid encoding never becomes a finding with source values. */ }
+      }
+    }
+    start = i + 1;
   }
   return findings;
 }
@@ -381,6 +462,15 @@ export async function scanRepository(approvedRoot: string, options: { skipBaseli
           for (const f of checkPrivacy(lines[n], rel, n + 1)) addFinding(f);
           if (stopped) break;
         }
+        if (!stopped) {
+          for (const f of checkStructuredFile(lines, rel)) {
+            // Prefer the specialized structural match to a generic same-line warning.
+            const genericIndex = findings.findIndex(x => x.file === safeRelativePath(rel) &&
+              x.line === f.line && x.rule === 'generic_secret_assignment');
+            if (genericIndex !== -1) findings.splice(genericIndex, 1);
+            addFinding(f);
+          }
+        }
       } catch {
         stats.filesSkipped++;
         markPartial('A file could not be read safely.');
@@ -469,6 +559,13 @@ export async function scanSelectedTrackedFiles(approvedRoot: string, names: stri
           if (findings.length >= MAX_FINDINGS) { mark('Tracked file finding limit reached.'); break; }
           findings.push({ ...finding, file: safeRelativePath(finding.file) });
         }
+      }
+      for (const finding of checkStructuredFile(lines, name)) {
+        if (findings.length >= MAX_FINDINGS) { mark('Tracked file finding limit reached.'); break; }
+        const genericIndex = findings.findIndex(x => x.file === safeRelativePath(name) &&
+          x.line === finding.line && x.rule === 'generic_secret_assignment');
+        if (genericIndex !== -1) findings.splice(genericIndex, 1);
+        findings.push({ ...finding, file: safeRelativePath(finding.file) });
       }
     } catch {
       mark('One or more tracked files could not be read safely.');
