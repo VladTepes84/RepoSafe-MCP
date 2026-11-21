@@ -24,3 +24,22 @@ for(const env of [mac,win]){
 test('generator refuses relative roots even if config client name is valid',()=>{
   assert.throws(()=>makeClientConfig({...mac,client:'cursor',root:'../relative'}),/absolute/);
 });
+
+
+test('generator JSON mode is parseable and never claims real GUI or protocol tests',async()=>{
+  const {mkdtemp,rm}=await import('node:fs/promises');
+  const {tmpdir}=await import('node:os');
+  const root=await mkdtemp(join(tmpdir(),'reposafe-config-json-'));
+  try {
+    const {spawnSync}=await import('node:child_process');
+    const args=['scripts/config.mjs','--client','cursor','--root',root,'--json'];
+    const r=spawnSync(process.execPath,args,{encoding:'utf8',timeout:8000});
+    assert.equal(r.status,0,r.stderr);
+    const data=JSON.parse(r.stdout);
+    assert.equal(data.client,'cursor');
+    assert.equal(data.writesFiles,false);
+    assert.equal(data.verifiedProtocol,false);
+    assert.equal(data.verifiedGUI,false);
+    assert.ok(data.content.includes('mcpServers'));
+  } finally {await rm(root,{recursive:true,force:true});}
+});

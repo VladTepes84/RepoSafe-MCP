@@ -56,3 +56,31 @@ test('explicit init --dry-run remains no-write and verifies real MCP handshake',
     assert.ok(r.stdout.includes('DRY RUN'));
   });
 });
+
+
+test('machine-readable init performs real MCP handshake for all supported clients', {timeout:120000},async()=>{
+  await fixture(async root=>{
+    for (const client of ['cursor','claude','vscode','codex']) {
+      const r=run('init','--root',root,'--client',client,'--json');
+      assert.equal(r.status,0,client+': '+r.stderr);
+      const result=JSON.parse(r.stdout);
+      assert.equal(result.verifiedProtocol,true);
+      assert.equal(result.verifiedGUI,false);
+      assert.equal(result.writesFiles,false);
+      assert.equal(result.client,client);
+      assert.equal(result.discoveredTools.length,6);
+      assert.ok(result.targetFile);
+      assert.ok(result.content.includes('REPOSAFE_ROOT'));
+      assert.ok(!r.stdout.includes('MCP handshake PASSED'), 'stdout must be pure JSON');
+    }
+  });
+});
+test('init --json remains machine-readable with explicit --dry-run', {timeout:26000},async()=>{
+  await fixture(async root=>{
+    const r=run('init','--root',root,'--client','cursor','--json','--dry-run');
+    assert.equal(r.status,0,r.stderr);
+    const result=JSON.parse(r.stdout);
+    assert.equal(result.writesFiles,false);
+    assert.equal(result.verifiedProtocol,true);
+  });
+});
