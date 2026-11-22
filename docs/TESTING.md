@@ -1,6 +1,6 @@
 # Test and evidence plan
 
-> **Current evidence (22 Nov 2026):** combined PR #20 merged to `main` at `1fe5bbb4c14e738f1fd196b839346f967909bf58`. Its combined head passed four GitHub CI jobs and **146 local Mac automated tests**, plus demo, runtime verification, benchmark, audit and manual synthetic CLI Git/history/JSON/SARIF/checkpoint checks. Those results do **not** validate the subsequent new CLI display flags until a fresh run completes. **Codex Desktop tools were not exposed in the observed client conversation; GUI acceptance has not passed.**
+> **Current evidence (22 Nov 2026):** combined PR #20 merged to `main` at `1fe5bbb4c14e738f1fd196b839346f967909bf58`. Its combined head passed four GitHub CI jobs and **146 local Mac automated tests**, plus demo, runtime verification, benchmark, audit and manual synthetic CLI Git/history/JSON/SARIF/checkpoint checks. PR #26 code head `724fa432d71afccad0bd037d4ba8aa1ff50947d2` separately passed four CI matrix jobs in [run #45053790697](https://github.com/VladTepes84/RepoSafe-MCP/actions/runs/45053790697), including the display and contextual triage regressions. CI on that code head does **not** constitute manual Mac/Codex Desktop GUI acceptance or validation of later commits. **Codex Desktop tools were not exposed in the observed client conversation; GUI acceptance has not passed.**
 
 > Historical references below to **six** tools are old v0.7 development checkpoints; the merged current implementation exposes **seven** via SDK `doctor`, including `get_findings_page`. Do not use historical counts as today's requirement.
 
@@ -41,11 +41,11 @@ REAL OFFLINE DEMO PASS (synthetic credentials only)
 
 ## Script-free distribution regression (2026-11-22)
 
-The GitHub repository tracks compiled JavaScript and declarations in `dist/`. CI runs `npm run verify:runtime` after building to catch any drift from TypeScript sources. A real pinned GitHub archive is installed in an isolated prefix with `npm --ignore-scripts`, then `--help`, `doctor --json` and `init --json` verify executable availability, an actual SDK MCP handshake and six tools. This is run on Linux, Windows and macOS, including Node.js 24 on macOS. Direct runtime dependencies are pinned to the tested versions. The existing GitHub-source install smoke also uses `--ignore-scripts`. The npm registry remains unpublished, and actual Cursor/Claude GUI integration is still pending.
+The GitHub repository tracks compiled JavaScript and declarations in `dist/`. CI runs `npm run verify:runtime` after building to catch any drift from TypeScript sources. A real pinned GitHub archive is installed in an isolated prefix with `npm --ignore-scripts`, then `--help`, `doctor --json` and `init --json` verify executable availability, an actual SDK MCP handshake and seven tools. This is run on Linux, Windows and macOS, including Node.js 24 on macOS. Direct runtime dependencies are pinned to the tested versions. The existing GitHub-source install smoke also uses `--ignore-scripts`. The npm registry remains unpublished, and actual Cursor/Claude GUI integration is still pending.
 
 ## New human-readable CLI UX regression
 
-The source adds `tests/cli-display.test.mjs` to `npm run test:userflow`. Acceptance requires severity grouping, summary-only counts, compact file-grouped output, incomplete coverage display, no credential leakage and rejection of invalid options. **This new suite is pending fresh CI verification on its PR**, separate from the 146 tests reported for merged PR #20.
+The source adds `tests/cli-display.test.mjs` to `npm run test:userflow`. Acceptance requires severity grouping, summary-only counts, compact file-grouped output, incomplete coverage display, no credential leakage and rejection of invalid options. **The CLI display suite is covered by PR #26's passing CI run #45053790697**, separate from the 146 local Mac tests recorded for merged PR #20.
 
 ## Security regression tests worth adding next
 
