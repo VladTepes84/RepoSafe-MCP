@@ -25,6 +25,8 @@ export interface ScanStats {
 export interface GitStats {
   historyChecked: boolean;
   commitsInspected: number;
+  /** Completed Git process batches; no raw diff data is retained. */
+  historyBatches?: number;
   historyWindow?: { maxCommits: number; maxDiffSizeMiB: number; since?: string; currentBranchOnly: boolean };
   trackedExcludedFilesRequested?: number;
   trackedExcludedFilesScanned?: number;
