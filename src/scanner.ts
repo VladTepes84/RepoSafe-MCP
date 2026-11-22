@@ -373,12 +373,20 @@ export async function scanRepository(approvedRoot: string, options: { skipBaseli
     if (!stats.warnings.includes(reason)) stats.warnings.push(reason);
   }
   function addFinding(finding: Finding): void {
+    const candidate = { ...finding, file: safeRelativePath(finding.file) };
     if (findings.length >= MAX_FINDINGS) {
-      markPartial('Finding limit reached.');
-      stopped = true;
-      return;
+      markPartial('Finding retention limit reached; lower-priority findings may be omitted.');
+      stats.findingsOmitted = (stats.findingsOmitted ?? 0) + 1;
+      const rank = (severity: Finding['severity']): number =>
+        ({ critical: 0, high: 1, medium: 2, low: 3 })[severity];
+      let weakest = 0;
+      for (let i = 1; i < findings.length; i++) {
+        if (rank(findings[i].severity) > rank(findings[weakest].severity)) weakest = i;
+      }
+      if (rank(candidate.severity) < rank(findings[weakest].severity)) findings[weakest] = candidate;
+      return; // Continue scanning other files even when report retention is full.
     }
-    findings.push({ ...finding, file: safeRelativePath(finding.file) });
+    findings.push(candidate);
   }
 
   while (toVisit.length && !stopped) {
