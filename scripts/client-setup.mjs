@@ -19,7 +19,7 @@ export function updateCodexToml(existing, entry, remove) {
   }
   if (!markers.length) {
     if (remove) return existing;
-    return existing.replace(/\s*$/, '\n\n') + entry.trimEnd() + '\n';
+    return existing + (existing && !existing.endsWith('\n') ? '\n' : '') + entry.trimEnd() + '\n';
   }
   const start = markers[0].index;
   const afterHeader = start + markers[0][0].length;
