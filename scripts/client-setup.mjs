@@ -67,11 +67,12 @@ export function updateJsonConfig(existing, entry, remove) {
 
 export async function updateClient({ client, root, remove = false, dryRun = false,
   platform = process.platform, home = homedir(), appdata = process.env.APPDATA,
+  copilotHome = process.env.COPILOT_HOME, xdgConfigHome = process.env.XDG_CONFIG_HOME,
   node = process.execPath, serverPath } = {}) {
   if (!CLIENTS.has(client)) throw new Error('Unknown MCP client.');
   const fakeRoot = platform === 'win32' ? 'C:\\' : '/';
   const cfg = makeClientConfig({ client, root: remove ? fakeRoot : root,
-    platform, home, appdata, node, ...(serverPath ? { serverPath } : {}) });
+    platform, home, appdata, copilotHome, xdgConfigHome, node, ...(serverPath ? { serverPath } : {}) });
   let old = '';
   let exists = false;
   let mode = 0o600;
