@@ -260,3 +260,35 @@ test('history batches cover more than 200 commits without a global diff cap', { 
     assert.ok(!JSON.stringify(result).includes(synthetic));
   });
 });
+
+test('inherited GIT_DIR and GIT_WORK_TREE cannot redirect history outside approved root', async () => {
+  await withGitRepo(async approved => {
+    await withGitRepo(async outside => {
+      git(approved, 'add', '.');
+      git(approved, 'commit', '-qm', 'approved synthetic files');
+      const foreignToken = 'ghp_' + 'Q'.repeat(36);
+      await writeFile(join(outside, 'foreign.txt'), 'GITHUB_TOKEN=' + foreignToken + '\\n');
+      git(outside, 'add', '.');
+      git(outside, 'commit', '-qm', 'outside synthetic token');
+      const keys = ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_OBJECT_DIRECTORY'];
+      const before = keys.map(key => process.env[key]);
+      try {
+        process.env.GIT_DIR = join(outside, '.git');
+        process.env.GIT_WORK_TREE = approved;
+        process.env.GIT_INDEX_FILE = join(outside, '.git', 'index');
+        process.env.GIT_OBJECT_DIRECTORY = join(outside, '.git', 'objects');
+        const scanned = await scanGit(approved, true, { depth: 10 });
+        assert.equal(scanned.stats.gitAvailable, true);
+        assert.equal(scanned.stats.historyChecked, true);
+        assert.equal(scanned.stats.commitsInspected, 1);
+        assert.equal(scanned.findings.some(x => x.rule === 'git_history_github_token'), false);
+        assert.ok(!JSON.stringify(scanned).includes(foreignToken));
+      } finally {
+        keys.forEach((key, index) => {
+          if (before[index] === undefined) delete process.env[key];
+          else process.env[key] = before[index];
+        });
+      }
+    });
+  });
+});
