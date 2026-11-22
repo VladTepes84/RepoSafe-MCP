@@ -15,10 +15,10 @@ RepoSafe is a **local-only, read-only scanner** distributed as CLI and a local s
 
 | Gate | Evidence required | Current status on 2026-11-22 |
 | --- | --- | --- |
-| P0 — Post-merge integrity | CI run on exact `main` SHA, all four OS/Node jobs, typecheck, build, tests, archive smoke, runtime sync, dep audit | Pending CI evidence for squash SHA `66ba50d7b71c0b1432f755e6ef677c045399b94e` |
+| P0 — Post-merge integrity | CI on exact `main` SHA, four OS/Node jobs, typecheck/build/tests/archive/runtime/audit | **PR #20** integrated at `1fe5bbb4c14e738f1fd196b839346f967909bf58`. Combined head `aa81a7a...` passed 4/4 CI, 146 local Mac tests and demos; **separate CI of merge SHA and subsequent UX changes must be verified** |
 | P0 — Security boundaries | Adversarial path/symlink/hardlink/Git env tests, secret redaction, fail-closed limits, config locks and checkpoint corruption tests | Synthetic tests exist; independent threat review outstanding |
-| P0 — Real MCP client integration | Actual client GUI tool calls and approvals on pinned app versions; scoped scans, pagination, reconnect/restart and uninstall | **NOT VERIFIED** for Codex Desktop, Cursor, Claude Desktop and VS Code/Copilot |
-| P1 — Detection precision | Synthetic ground-truth corpus; per-rule precision/recall and duplicate-rate report; no silent global test-directory exclusions | No measured per-rule precision/recall baseline |
+| P0 — Real MCP client integration | Actual GUI tool calls with receipts and approvals | **NOT PASSED for Codex Desktop** (tools not exposed in observed 2026-11-22 conversation). Other GUI clients **NOT VERIFIED** |
+| P1 — Detection precision | Synthetic ground-truth corpus; per-rule precision/recall and duplicate-rate report | Synthetic fixture gate: **10 expected positives and 10 benign examples**, all correctly classified in observed local test; **no representative per-rule real-world benchmark** |
 | P1 — Report contract | JSON schema versioning, SARIF validation with consumers, deterministic pagination, counts, omission reporting and redact-only guarantee | JSON/SARIF smoke checked locally; independent interoperability outstanding |
 | P1 — Large-repository performance | Representative real-world authorized local datasets; p50/p95 runtime, peak RSS, cancellation, history limits and coverage | Synthetic small/medium/large CI benchmark only |
 | P1 — GitHub governance | Reviewed branch rules, required checks, Dependabot PR process, disclosure path and supply-chain audit | Repository workflow and security guide present; platform rules/settings require separate verification |

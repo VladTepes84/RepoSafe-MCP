@@ -1,101 +1,96 @@
-# macOS — verified commands for RepoSafe MCP
+# RepoSafe MCP — macOS installation and local testing
 
-Supported design: macOS + Node.js 22+ + Git + a local MCP client. Commands below use **Terminal** (zsh) and no package manager beyond npm. The actual binary and server paths are generated on your machine.
+**Supported design:** Apple Silicon or Intel macOS, Node.js 22+, npm and Git. RepoSafe performs local, read-only repository audits; no AI key, daemon, remote API or special macOS permission is required to scan an approved project. You can use it **without** Codex or any GUI client.
 
-## 1. Verify the prerequisites
+## 1. Check prerequisites (Terminal / zsh)
 
-```zsh
+~~~zsh
 node --version
 npm --version
 git --version
-```
+~~~
 
-Install the official Node.js 22 LTS or newer release from https://nodejs.org/ if Node is missing. Git is normally installed with Xcode Command Line Tools (`xcode-select --install`) or another trusted provider. Do not paste arbitrary `curl | sh` install commands.
+Node.js 22+ is required. If missing, use a trusted Node.js distribution from [nodejs.org](https://nodejs.org/). Git can be supplied by Apple's developer command-line tools or another trusted source. RepoSafe does **not** require `curl | sh`, Rosetta, administrator privileges, disabling Gatekeeper, or installing a new Node version when an existing 22+ runtime works.
 
-## 2. Recommended: install the precompiled archive (no build scripts)
+## 2. Recommended local installation
 
-```zsh
-npm install --prefix "$HOME/.reposafe" --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
-node "$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js" doctor --root "/ABSOLUTE/PATH/TO/YOUR/PROJECT"
-node "$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js" scan --root "/ABSOLUTE/PATH/TO/YOUR/PROJECT"
-```
+~~~zsh
+npm install --prefix "$HOME/.reposafe" --ignore-scripts --no-audit --no-fund \
+  "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
 
-Replace the project root with a specific existing repository directory. The archive includes precompiled `dist/` and does not require approving npm scripts. `main` is mutable: replace it with a reviewed 40-character commit SHA for a reproducible install. The first download and dependency installation need internet; scans stay local. See [FIRST_RUN](FIRST_RUN.md) for `init` and client configuration.
+RS="$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js"
+node "$RS" --help
+~~~
 
-## Alternative for contributors: clone source, build and run all tests
+The source archive includes precompiled JavaScript. `--ignore-scripts` disables npm lifecycle scripts; package downloads still use GitHub/npm over HTTPS. The prefix is user-owned and separate from target repositories. **Pinning:** replace `main` at the end of the URL with a reviewed **40-character commit SHA** to avoid a mutable install. No signed release or npm-registry publication is implied.
 
-```zsh
-cd "$HOME"
+## 3. Scope and scan
+
+~~~zsh
+REPO="/ABSOLUTE/PATH/TO/REPOSITORY"
+node "$RS" doctor --root "$REPO"
+node "$RS" scan --root "$REPO"
+node "$RS" scan --root "$REPO" --summary
+node "$RS" scan --root "$REPO" --compact --group-by file
+~~~
+
+Use only an **existing repository you own or are authorized to inspect**; never scan your whole home folder or system root. `doctor` checks the real STDIO MCP handshake and discovers **seven tools**, but **does not run a scan** or prove Codex Desktop can see them.
+
+Expected human report sections: verdict, bounded coverage, severity counts, local Git history window, and optional severity- or file-grouped findings. Exit `0` = clean *within examined scope* (not certification), `1` = findings or incomplete coverage, `2` = error.
+
+## 4. Development checkout, regression and performance
+
+For contributors who want to inspect source and tests (separate from prefix installation):
+
+~~~zsh
 git clone https://github.com/VladTepes84/RepoSafe-MCP.git
-cd "$HOME/RepoSafe-MCP"
-npm ci
+cd RepoSafe-MCP
+npm ci --ignore-scripts
 npm run check
-npm run demo
-```
+npm run verify:runtime
+npm run benchmark
+npm run audit:deps
+~~~
 
-The repository is public; GitHub access and network connectivity are still required for cloning. A clean `npm run check` must exit 0; `npm run demo` must print `REAL OFFLINE DEMO PASS`. No actual credential is required.
+`npm run check` includes typecheck, build, security tests, Git fixtures, MCP SDK handshake and offline demo. `benchmark` uses synthetic repositories, not your private projects. `npm audit` retrieves package advisories online. A successful test cannot prove that all secrets or all Git objects were examined.
 
-## 3. Create a disposable test target (not a real project)
+## 5. Optional local MCP connection
 
-```zsh
-mkdir -p "$HOME/Projects/reposafe-sample"
-printf '# Synthetic test project\n' > "$HOME/Projects/reposafe-sample/README.md"
-printf 'MIT\n' > "$HOME/Projects/reposafe-sample/LICENSE"
-printf '.env\n.env.*\n' > "$HOME/Projects/reposafe-sample/.gitignore"
-node "$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js" scan --root "$HOME/Projects/reposafe-sample" --no-git --json
-```
+**Not required for CLI auditing.** Inspect the setup before changing configuration:
 
-This prints a JSON report. The *CLI-only* `--no-git` mode explicitly skips Git checks because the sample is not a Git repository. For a normal Git project, remove `--no-git` to also inspect history.
+~~~zsh
+node "$RS" init --root "$REPO" --client codex --json
+node "$RS" connect --root "$REPO" --client codex --dry-run
+~~~
 
-## 4. Configure an MCP AI client
+Only after reviewing the dry-run may you explicitly use:
 
-If you used the **precompiled archive** from step 2, run `node "$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js" init --root "$HOME/Projects/reposafe-sample" --client cursor` (or another supported client) to preview configuration without writing client files.
+~~~zsh
+node "$RS" connect --root "$REPO" --client codex
+~~~
 
-For **source contributors only**, run **one** of the following while inside `$HOME/RepoSafe-MCP`:
+Other config targets are `cursor`, `claude` and `vscode`. The managed client connection writes just the RepoSafe entry and may create a private backup of existing config. The native client **must** be restarted and must actually expose and invoke `generate_report` and `get_findings_page` before GUI acceptance can be claimed.
 
-```zsh
-npm run config -- --client cursor --root "$HOME/Projects/reposafe-sample"
-npm run config -- --client claude --root "$HOME/Projects/reposafe-sample"
-npm run config -- --client vscode --root "$HOME/Projects/reposafe-sample"
-npm run config -- --client codex --root "$HOME/Projects/reposafe-sample"
-```
+**Known observed limitation (22 Nov 2026):** Mac `doctor` passed but a Codex Desktop conversation **did not expose RepoSafe tools**. The cause is undiagnosed and integration is deferred; the CLI remains operational. Do not bypass macOS protections or assume the executable is malicious/benign based on protocol tests.
 
-The generator prints a complete configuration with **your actual Node binary path**. Paste its `reposafe` server entry into the target file indicated in the output. If that file already has other MCP servers, *merge* instead of overwriting. Paths are already correctly escaped. No VS Code/Claude/Cursor configuration is changed automatically.
+## 6. JSON/SARIF and resource boundaries
 
-| Client | Destination (macOS) | How to verify |
-| --- | --- | --- |
-| Cursor | `~/.cursor/mcp.json` | Restart Cursor; Customize > MCPs; confirm 7 RepoSafe tools and run `generate_report` |
-| Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json` | Restart Claude Desktop; inspect connector/tools and call `generate_report` |
-| VS Code Copilot harness | `~/.copilot/mcp-config.json` | Choose Copilot harness; Chat: Open Customizations > MCP Servers; confirm `reposafe` |
-| Codex CLI / IDE / supported ChatGPT desktop environment | `~/.codex/config.toml` | Restart client, inspect MCP tools (e.g. `/mcp` in supported clients) |
+~~~zsh
+node "$RS" scan --root "$REPO" --history-depth 500 --max-diff-size 8
+node "$RS" scan --root "$REPO" --json > "/SAFE/OUTSIDE/REPO/report.json"
+node "$RS" scan --root "$REPO" --sarif > "/SAFE/OUTSIDE/REPO/report.sarif"
+~~~
 
-VS Code **modern Copilot harness** uses top-level `mcpServers`; older editor-managed `.vscode/mcp.json` uses **different** `servers` shape and is not the default recommended path. See [CLIENTS](CLIENTS.md).
+Reports must be redirected **outside** the target repository. They contain redacted finding metadata and may remain sensitive. Depth is capped at 5,000; Git patch batch budget at 16 MiB; retained findings at 5,000. `--resume-history` is opt-in and writes redacted private metadata under `~/.reposafe/checkpoints/`.
 
-## 5. Ask in chat
+## 7. Uninstall safely
 
-> Run RepoSafe `generate_report` on the pre-authorized folder and explain findings by severity. Show file names and line numbers, but never ask for or reproduce any credentials. Explain any incomplete checks.
+~~~zsh
+node "$RS" disconnect --client codex --dry-run
+node "$RS" disconnect --client codex
+npm uninstall --prefix "$HOME/.reposafe" reposafe-mcp --ignore-scripts --no-audit --no-fund
+~~~
 
-## Troubleshooting
+Disconnect **only clients you configured**. Source clone, test fixtures, checkpoint files and private config backups require separate inspection/cleanup; don't use a wildcard `rm -rf`. Follow [Uninstall and rollback](UNINSTALL.md) for details.
 
-- `spawn ENOENT`: use the generator's `command` **absolute Node path**, not a guessed `node` or `npx`; check `ls -l "$(command -v node)"`.
-- `MODULE_NOT_FOUND`: run `npm ci && npm run build` in RepoSafe. The server path must end in `dist/server.js`.
-- Nothing appears in chat: restart the client, inspect client MCP logs, check JSON/TOML syntax and ensure the target directory exists.
-- `review_required` on an empty sample: a non-Git target has **no Git history** to inspect. This is intentional; use `--no-git` for current-tree-only CLI mode.
-- Never use a broad folder such as `$HOME`, the filesystem root, `Downloads` or a credential store as your scan target.
-
-Verified documentation: https://prod.cursor.com/help/customization/mcp , https://modelcontextprotocol.io/docs/develop/connect-local-servers , https://code.visualstudio.com/docs/agents/reference/mcp-configuration , https://learn.chatgpt.com/docs/extend/mcp .
-## v0.4: validated local MCP self-check (does not change client files)
-
-Run the following from the cloned RepoSafe-MCP directory after `npm ci` and `npm run build`. Replace `ABSOLUTE_PROJECT_PATH` with an existing local repository directory.
-
-```text
-node dist/cli.js doctor --root "ABSOLUTE_PROJECT_PATH"
-node dist/cli.js init --root "ABSOLUTE_PROJECT_PATH" --client cursor
-node dist/cli.js init --root "ABSOLUTE_PROJECT_PATH" --client claude
-```
-
-`doctor` must return `RepoSafe doctor PASS` and seven tools. `init` prints the exact configuration target and JSON for the current computer. **Copy/merge it manually; neither command edits client config.** A real Cursor or Claude Desktop GUI session has NOT yet been verified on this platform. See [QUICKSTART](QUICKSTART.md).
-
-## Managed local client configuration
-
-See [LOCAL_MCP.md](LOCAL_MCP.md) for `connect`/`disconnect` without executing Codex CLI and [UNINSTALL.md](UNINSTALL.md) for safe removal. The app's GUI acceptance remains unverified until tested in the actual client.
+Further: [Quick start](QUICKSTART.md) · [CLI reference](CLI_REFERENCE.md) · [Security model](SECURITY.md) · [MCP client status](CLIENTS.md).

@@ -24,7 +24,8 @@ function help() {
         '',
         'Usage:',
         '  reposafe scan --root ABSOLUTE_PATH [--json|--sarif] [--no-history] [--no-git]',
-        '       [--all-findings] [--no-color] [--resume-history] [--history-depth 1..5000] [--since YYYY-MM-DD] [--max-diff-size MiB:1..16] [--current-branch]',
+        '       [--all-findings] [--summary|--compact] [--group-by severity|file] [--no-color]',
+        '       [--resume-history] [--history-depth 1..5000] [--since YYYY-MM-DD] [--max-diff-size MiB:1..16] [--current-branch]',
         '  reposafe doctor --root ABSOLUTE_PATH [--json]',
         '  reposafe connect --root ABSOLUTE_PATH --client cursor|claude|vscode|codex [--dry-run]',
         '  reposafe disconnect --client cursor|claude|vscode|codex [--dry-run]',
@@ -101,14 +102,14 @@ function validateFlags(allowed) {
         const arg = args[i];
         if (!flags.has(arg))
             return false;
-        if (['--root', '--client', '--history-depth', '--since', '--max-diff-size'].includes(arg)) {
+        if (['--root', '--client', '--history-depth', '--since', '--max-diff-size', '--group-by'].includes(arg)) {
             i++;
             if (!args[i] || args[i].startsWith('--'))
                 return false;
         }
     }
     return args.filter(x => x === '--root').length === 1 &&
-        ['--client', '--history-depth', '--since', '--max-diff-size'].every(flag => args.filter(x => x === flag).length <= 1);
+        ['--client', '--history-depth', '--since', '--max-diff-size', '--group-by'].every(flag => args.filter(x => x === flag).length <= 1);
 }
 async function main() {
     if (!command || command === '--help' || command === '-h') {
@@ -117,9 +118,16 @@ async function main() {
     }
     if (command === 'scan') {
         if (!validateFlags(['scan', '--root', '--json', '--sarif', '--no-history', '--no-git',
-            '--history-depth', '--since', '--max-diff-size', '--current-branch', '--all-findings', '--no-color', '--resume-history']) ||
-            (args.includes('--json') && args.includes('--sarif')))
+            '--history-depth', '--since', '--max-diff-size', '--current-branch', '--all-findings', '--no-color', '--resume-history',
+            '--summary', '--compact', '--group-by']) ||
+            (args.includes('--json') && args.includes('--sarif')) ||
+            (args.includes('--summary') && args.includes('--compact')) ||
+            ((args.includes('--json') || args.includes('--sarif')) &&
+                ['--summary', '--compact', '--group-by'].some(flag => args.includes(flag))))
             throw new Error('Invalid scan arguments.');
+        const groupBy = option('--group-by') ?? 'severity';
+        if (groupBy !== 'severity' && groupBy !== 'file')
+            throw new Error('Invalid --group-by value.');
         const historyFlags = ['--history-depth', '--since', '--max-diff-size', '--current-branch', '--resume-history'];
         if ((args.includes('--no-git') || args.includes('--no-history')) &&
             historyFlags.some(flag => args.includes(flag)))
@@ -160,7 +168,7 @@ async function main() {
         else if (args.includes('--sarif'))
             console.log(JSON.stringify(reportToSarif(report), null, 2));
         else
-            console.log(formatHumanReport(report, args.includes('--all-findings') ? Infinity : 50, Boolean(process.stdout.isTTY && process.env.NO_COLOR === undefined && !args.includes('--no-color'))));
+            console.log(formatHumanReport(report, args.includes('--all-findings') ? Infinity : 50, Boolean(process.stdout.isTTY && process.env.NO_COLOR === undefined && !args.includes('--no-color')), { summary: args.includes('--summary'), compact: args.includes('--compact'), groupBy }));
         process.exitCode = report.verdict === 'review_required' ? 1 : 0;
         return;
     }

@@ -22,7 +22,7 @@
     "test:config": "node --test tests/config.test.mjs tests/client-setup.test.mjs",
     "doctor": "node dist/cli.js doctor",
     "init": "node dist/cli.js init",
-    "test:userflow": "node --test tests/userflow.test.mjs",
+    "test:userflow": "node --test tests/userflow.test.mjs tests/cli-display.test.mjs",
     "pretest:unit": "npm run build",
     "test:package": "node --test tests/package.test.mjs",
     "test:sarif": "node --test tests/sarif.test.mjs",

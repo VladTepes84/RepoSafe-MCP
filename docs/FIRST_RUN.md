@@ -1,91 +1,95 @@
-# RepoSafe MCP — first run (script-free installation)
+# RepoSafe MCP — first run (precompiled installation)
 
-**Goal:** perform a read-only repository audit without cloning RepoSafe, compiling TypeScript or approving npm package build scripts. Requires Node.js **22+**, npm and Git. An internet connection is required for initial download; no AI API key is needed.
+**Audience:** security practitioners, developers and maintainers who want to audit a Git repository locally. **Prerequisites:** Node.js 22+, npm and Git; permission to inspect the target repository. No AI API key, hosted scanner, telemetry or privileged installer is required.
 
-## 1. Install the precompiled GitHub archive
+The **recommended** installation uses a precompiled source archive in a dedicated user directory and skips all npm lifecycle scripts. For the complete commands, see [Quick start](QUICKSTART.md) and [CLI reference](CLI_REFERENCE.md).
 
-**macOS / Linux Terminal**
+## Install
 
-```sh
-npm install --prefix "$HOME/.reposafe" --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
-```
+macOS / Linux:
 
-**Windows PowerShell** (use `npm.cmd` if `npm.ps1` is blocked):
+~~~sh
+node --version
+git --version
+npm install --prefix "$HOME/.reposafe" --ignore-scripts --no-audit --no-fund \
+  "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
+RS="$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js"
+node "$RS" --help
+~~~
 
-```powershell
+Windows PowerShell:
+
+~~~powershell
+node --version
+git --version
 npm.cmd install --prefix "$HOME\.reposafe" --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
-```
+$RS = "$HOME\.reposafe\node_modules\reposafe-mcp\dist\cli.js"
+node $RS --help
+~~~
 
-The project contains committed `dist/` JavaScript; no npm lifecycle build/approval is required. Dependency downloads come from npm; the repo archive comes from GitHub over HTTPS. `--ignore-scripts` also disables dependency lifecycle scripts. The installer still writes to the chosen prefix and npm cache, **not the repository being audited**.
+**Security and reproducibility:** `main` is a mutable Git branch. Replace the archive segment `main` with a reviewed **40-character commit SHA** for a reproducible source version. This is **not** a signed, independently attested binary. The installer downloads from GitHub/npm over HTTPS, writes to the specified prefix/npm cache, and never builds/executes npm lifecycle scripts (`--ignore-scripts`). The source includes committed compiled JavaScript under `dist/`, verified against TypeScript builds in CI. No package is published to the npm registry.
 
-**Supply-chain:** the convenience URL above ends in `main`, a **mutable branch**. For reproducibility, replace the final `main` with an independently reviewed **full 40-character Git commit SHA**. This is a commit-pinned archive, *not* a signed or independently attested software release. The npm registry package is not published.
+## Approve a precise scope and verify
 
-## 2. Verify the real CLI and MCP protocol
+Use an existing absolute directory that you own or may audit, **not your entire home or filesystem root**.
 
-**macOS / Linux:**
+~~~sh
+REPO="/ABSOLUTE/PATH/TO/YOUR/PROJECT"
+node "$RS" doctor --root "$REPO"
+node "$RS" scan --root "$REPO" --summary
+node "$RS" scan --root "$REPO" --compact --group-by file
+~~~
 
-```sh
-node "$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js" --help
-node "$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js" doctor --root "/ABSOLUTE/PATH/TO/PROJECT"
-```
+Windows: use a drive-qualified path and `node $RS`.
 
-**Windows PowerShell:**
+`doctor` connects to a real local MCP STDIO server and discovers **seven tools**. It **does not** scan a repository and **does not** verify the actual AI client's GUI. `scan` runs a real read-only audit and provides a verdict, severity counts, known omissions, coverage and optional finding details.
 
-```powershell
-node "$HOME\.reposafe\node_modules\reposafe-mcp\dist\cli.js" --help
-node "$HOME\.reposafe\node_modules\reposafe-mcp\dist\cli.js" doctor --root "C:\Users\YourUser\Projects\YourProject"
-```
+**Exit codes:** `0` no unsuppressed findings within bounded scope; `1` review required or incomplete scan; `2` usage/runtime error. Even exit 0 is **not** proof that publication is safe.
 
-Use an **existing, specific directory you own or have permission to audit**. Do not select your entire home directory or a system drive. `doctor` performs a real local MCP handshake and checks discovery of **seven tools**; it does not run a repository scan.
+## Optional AI client setup — after CLI acceptance
 
-## 3. First real repository scan (no AI needed)
+Preview the configuration, **without** writing user settings:
 
-**macOS / Linux:**
+~~~sh
+node "$RS" init --root "$REPO" --client codex --json
+node "$RS" connect --root "$REPO" --client codex --dry-run
+~~~
 
-```sh
-node "$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js" scan --root "/ABSOLUTE/PATH/TO/PROJECT"
-```
+Explicitly configure the client **only after reviewing the preview**:
 
-**Windows PowerShell:**
+~~~sh
+node "$RS" connect --root "$REPO" --client codex
+~~~
 
-```powershell
-node "$HOME\.reposafe\node_modules\reposafe-mcp\dist\cli.js" scan --root "C:\Users\YourUser\Projects\YourProject"
-```
+Supported config targets: `codex`, `cursor`, `claude`, `vscode`. Restart the client and demand real tool call receipts for `generate_report` and `get_findings_page`. `verifiedProtocol: true` does **not** mean `verifiedGUI: true`.
 
-Exit 0: no unsuppressed findings **inside the bounded scanned scope**; exit 1: review required or incomplete scan; exit 2: runtime/usage error. A clean scan is **not a security certification**. Do not paste private source, real token values or unredacted reports into support issues.
+**Observed 2026-11-22:** seven tools were found with local `doctor` on Mac, but they were **not available** in a Codex Desktop conversation. Actual Codex GUI integration therefore **has not passed**. Diagnosing it is deferred; CLI auditing is independently usable. See [Clients](CLIENTS.md) and [Manual acceptance](CLIENT_ACCEPTANCE.md).
 
-## 4. Optional: connect a local MCP AI client
+## First scan, then interpret
 
-**macOS / Linux (Cursor example):**
+A representative token deleted from current files can still be present in a previous commit. RepoSafe's history check reports a **redacted** finding associated with the introducing commit when within the scanned Git window. Treat a genuine exposed credential as compromised: rotate/revoke it; history rewriting alone is insufficient.
 
-```sh
-node "$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js" init --root "/ABSOLUTE/PATH/TO/PROJECT" --client cursor
-```
+~~~sh
+node "$RS" scan --root "$REPO" --history-depth 500
+node "$RS" scan --root "$REPO" --all-findings
+node "$RS" scan --root "$REPO" --json > "/SAFE/OUTPUT/report.json"
+node "$RS" scan --root "$REPO" --sarif > "/SAFE/OUTPUT/report.sarif"
+~~~
 
-**Windows PowerShell (Claude Desktop example):**
+Put export files **outside** the target repository. Structured output reports redacted metadata, not source lines or matched tokens. For checkpoint opt-in use `scan --resume-history` and review the private files under `~/.reposafe/checkpoints/`. Disabled by default.
 
-```powershell
-node "$HOME\.reposafe\node_modules\reposafe-mcp\dist\cli.js" init --root "C:\Users\YourUser\Projects\YourProject" --client claude
-```
+## Troubleshooting
 
-Choose `cursor|claude|vscode|codex`. `init` confirms the MCP handshake, validates seven tools and **prints** the exact JSON/TOML entry and target config path. It never writes or overwrites client configuration. Merge **only** the `reposafe` entry into existing settings, restart the client and ask:
+| Symptom | Check |
+| --- | --- |
+| `MODULE_NOT_FOUND` / missing `dist/cli.js` | Verify actual installation prefix and package contents; do not approve unreviewed prepare hooks |
+| `NODE_UNSUPPORTED` | `node --version` must be >=22 |
+| `GIT_UNAVAILABLE` | Verify `git --version` in the same terminal |
+| Invalid root | Must be an existing, authorized, **absolute directory** |
+| `doctor` passes but IDE sees no tools | Diagnose client settings, transport, app availability and approvals separately; **do not claim GUI success** |
+| Too many or unexpected findings | Inspect severity, exact rule, ignore semantics and supported baseline exceptions; never blindly suppress High/Critical |
+| Incomplete coverage | Review skipped files, history depth/budget, warnings and local refs; rerun with intentional limits |
 
-> Use RepoSafe generate_report for the approved repository. Prioritize severe findings and coverage limitations without quoting secrets or source contents.
+For safe removal: [Uninstall / rollback](UNINSTALL.md). For full CLI options: [CLI reference](CLI_REFERENCE.md). For security limitations: [Security](SECURITY.md).
 
-For automation append `--json`; the result distinguishes `verifiedProtocol: true` from `verifiedGUI: false` and `writesFiles: false`. Actual Cursor/Claude Desktop GUI interactions remain **UNVERIFIED until manually tested**. Keep the installation directory in place while a client references it.
-
-## 5. Diagnosing an installation issue
-
-- `MODULE_NOT_FOUND`: check the installed `dist/cli.js` path. Do **not** approve lifecycle build scripts; the archive should already contain compiled JavaScript.
-- `NODE_UNSUPPORTED` or `GIT_UNAVAILABLE`: confirm `node --version` (22+) and `git --version` in the same terminal.
-- Client tools absent: rerun `doctor --root ... --json`, inspect client JSON/TOML settings and approval controls; protocol success is not a GUI test.
-- `skipping integrity check for git dependency` or `allow-scripts ... prepare`: you likely installed the **older v0.7 Git-transport package**. Reinstall from the precompiled archive above with `--ignore-scripts` (no manual script approval).
-- If scanning a non-Git directory, use `scan --no-git` knowingly; the report then excludes Git readiness/history.
-
-The engine runs locally without sending source files to a RepoSafe cloud. A connected AI client may apply its own cloud/privacy policies to the **report** it receives; choose CLI-only mode if necessary.
-
-## Optional managed MCP connection
-
-**Available from the `main` archive since PR #10.** For reproducible installations, use a reviewed full commit SHA instead of mutable `main`. `init` remains a read-only alternative to managed configuration changes.
-
-After doctor succeeds, use `reposafe connect --root ABSOLUTE_PATH --client codex` or `cursor|claude|vscode` to update only the RepoSafe user-level MCP entry. `--dry-run` previews, `disconnect --client ...` reverses the change, and `init` remains a read-only configuration preview. See [LOCAL_MCP](LOCAL_MCP.md) and [UNINSTALL](UNINSTALL.md).
+**Never paste a live secret or a private unredacted config into an issue or chat transcript.**
