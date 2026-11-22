@@ -25,7 +25,7 @@ function help(): void {
     '',
     'Usage:',
     '  reposafe scan --root ABSOLUTE_PATH [--json|--sarif] [--no-history] [--no-git]',
-    '       [--history-depth 1..500] [--since YYYY-MM-DD] [--max-diff-size MiB:1..16] [--current-branch]',
+    '       [--history-depth 1..5000] [--since YYYY-MM-DD] [--max-diff-size MiB:1..16] [--current-branch]',
     '  reposafe doctor --root ABSOLUTE_PATH [--json]',
     '  reposafe init --root ABSOLUTE_PATH --client cursor|claude|vscode|codex [--dry-run] [--json]',
     '  npm run demo',
@@ -123,7 +123,7 @@ async function main(): Promise<void> {
       throw new Error('Invalid --since date.');
     }
     const historyOptions: HistoryScanOptions = {
-      depth: boundedInteger('--history-depth', 500),
+      depth: boundedInteger('--history-depth', 5000),
       maxDiffSizeMiB: boundedInteger('--max-diff-size', 16),
       since,
       currentBranchOnly: args.includes('--current-branch'),
