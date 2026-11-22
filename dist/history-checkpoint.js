@@ -35,6 +35,7 @@ function validSnapshot(value, key) {
         typeof data.batches === 'number' && Number.isSafeInteger(data.batches) && data.batches >= 0 && data.batches <= 5000 &&
         typeof data.complete === 'boolean' &&
         typeof data.updatedAt === 'number' && Number.isFinite(data.updatedAt) &&
+        data.updatedAt <= Date.now() + 60_000 && data.updatedAt >= 0 &&
         Array.isArray(data.warnings) && data.warnings.length <= 128 &&
         data.warnings.every((x) => typeof x === 'string' && x.length <= 1024) &&
         Array.isArray(data.findings) && data.findings.length <= MAX_RESULTS &&
@@ -50,7 +51,7 @@ async function directory(path, privateMode) {
     }
     const st = await lstat(path);
     if (!st.isDirectory() || st.isSymbolicLink() ||
-        (privateMode && process.platform !== 'win32' && (st.mode & 0o077) !== 0)) {
+        (process.platform !== 'win32' && (st.mode & (privateMode ? 0o077 : 0o022)) !== 0)) {
         throw new Error('Unsafe RepoSafe checkpoint directory; no state read or written.');
     }
 }
