@@ -43,7 +43,7 @@ test('opt-in history cache is private, bounded, and rejects poisoned metadata', 
 test('explicit Git resume reuses completed commits, and changed refs invalidate the checkpoint', { timeout: 30000 }, async () => {
   const root = await mkdtemp(join(tmpdir(), 'reposafe-checkpoint-history-'));
   const paths = new Set();
-  const limits = { depth: 10, maxDiffSizeMiB: 4, currentBranchOnly: false, since: '', resume: true };
+  const limits = { depth: 10, since: '', maxDiffSizeMiB: 4, currentBranchOnly: false, resume: true };
   const checkpointPath = () => {
     const refs = git(root, 'show-ref', '--head');
     const key = createHash('sha256').update(JSON.stringify([realpathSync(root), refs, limits])).digest('hex');
@@ -101,7 +101,7 @@ test('explicit Git resume reuses completed commits, and changed refs invalidate 
 
 test('resume does not carry obsolete working-tree scan failures into a fresh report', { timeout: 30000 }, async () => {
   const root = await mkdtemp(join(tmpdir(), 'reposafe-checkpoint-fresh-metadata-'));
-  const limits = { depth: 5, maxDiffSizeMiB: 4, currentBranchOnly: false, since: '', resume: true };
+  const limits = { depth: 5, since: '', maxDiffSizeMiB: 4, currentBranchOnly: false, resume: true };
   let cacheFile;
   try {
     git(root, 'init', '-q');
