@@ -235,3 +235,27 @@ test('finding overflow still scans later files and retains higher-severity alert
     assert.ok(!JSON.stringify(report).includes(token));
   });
 });
+
+test('high-volume overflow uses bounded priority retention and survives structured dedup', { timeout: 20000 }, async () => {
+  await withRepo(async dir => {
+    // Many low-priority findings used to trigger an O(MAX_FINDINGS) scan for every omission.
+    await writeFile(join(dir, 'a-low.txt'),
+      Array(16000).fill('https://github.com/example/project').join('\n'));
+    const encoded = Buffer.from('only-synthetic-not-a-live-key-123456').toString('base64');
+    await writeFile(join(dir, 'm-secret.yaml'),
+      'apiVersion: v1\nkind: Secret\ndata:\n  password: ' + encoded + '\n');
+    const token = 'sk-proj-' + 'V'.repeat(38);
+    await writeFile(join(dir, 'z-high.ts'), 'OPENAI_API_KEY=' + token + '\n');
+
+    const report = await scanRepository(dir);
+    assert.equal(report.findings.length, 5000);
+    assert.equal(report.stats.complete, false);
+    assert.equal(report.verdict, 'review_required');
+    assert.ok(report.stats.findingsOmitted >= 11000);
+    assert.ok(report.findings.some(x => x.rule === 'kubernetes_encoded_secret' && x.severity === 'high'));
+    assert.ok(report.findings.some(x => x.rule === 'openai_key' && x.severity === 'high'));
+    assert.ok(!report.findings.some(x => x.file === 'm-secret.yaml' && x.rule === 'generic_secret_assignment'));
+    assert.ok(!JSON.stringify(report).includes(encoded));
+    assert.ok(!JSON.stringify(report).includes(token));
+  });
+});
