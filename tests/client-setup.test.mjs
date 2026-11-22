@@ -55,7 +55,7 @@ test('local Codex config only updates RepoSafe and supports dry-run and uninstal
     assert.equal((await updateClient(args)).changed, false);
     const disconnect = await updateClient({ ...args, remove: true });
     assert.equal(disconnect.backupCreated, true);
-    assert.match(await readFile(disconnect.backupFile, 'utf8'), /mcp_servers\\.reposafe/);
+    assert.match(await readFile(disconnect.backupFile, 'utf8'), /mcp_servers\.reposafe/);
     assert.equal(await readFile(file, 'utf8'), before);
     assert.equal((await updateClient({ ...args, remove: true })).changed, false);
   } finally { await rm(home, { recursive: true, force: true }); }
