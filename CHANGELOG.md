@@ -2,7 +2,7 @@
 
 ## Unreleased — security hardening of draft PR #10
 
-- Separate persisted history warnings from fresh tracked-file checks to avoid stale incomplete verdicts across resumed scans; add regression with fixed uncommitted oversized file.
+- Separate persisted history warnings from fresh tracked-file checks to avoid stale incomplete verdicts across resumed scans; add regression with fixed uncommitted oversized file. Invalidate old v1 checkpoint schema; new v2 snapshots are only eligible for reuse for seven days, with manual cleanup of old files.
 - Reject ambiguous Codex TOML forms (quoted/child tables, inline mappings) without changing any client configuration.
 - Reject future-dated checkpoint metadata and group/world-writable parent state directories.
 - Remove inherited `GIT_*` environment overrides before Git subprocesses; add two-repository boundary regression.
