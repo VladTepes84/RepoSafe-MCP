@@ -195,7 +195,7 @@ test('Symlinked tracked file cannot traverse outside the permitted root',async(t
   } finally {await remove(outside,{recursive:true,force:true});}
 });
 
-test('large 100-commit Git logs retain completed history and findings at the byte cap', async () => {
+test('large 100-commit Git logs resume automatically across 4 MiB batches', async () => {
   await withGitRepo(async root => {
     const { mkdir } = await import('node:fs/promises');
     await mkdir(join(root, 'commits'));
@@ -212,9 +212,9 @@ test('large 100-commit Git logs retain completed history and findings at the byt
     git(root, 'commit', '-qm', 'synthetic most recent token');
     const limited = await scanGit(root, true, { depth: 100, maxDiffSizeMiB: 4 });
     assert.equal(limited.stats.historyChecked, true);
-    assert.ok(limited.stats.commitsInspected > 0 && limited.stats.commitsInspected < 100,
-      `preserved ${limited.stats.commitsInspected} completed commits`);
-    assert.ok(limited.stats.warnings.some(x => x.includes('diff byte budget')));
+    assert.equal(limited.stats.commitsInspected, 100);
+    assert.ok(limited.stats.historyBatches > 1);
+    assert.ok(!limited.stats.warnings.some(x => x.includes('single Git commit exceeded')));
     assert.ok(limited.findings.some(x => x.rule === 'git_history_github_token'));
     assert.ok(!JSON.stringify(limited).includes(secret));
     const expanded = await scanGit(root, true, { depth: 100, maxDiffSizeMiB: 16 });
@@ -227,7 +227,7 @@ test('large 100-commit Git logs retain completed history and findings at the byt
 test('oversized single history line is skipped without hiding subsequent secret', async () => {
   await withGitRepo(async root => {
     const secret = 'ghp_' + 'S'.repeat(36);
-    await writeFile(join(root, 'sample.txt'), 'x'.repeat(9000) + `\nGITHUB_TOKEN=${secret}\n`);
+    await writeFile(join(root, 'sample.txt'), 'x'.repeat(66000) + `\nGITHUB_TOKEN=${secret}\n`);
     git(root, 'add', 'sample.txt');
     git(root, 'commit', '-qm', 'synthetic oversized line');
     const result = await scanGit(root, true, { depth: 2 });
