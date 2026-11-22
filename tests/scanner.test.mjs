@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, symlink, link, rm, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { scanRepository, validateRoot } from '../dist/scanner.js';
+import { scanRepository, validateRoot, safeRelativePath } from '../dist/scanner.js';
 
 async function withRepo(fn) {
   const dir = await mkdtemp(join(tmpdir(), 'reposafe-mcp-test-'));
@@ -234,4 +234,15 @@ test('finding overflow still scans later files and retains higher-severity alert
     assert.ok(report.findings.some(x => x.severity === 'high' && x.rule === 'openai_key'));
     assert.ok(!JSON.stringify(report).includes(token));
   });
+});
+
+test('redacts complete credential-bearing path before shortening its display name', () => {
+  const token = 'ghp_' + 'Z'.repeat(36);
+  const raw = 'a'.repeat(230) + '/nested-' + token + '.txt';
+  assert.equal(safeRelativePath(raw), '[REDACTED_FILE_NAME]');
+  assert.equal(safeRelativePath('token=' + 'secret_value_12345678' + '/file.txt'),
+    '[REDACTED_FILE_NAME]');
+  const nonsecret = 'a'.repeat(300);
+  assert.equal(safeRelativePath(nonsecret).length, 240);
+  assert.doesNotMatch(safeRelativePath('hello\u001b[31m'), /[\x00-\x1f\x7f-\x9f]/);
 });
