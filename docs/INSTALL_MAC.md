@@ -42,14 +42,16 @@ mkdir -p "$HOME/Projects/reposafe-sample"
 printf '# Synthetic test project\n' > "$HOME/Projects/reposafe-sample/README.md"
 printf 'MIT\n' > "$HOME/Projects/reposafe-sample/LICENSE"
 printf '.env\n.env.*\n' > "$HOME/Projects/reposafe-sample/.gitignore"
-node dist/cli.js scan --root "$HOME/Projects/reposafe-sample" --no-git --json
+node "$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js" scan --root "$HOME/Projects/reposafe-sample" --no-git --json
 ```
 
 This prints a JSON report. The *CLI-only* `--no-git` mode explicitly skips Git checks because the sample is not a Git repository. For a normal Git project, remove `--no-git` to also inspect history.
 
 ## 4. Configure an MCP AI client
 
-Run **one** of the following while inside `$HOME/RepoSafe-MCP`:
+If you used the **precompiled archive** from step 2, run `node "$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js" init --root "$HOME/Projects/reposafe-sample" --client cursor` (or another supported client) to preview configuration without writing client files.
+
+For **source contributors only**, run **one** of the following while inside `$HOME/RepoSafe-MCP`:
 
 ```zsh
 npm run config -- --client cursor --root "$HOME/Projects/reposafe-sample"
