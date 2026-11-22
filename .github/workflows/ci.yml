@@ -29,6 +29,8 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Typecheck, build, unit tests, actual MCP stdio, Git demo
         run: npm run check
+      - name: Synthetic small/medium/large local scan benchmark
+        run: npm run benchmark
       - name: Verify checked-in distribution exactly matches TypeScript build
         run: npm run verify:runtime
       - name: Dependency audit (high/critical production vulnerabilities)
