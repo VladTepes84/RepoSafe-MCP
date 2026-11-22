@@ -13,18 +13,24 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - { os: ubuntu-latest, node: '22' }
+          - { os: windows-latest, node: '22' }
+          - { os: macos-latest, node: '22' }
+          - { os: macos-latest, node: '24' }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: ${{ matrix.node }}
       - name: Reproducible dependency installation (integrity-checked lockfile)
-        run: npm ci --no-audit --no-fund
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Typecheck, build, unit tests, actual MCP stdio, Git demo
         run: npm run check
+      - name: Verify checked-in distribution exactly matches TypeScript build
+        run: npm run verify:runtime
       - name: Dependency audit (high/critical production vulnerabilities)
         run: npm run audit:deps
       - name: Composite GitHub Action smoke test (Linux only, report-only)
@@ -47,6 +53,11 @@ jobs:
           REPOSAFE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node tests/github-install.test.mjs
 
+      - name: Script-free pinned GitHub archive install + MCP smoke (Linux/macOS)
+        if: runner.os == 'Linux' || runner.os == 'macOS'
+        env:
+          REPOSAFE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node tests/archive-install.test.mjs
       - name: Generate and validate local dependency SBOM (Linux only)
         if: runner.os == 'Linux'
         shell: bash

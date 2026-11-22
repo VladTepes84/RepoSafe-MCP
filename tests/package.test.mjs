@@ -6,6 +6,8 @@ import { readFile } from 'node:fs/promises';
 test('npm pack dry-run includes executable bins and only required runtime files', { timeout: 30000 }, async () => {
   const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
   assert.equal(pkg.private, true, 'Do not enable npm publication');
+  assert.equal(pkg.scripts.prepare, undefined, 'Git install must not require a lifecycle build');
+  assert.equal(pkg.scripts.prepack, undefined, 'Git install must not require a lifecycle pack script');
   assert.equal(pkg.bin.reposafe, './dist/cli.js');
   assert.equal(pkg.bin['reposafe-mcp'], './dist/cli.js');
   assert.ok(process.env.npm_execpath, 'Invoke using npm run test:package');
