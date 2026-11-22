@@ -13,6 +13,7 @@ export function formatHumanReport(report: ScanReport, maxDisplayed = 50): string
   if (report.git?.historyWindow) {
     const w = report.git.historyWindow;
     output.push('Git history: inspected ' + report.git.commitsInspected +
+      (report.git.historyCandidates === undefined ? '' : '/' + report.git.historyCandidates) +
       ' commits (cap ' + w.maxCommits + ', ' + w.maxDiffSizeMiB + ' MiB' +
       (w.since ? ', since ' + w.since : '') +
       (w.currentBranchOnly ? ', current branch only' : ', all local refs') + ').');
