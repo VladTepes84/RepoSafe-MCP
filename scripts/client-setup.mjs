@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Local-only MCP client configuration. Never executes a client binary, and never
 // overwrites unrelated MCP entries. connect/disconnect affect only "reposafe".
-import { mkdir, readFile, rename, lstat, unlink, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, lstat, unlink, writeFile, open } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { homedir } from 'node:os';
@@ -76,18 +77,69 @@ export async function updateClient({ client, root, remove = false, dryRun = fals
     ? updateCodexToml(old, entry, remove)
     : updateJsonConfig(old, entry, remove);
   const changed = updated !== old;
+  let backupFile;
   if (changed && !dryRun) {
-    await mkdir(dirname(cfg.file), { recursive: true, mode: 0o700 });
-    const tmp = cfg.file + '.reposafe-' + process.pid + '.tmp';
+    const folder = dirname(cfg.file);
+    await mkdir(folder, { recursive: true, mode: 0o700 });
+    const parent = await lstat(folder);
+    if (!parent.isDirectory() || parent.isSymbolicLink()) {
+      throw new Error('Unsafe MCP configuration directory; no changes made.');
+    }
+    // A cooperative, fail-closed lock: never remove someone else's lock or
+    // silently overwrite an IDE configuration changed after our first read.
+    const lockPath = cfg.file + '.reposafe.lock';
+    let lock;
     try {
-      await writeFile(tmp, updated, { encoding: 'utf8', flag: 'wx', mode: exists ? mode : 0o600 });
+      lock = await open(lockPath, 'wx', 0o600);
+    } catch {
+      throw new Error('MCP configuration is locked; no changes made.');
+    }
+    const tmp = cfg.file + '.reposafe-' + randomUUID() + '.tmp';
+    try {
+      let current = '';
+      let currentMode = 0o600;
+      try {
+        const st = await lstat(cfg.file);
+        if (!st.isFile() || st.isSymbolicLink() || st.size > MAX_CONFIG_BYTES) {
+          throw new Error('Unsafe MCP configuration; no changes made.');
+        }
+        currentMode = st.mode & 0o777;
+        current = await readFile(cfg.file, 'utf8');
+        if (Buffer.byteLength(current) > MAX_CONFIG_BYTES) {
+          throw new Error('Oversized MCP configuration; no changes made.');
+        }
+      } catch (error) {
+        if (error?.code !== 'ENOENT') throw error;
+        if (exists) throw new Error('MCP configuration was removed concurrently; no changes made.');
+      }
+      if (current !== old || (current.length > 0) !== exists) {
+        throw new Error('MCP configuration changed concurrently; no changes made.');
+      }
+      if (exists) {
+        // Existing client settings may contain credentials; backups are never
+        // reported over MCP and must be protected with restrictive permissions.
+        backupFile = cfg.file + '.reposafe-backup-' + randomUUID();
+        await writeFile(backupFile, old, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
+      }
+      await writeFile(tmp, updated, { encoding: 'utf8', flag: 'wx', mode: exists ? currentMode : 0o600 });
+      // A final check catches non-cooperating editor writes before replacement.
+      let latest = '';
+      try { latest = await readFile(cfg.file, 'utf8'); }
+      catch (error) {
+        if (error?.code !== 'ENOENT' || exists) throw error;
+      }
+      if (latest !== old) throw new Error('MCP configuration changed before replacement; backup retained.');
       await rename(tmp, cfg.file);
     } finally {
       await unlink(tmp).catch(() => {});
+      await lock.close();
+      await unlink(lockPath).catch(() => {});
     }
   }
-  return { client, configFile: cfg.file, changed, dryRun, action: remove ? 'disconnect' : 'connect',
-    applied: changed && !dryRun, protocolVerified: false, clientGuiVerified: false };
+  return { client, configFile: cfg.file, changed, dryRun,
+    action: remove ? 'disconnect' : 'connect', applied: changed && !dryRun,
+    backupCreated: Boolean(backupFile), backupFile,
+    protocolVerified: false, clientGuiVerified: false };
 }
 
 async function main() {
