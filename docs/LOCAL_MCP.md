@@ -41,6 +41,10 @@ Restart/reload the relevant IDE. Ask it to list the seven RepoSafe tools, call g
 
 Client GUIs and approval prompts have not been manually validated on the user's actual installed versions. Protocol compatibility does not guarantee UI availability or permissions.
 
+## CLI-only optional persistent history
+
+Run `node "$RS" scan --root "/ABSOLUTE/PATH/TO/PROJECT" --resume-history` only when you explicitly want to write private, redacted Git-progress metadata outside the repository. The optional 7-day cache is stored under `~/.reposafe/checkpoints/`; it is not enabled for MCP tools or normal CLI scans. A changed Git ref tip or scan options invalidates reuse. Existing repository files are always rechecked; without the flag all history is scanned afresh. Never treat cached coverage as security certification. See [SECURITY.md](SECURITY.md).
+
 ## 3. Normal CLI usage
 
     node "$RS" scan --root "/ABSOLUTE/PATH/TO/PROJECT" --history-depth 1000 --max-diff-size 16
