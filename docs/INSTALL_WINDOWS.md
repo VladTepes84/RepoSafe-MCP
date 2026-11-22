@@ -12,7 +12,17 @@ git --version
 
 If missing, install Node.js 22+ from https://nodejs.org/ and Git for Windows from https://git-scm.com/downloads/win, then reopen PowerShell. Do **not** disable PowerShell execution policies to make RepoSafe work. On some managed machines running `npm` may invoke a blocked `npm.ps1`; use `npm.cmd` in the commands below instead.
 
-## 2. Install and run real tests
+## 2. Recommended: install a precompiled archive with no npm scripts
+
+```powershell
+npm.cmd install --prefix "$HOME\.reposafe" --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
+node "$HOME\.reposafe\node_modules\reposafe-mcp\dist\cli.js" doctor --root "C:\Users\YourUser\Projects\YourProject"
+node "$HOME\.reposafe\node_modules\reposafe-mcp\dist\cli.js" scan --root "C:\Users\YourUser\Projects\YourProject"
+```
+
+Replace the project root with an existing repository you are authorized to audit. Precompiled `dist/` means no local TypeScript compilation or npm lifecycle approval. `main` is mutable; replace it with a reviewed full commit SHA for reproducible installation. More details: [FIRST_RUN](FIRST_RUN.md).
+
+## Alternative for contributors: clone source and run tests
 
 ```powershell
 Set-Location $HOME
@@ -23,7 +33,7 @@ npm.cmd run check
 npm.cmd run demo
 ```
 
-RepoSafe is currently private; clone requires authorization. The complete check exits 0 on success; the demo prints `REAL OFFLINE DEMO PASS`.
+RepoSafe is public; cloning still requires GitHub connectivity. The complete check exits 0 on success; the demo prints `REAL OFFLINE DEMO PASS`.
 
 ## 3. Create a safe, disposable target
 

@@ -2,7 +2,17 @@
 
 **Requirements:** Node.js 22+, npm, Git and permission to read only the target repository. No paid API key, cloud account or hosted service is required.
 
-## 1. Install from the public GitHub repository
+## 1. Recommended: precompiled installation without npm lifecycle scripts
+
+For normal users, follow [FIRST_RUN](FIRST_RUN.md). The GitHub HTTPS archive includes compiled JS and installs with `npm --ignore-scripts` without cloning or running TypeScript:
+
+```sh
+npm install --prefix "$HOME/.reposafe" --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
+```
+
+This convenience URL points to mutable `main`; replace the final segment with a reviewed 40-character commit SHA for reproducibility. Use `node "$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js" doctor --root ABS_PATH` and then `scan --root ABS_PATH`. See [FIRST_RUN](FIRST_RUN.md) for Windows and MCP client setup.
+
+## Source development: clone, compile and test
 
 ```sh
 git clone https://github.com/VladTepes84/RepoSafe-MCP.git
