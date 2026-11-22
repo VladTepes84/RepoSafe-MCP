@@ -97,23 +97,23 @@ test('minimal human report never requires colors and discloses known omissions',
     limitations: [],
   };
   const plain = formatHumanReport(report);
-  assert.doesNotMatch(plain, /\u001b\\[[0-9;]*m/);
+  assert.doesNotMatch(plain, /\u001b\[[0-9;]*m/);
   assert.match(plain, /Known omissions: 3/);
   assert.match(plain, /INCOMPLETE/);
   const colored = formatHumanReport(report, 50, true);
   assert.match(colored, /\u001b\\[31m/);
-  assert.equal(colored.replace(/\u001b\\[[0-9;]*m/g, ''), plain);
+  assert.equal(colored.replace(/\u001b\[[0-9;]*m/g, ''), plain);
 });
 
 test('CLI no-color and machine-readable scan modes never contain ANSI escapes', async () => {
   await fixture(async root => {
     const human = run('scan', '--root', root, '--no-git', '--no-color');
     assert.equal(human.status, 0, human.stderr);
-    assert.doesNotMatch(human.stdout, /\u001b\\[[0-9;]*m/);
+    assert.doesNotMatch(human.stdout, /\u001b\[[0-9;]*m/);
     for (const mode of ['--json', '--sarif']) {
       const result = run('scan', '--root', root, '--no-git', mode);
       assert.equal(result.status, 0, result.stderr);
-      assert.doesNotMatch(result.stdout, /\u001b\\[[0-9;]*m/);
+      assert.doesNotMatch(result.stdout, /\u001b\[[0-9;]*m/);
       assert.doesNotThrow(() => JSON.parse(result.stdout));
     }
   });
