@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { updateClient, updateCodexToml, updateJsonConfig } from '../scripts/client-setup.mjs';
 
@@ -42,7 +42,7 @@ test('local Codex config only updates RepoSafe and supports dry-run and uninstal
     const file = join(home, '.codex', 'config.toml');
     const before = 'model = "safe"\n[mcp_servers.existing]\ncommand = "keep"\n';
     await writeFile(file, before);
-    const args = { client: 'codex', platform: 'darwin', home, root: home, node, serverPath };
+    const args = { client: 'codex', platform: process.platform, home, root: home, node: process.execPath, serverPath: resolve('dist/server.js') };
     const preview = await updateClient({ ...args, dryRun: true });
     assert.equal(preview.applied, false);
     assert.equal(await readFile(file, 'utf8'), before);
@@ -75,8 +75,8 @@ test('CLI connection and disconnect work without invoking codex binary', { timeo
   try {
     // Exercise isolated filesystem; on macOS/Linux homedir() may be OS-backed,
     // so use the exported setup function with an injected home for deterministic tests.
-    const entry = await updateClient({ client: 'codex', root: fakeHome, home: fakeHome, platform: 'darwin',
-      node: process.execPath, serverPath });
+    const entry = await updateClient({ client: 'codex', root: fakeHome, home: fakeHome, platform: process.platform,
+      node: process.execPath, serverPath: resolve('dist/server.js') });
     assert.equal(entry.applied, true);
     const text = await readFile(entry.configFile, 'utf8');
     assert.match(text, /mcp_servers\.reposafe/);
