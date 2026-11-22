@@ -1,6 +1,8 @@
 
 # Uninstall RepoSafe MCP — macOS, Linux, Windows
 
+**The `disconnect` subcommand below belongs to draft PR #10; it is not available in the current `main` baseline.** For baseline installations, inspect and manually remove only the RepoSafe MCP entry from each client configuration, preserving other servers.
+
 **First disconnect** RepoSafe from each AI client where it was configured. These commands remove only the RepoSafe entry, preserving other local MCP servers and user preferences. All examples use the dedicated installation prefix .reposafe. Replace it with .reposafe-v2 or your actual prefix where appropriate.
 
 ## macOS and Linux (Terminal)
