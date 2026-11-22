@@ -36,7 +36,7 @@ node "$HOME\.reposafe\node_modules\reposafe-mcp\dist\cli.js" --help
 node "$HOME\.reposafe\node_modules\reposafe-mcp\dist\cli.js" doctor --root "C:\Users\YourUser\Projects\YourProject"
 ```
 
-Use an **existing, specific directory you own or have permission to audit**. Do not select your entire home directory or a system drive. `doctor` performs a real local MCP handshake and checks discovery of **six tools**; it does not run a repository scan.
+Use an **existing, specific directory you own or have permission to audit**. Do not select your entire home directory or a system drive. `doctor` performs a real local MCP handshake and checks discovery of **seven tools**; it does not run a repository scan.
 
 ## 3. First real repository scan (no AI needed)
 
@@ -68,7 +68,7 @@ node "$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js" init --root "/ABSOL
 node "$HOME\.reposafe\node_modules\reposafe-mcp\dist\cli.js" init --root "C:\Users\YourUser\Projects\YourProject" --client claude
 ```
 
-Choose `cursor|claude|vscode|codex`. `init` confirms the MCP handshake, validates six tools and **prints** the exact JSON/TOML entry and target config path. It never writes or overwrites client configuration. Merge **only** the `reposafe` entry into existing settings, restart the client and ask:
+Choose `cursor|claude|vscode|codex`. `init` confirms the MCP handshake, validates seven tools and **prints** the exact JSON/TOML entry and target config path. It never writes or overwrites client configuration. Merge **only** the `reposafe` entry into existing settings, restart the client and ask:
 
 > Use RepoSafe generate_report for the approved repository. Prioritize severe findings and coverage limitations without quoting secrets or source contents.
 
@@ -83,3 +83,7 @@ For automation append `--json`; the result distinguishes `verifiedProtocol: true
 - If scanning a non-Git directory, use `scan --no-git` knowingly; the report then excludes Git readiness/history.
 
 The engine runs locally without sending source files to a RepoSafe cloud. A connected AI client may apply its own cloud/privacy policies to the **report** it receives; choose CLI-only mode if necessary.
+
+## Optional managed MCP connection
+
+After doctor succeeds, use `reposafe connect --root ABSOLUTE_PATH --client codex` or `cursor|claude|vscode` to update only the RepoSafe user-level MCP entry. `--dry-run` previews, `disconnect --client ...` reverses the change, and `init` remains a read-only configuration preview. See [LOCAL_MCP](LOCAL_MCP.md) and [UNINSTALL](UNINSTALL.md).
