@@ -95,3 +95,39 @@ test('explicit Git resume reuses completed commits, and changed refs invalidate 
     for (const file of paths) await unlink(file).catch(() => {});
   }
 });
+
+test('resume does not carry obsolete working-tree scan failures into a fresh report', { timeout: 30000 }, async () => {
+  const root = await mkdtemp(join(tmpdir(), 'reposafe-checkpoint-fresh-metadata-'));
+  const limits = { depth: 5, maxDiffSizeMiB: 4, currentBranchOnly: false, since: '', resume: true };
+  let cacheFile;
+  try {
+    git(root, 'init', '-q');
+    git(root, 'config', 'user.name', 'Synthetic');
+    git(root, 'config', 'user.email', 'test@example.invalid');
+    const { mkdir } = await import('node:fs/promises');
+    await mkdir(join(root, 'node_modules'));
+    const tracked = join(root, 'node_modules', 'tracked.txt');
+    await writeFile(tracked, 'safe value\\n');
+    git(root, 'add', '-f', 'node_modules/tracked.txt');
+    git(root, 'commit', '-qm', 'synthetic tracked excluded fixture');
+    const refs = git(root, 'show-ref', '--head');
+    const key = createHash('sha256').update(JSON.stringify([realpathSync(root), refs, limits])).digest('hex');
+    cacheFile = join(homedir(), '.reposafe', 'checkpoints', key + '.json');
+    // Only the uncommitted working-tree content grows; Git ref tips stay identical.
+    await writeFile(tracked, 'x'.repeat(4 * 1024 * 1024 + 1));
+    const oversized = await scanGit(root, true, limits);
+    assert.equal(oversized.stats.complete, false);
+    assert.ok(oversized.stats.warnings.some(w => w.includes('Tracked file size')));
+    const stored = JSON.parse(await readFile(cacheFile, 'utf8'));
+    assert.equal(stored.complete, true, 'history checkpoint must exclude unrelated current-file failures');
+    assert.equal(stored.warnings.some(w => w.includes('Tracked file size')), false);
+    await writeFile(tracked, 'safe value\\n');
+    const repaired = await scanGit(root, true, limits);
+    assert.equal(repaired.stats.historyResumedFrom, 1);
+    assert.equal(repaired.stats.complete, true);
+    assert.equal(repaired.stats.warnings.some(w => w.includes('Tracked file size')), false);
+  } finally {
+    if (cacheFile) await unlink(cacheFile).catch(() => {});
+    await rm(root, { recursive: true, force: true });
+  }
+});
