@@ -8,6 +8,8 @@ RepoSafe is a privacy-first, read-only repository scanner available as a **local
 
 [![Support RepoSafe MCP on GitHub Sponsors](https://img.shields.io/badge/Support%20RepoSafe%20MCP-GitHub%20Sponsors-EA4AAA?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/VladTepes84)
 
+**Quality gates:** see [Professional Readiness](docs/PRO_READINESS.md) for the evidence-based roadmap and [Manual MCP Client Acceptance](docs/CLIENT_ACCEPTANCE.md) for real IDE testing. Automated MCP protocol tests are not proof of GUI availability.
+
 **Support this open-source project:** RepoSafe MCP is free and MIT-licensed. If it helps you audit repositories, you can [sponsor the maintainer on GitHub](https://github.com/sponsors/VladTepes84) to support maintenance, security testing, and documentation. Contributions are **entirely optional** and do not unlock extra features, hosted services, or privileged access.
 
 ## Quick start — without cloning or compiling
