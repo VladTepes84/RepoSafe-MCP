@@ -327,6 +327,12 @@ export function checkPrivacy(line, file, lineNumber) {
     }
     return findings;
 }
+/** Filename hint for human triage; a real secret may still exist in a test. */
+export function isLikelyTestFile(file) {
+    const normalized = file.replaceAll('\\', '/');
+    return /(?:^|\/)(?:__tests__|tests?|fixtures?|mocks?)(?:\/|$)/i.test(normalized) ||
+        /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(normalized);
+}
 export function safeRelativePath(raw) {
     // Test the full sanitized path before shortening its display form: a secret spanning
     // byte 240 must never leak as a partial token through a truncated filename.
@@ -378,7 +384,11 @@ export async function scanRepository(approvedRoot, options = {}) {
     let retentionBuckets;
     const rank = (severity) => ({ critical: 0, high: 1, medium: 2, low: 3 })[severity];
     function addFinding(finding) {
-        const candidate = { ...finding, file: safeRelativePath(finding.file) };
+        const candidate = {
+            ...finding,
+            file: safeRelativePath(finding.file),
+            ...(isLikelyTestFile(finding.file) ? { testFile: true } : {}),
+        };
         if (findings.length >= MAX_FINDINGS) {
             markPartial('Finding retention limit reached; lower-priority findings may be omitted.');
             stats.findingsOmitted = (stats.findingsOmitted ?? 0) + 1;
@@ -500,6 +510,7 @@ export async function scanRepository(approvedRoot, options = {}) {
                 const lines = buffer.toString('utf8').split(/\r?\n/);
                 for (let n = 0; n < lines.length; n++) {
                     if (lines[n].length > MAX_LINE_CHARS) {
+                        stats.overlengthLinesSkipped = (stats.overlengthLinesSkipped ?? 0) + 1;
                         markPartial('One or more lines exceeded the analysis length limit.');
                         continue;
                     }
