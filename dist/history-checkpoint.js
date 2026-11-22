@@ -30,7 +30,7 @@ function validSnapshot(value, key) {
     if (!value || typeof value !== 'object' || Array.isArray(value))
         return false;
     const data = value;
-    return data.version === 1 && data.key === key &&
+    return data.version === 2 && data.key === key &&
         typeof data.commits === 'number' && Number.isSafeInteger(data.commits) && data.commits >= 0 && data.commits <= 5000 &&
         typeof data.batches === 'number' && Number.isSafeInteger(data.batches) && data.batches >= 0 && data.batches <= 5000 &&
         typeof data.complete === 'boolean' &&
