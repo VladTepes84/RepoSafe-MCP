@@ -1,9 +1,9 @@
-## Unreleased — CLI readability and documentation refresh (PR pending)
+## Unreleased — contextual finding triage and CLI readability (PR #26)
 
 - Human-oriented scan display modes: `--summary`, `--compact`, `--group-by severity|file`; severity/file section headings, deterministic sort and clearer coverage (including Git completeness).
-- No extra runtime dependencies, no scanner/retention engine changes; JSON/SARIF and MCP protocol contracts unchanged.
+- Contextual finding annotations: optional `testFile` path hint, `gitTracked` local Git index status, and `stats.overlengthLinesSkipped`. Human CLI context/counters improve triage without dropping or lowering alerts. JSON schema v2 is extended additively; seven-tool MCP API and existing provider patterns are unchanged.
 - Full README/CLI reference/first-run/uninstall/quickstart refresh with explicit dependency versions and actual Codex Desktop GUI limitation.
-- New local CLI presentation regression tests; fresh CI required before marking this update validated.
+- Synthetic Git and scanner regression tests cover fixture context, tracked/untracked provenance, redaction and long-line coverage. PR #26 code head `724fa432d71afccad0bd037d4ba8aa1ff50947d2` passed four GitHub Actions matrix jobs in run #45053790697. Later documentation-only changes require CI at their own head; actual desktop GUI MCP acceptance remains unverified.
 
 ## 2026-11-22 — Integrated PRO updates merged (#20)
 
