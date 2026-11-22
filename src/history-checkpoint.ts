@@ -12,7 +12,7 @@ const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_RESULTS = 5000;
 
 export interface HistorySnapshot {
-  version: 1;
+  version: 2;
   key: string;
   commits: number;
   batches: number;
@@ -42,7 +42,7 @@ function validFinding(value: unknown): value is Finding {
 function validSnapshot(value: unknown, key: string): value is HistorySnapshot {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const data = value as Record<string, unknown>;
-  return data.version === 1 && data.key === key &&
+  return data.version === 2 && data.key === key &&
     typeof data.commits === 'number' && Number.isSafeInteger(data.commits) && data.commits >= 0 && data.commits <= 5000 &&
     typeof data.batches === 'number' && Number.isSafeInteger(data.batches) && data.batches >= 0 && data.batches <= 5000 &&
     typeof data.complete === 'boolean' &&
