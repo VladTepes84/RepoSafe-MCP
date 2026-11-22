@@ -10,7 +10,7 @@ export function formatHumanReport(report, maxDisplayed = 50, useColor = false, o
             ' | Files read: ' + report.stats.filesScanned + ' | Findings kept: ' + report.findings.length +
             ((report.stats.findingsOmitted ?? 0) > 0 ? ' | Known omissions: ' + report.stats.findingsOmitted : ''),
         'Severity: ' + order.map(s => s + '=' + count[s]).join('  '),
-    '────────────────────────────────────────────────────────────────'
+        '────────────────────────────────────────────────────────────────'
     ];
     if (report.git?.historyWindow) {
         const w = report.git.historyWindow;
