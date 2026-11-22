@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
+import { realpathSync } from 'node:fs';
 import { mkdtemp, readFile, rm, stat, unlink, writeFile } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { historyCheckpoint } from '../dist/history-checkpoint.js';
 import { scanGit } from '../dist/git.js';
 
@@ -42,7 +43,7 @@ test('explicit Git resume reuses completed commits, and changed refs invalidate 
   const limits = { depth: 10, maxDiffSizeMiB: 4, currentBranchOnly: false, since: '', resume: true };
   const checkpointPath = () => {
     const refs = git(root, 'show-ref', '--head');
-    const key = createHash('sha256').update(JSON.stringify([root, refs, limits])).digest('hex');
+    const key = createHash('sha256').update(JSON.stringify([realpathSync(root), refs, limits])).digest('hex');
     return join(homedir(), '.reposafe', 'checkpoints', key + '.json');
   };
   try {
@@ -72,6 +73,15 @@ test('explicit Git resume reuses completed commits, and changed refs invalidate 
     assert.deepEqual(JSON.parse(JSON.stringify(repeat.findings)),
       JSON.parse(JSON.stringify(initial.findings)));
     assert.ok(!JSON.stringify(repeat).includes(fake));
+    // This new Node process simulates a restarted CLI and must reuse only the
+    // validated metadata-only checkpoint, never local source or raw Git patches.
+    const child = spawnSync(process.execPath, [resolve('dist/cli.js'),
+      'scan', '--root', root, '--history-depth', '10', '--max-diff-size', '4',
+      '--resume-history', '--json'], { encoding: 'utf8', timeout: 20000 });
+    assert.equal(child.status, 1, child.stderr);
+    const childReport = JSON.parse(child.stdout);
+    assert.equal(childReport.git.historyResumedFrom, 3);
+    assert.ok(!child.stdout.includes(fake));
 
     await writeFile(join(root, 'other.txt'), 'new content\n');
     git(root, 'add', 'other.txt');
