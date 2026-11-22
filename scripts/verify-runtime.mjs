@@ -14,11 +14,6 @@ try {
   if (changed || untracked) {
     console.error('DISTRIBUTION OUT OF SYNC: run npm run build and commit dist/ changes.');
     if (changed) console.error('Modified tracked runtime:\n' + changed);
-    if (changed.split('\n').includes('dist/history-checkpoint.js')) {
-      // Temporary source-only diagnostic for the new compiled module.
-      const diff = git('diff', '--', 'dist/history-checkpoint.js');
-      console.error('Checkpoint runtime diff (public repository source only):\n' + diff.slice(0, 40000));
-    }
     if (untracked) console.error('Missing committed runtime files:\n' + untracked);
     process.exitCode = 1;
   } else {
