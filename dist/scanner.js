@@ -328,12 +328,13 @@ export function checkPrivacy(line, file, lineNumber) {
     return findings;
 }
 export function safeRelativePath(raw) {
-    // Never allow an untrusted filename to carry a credential or terminal control sequence to an AI client.
-    const normalized = raw.replace(/[\x00-\x1f\x7f-\x9f]/g, '?').slice(0, 240);
-    if (SECRET_RULES.some(rule => rule.pattern.test(normalized)) || /(?:password|token|secret|key)[=:][^/\\]{8,}/i.test(normalized) || /(?:postgres(?:ql)?|mysql|mariadb|mongodb(?:\+srv)?|rediss?|amqps?):\/\/[^/\\\s]+:[^@/\\\s]+@/i.test(normalized) || /_authToken=[^/\\\s]{8,}/i.test(normalized)) {
+    // Test the full sanitized path before shortening its display form: a secret spanning
+    // byte 240 must never leak as a partial token through a truncated filename.
+    const sanitized = raw.replace(/[\x00-\x1f\x7f-\x9f]/g, '?');
+    if (SECRET_RULES.some(rule => rule.pattern.test(sanitized)) || /(?:password|token|secret|key)[=:][^/\\]{8,}/i.test(sanitized) || /(?:postgres(?:ql)?|mysql|mariadb|mongodb(?:\+srv)?|rediss?|amqps?):\/\/[^/\\\s]+:[^@/\\\s]+@/i.test(sanitized) || /_authToken=[^/\\\s]{8,}/i.test(sanitized)) {
         return '[REDACTED_FILE_NAME]';
     }
-    return normalized || '[UNNAMED_FILE]';
+    return sanitized.slice(0, 240) || '[UNNAMED_FILE]';
 }
 function fileExtension(file) {
     const i = file.lastIndexOf('.');
