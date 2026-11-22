@@ -146,3 +146,23 @@ test('Codex configuration refuses ambiguous nested, quoted and inline RepoSafe e
     assert.throws(() => updateCodexToml(original, managed, true), /Ambiguous/, original);
   }
 });
+
+test('managed VS Code Copilot connection uses explicit COPILOT_HOME instead of the default path', async () => {
+  const home = await mkdtemp(join(tmpdir(), 'reposafe-client-copilot-home-'));
+  try {
+    const copilotHome = join(home, 'CopilotOverride');
+    const options = { client: 'vscode', root: home, home, copilotHome,
+      platform: process.platform, node: process.execPath, serverPath: resolve('dist/server.js') };
+    const installed = await updateClient(options);
+    assert.equal(installed.configFile, join(copilotHome, 'mcp-config.json'));
+    assert.equal(installed.applied, true);
+    const config = JSON.parse(await readFile(installed.configFile, 'utf8'));
+    assert.equal(config.mcpServers.reposafe.type, 'stdio');
+    assert.deepEqual(config.mcpServers.reposafe.tools, ['*']);
+    await updateClient({ ...options, remove: true });
+    const disconnected = JSON.parse(await readFile(installed.configFile, 'utf8'));
+    assert.equal(Object.hasOwn(disconnected.mcpServers, 'reposafe'), false);
+    const { access } = await import('node:fs/promises');
+    await assert.rejects(access(join(home, '.copilot', 'mcp-config.json')));
+  } finally { await rm(home, { recursive: true, force: true }); }
+});
