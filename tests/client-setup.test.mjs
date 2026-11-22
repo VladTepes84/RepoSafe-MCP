@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, symlink, writeFile, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -48,9 +48,14 @@ test('local Codex config only updates RepoSafe and supports dry-run and uninstal
     assert.equal(await readFile(file, 'utf8'), before);
     const first = await updateClient(args);
     assert.equal(first.applied, true);
+    assert.equal(first.backupCreated, true);
+    assert.equal(await readFile(first.backupFile, 'utf8'), before);
+    if (process.platform !== 'win32') assert.equal((await stat(first.backupFile)).mode & 0o777, 0o600);
     assert.match(await readFile(file, 'utf8'), /mcp_servers\.reposafe/);
     assert.equal((await updateClient(args)).changed, false);
-    await updateClient({ ...args, remove: true });
+    const disconnect = await updateClient({ ...args, remove: true });
+    assert.equal(disconnect.backupCreated, true);
+    assert.match(await readFile(disconnect.backupFile, 'utf8'), /mcp_servers\\.reposafe/);
     assert.equal(await readFile(file, 'utf8'), before);
     assert.equal((await updateClient({ ...args, remove: true })).changed, false);
   } finally { await rm(home, { recursive: true, force: true }); }
@@ -88,4 +93,38 @@ test('CLI connection and disconnect work without invoking codex binary', { timeo
     if (oldHome !== undefined) process.env.HOME = oldHome;
     await rm(fakeHome, { recursive: true, force: true });
   }
+});
+
+test('client setup refuses an existing lock and preserves all other settings', async () => {
+  const home = await mkdtemp(join(tmpdir(), 'reposafe-client-lock-'));
+  try {
+    const folder = join(home, '.codex');
+    await mkdir(folder, { recursive: true });
+    const file = join(folder, 'config.toml');
+    const before = 'model = "keep"\n';
+    await writeFile(file, before);
+    const lock = file + '.reposafe.lock';
+    await writeFile(lock, 'another operation');
+    const options = { client: 'codex', home, root: home, platform: process.platform,
+      node: process.execPath, serverPath: resolve('dist/server.js') };
+    await assert.rejects(updateClient(options), /locked/);
+    assert.equal(await readFile(file, 'utf8'), before);
+    assert.equal(await readFile(lock, 'utf8'), 'another operation');
+    const preview = await updateClient({ ...options, dryRun: true });
+    assert.equal(preview.applied, false);
+    assert.equal(preview.backupCreated, false);
+  } finally { await rm(home, { recursive: true, force: true }); }
+});
+
+test('existing empty config can be updated and safely backed up', async () => {
+  const home = await mkdtemp(join(tmpdir(), 'reposafe-client-empty-'));
+  try {
+    await mkdir(join(home, '.cursor'), { recursive: true });
+    await writeFile(join(home, '.cursor', 'mcp.json'), '');
+    const result = await updateClient({ client: 'cursor', home, root: home,
+      platform: process.platform, node: process.execPath,
+      serverPath: resolve('dist/server.js') });
+    assert.equal(result.backupCreated, true);
+    assert.equal(await readFile(result.backupFile, 'utf8'), '');
+  } finally { await rm(home, { recursive: true, force: true }); }
 });
