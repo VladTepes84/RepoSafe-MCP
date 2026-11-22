@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 const workflow = readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
 
 test('CI workflow uses immutable reviewed action revisions and minimal token permissions', () => {
-  const uses = [...workflow.matchAll(/^\s*-\s*uses:\s*([^\s#]+)/gm)].map(x => x[1]);
+  const uses = [...workflow.matchAll(/^\s*(?:-\s*)?uses:\s*([^\s#]+)/gm)].map(x => x[1]);
   assert.ok(uses.length >= 3, 'Expected two external actions and the local composite Action');
   for (const action of uses) {
     if (action.startsWith('./')) continue;
