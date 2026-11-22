@@ -112,7 +112,7 @@ test('ignores dependency and .git content', async () => {
 
 test('oversized files lead to incomplete verdict, not a false clean state', async () => {
   await withRepo(async dir => {
-    await writeFile(join(dir, 'large.txt'), 'x'.repeat(512 * 1024 + 1));
+    await writeFile(join(dir, 'large.txt'), 'x'.repeat(4 * 1024 * 1024 + 1));
     const report = await scanRepository(dir);
     assert.equal(report.stats.complete, false);
     assert.equal(report.verdict, 'review_required');
@@ -131,9 +131,9 @@ test('requires explicitly provided absolute root and rejects files', async () =>
 
 test('findings are capped and incomplete when capped', async () => {
   await withRepo(async dir => {
-    await writeFile(join(dir, 'many.txt'), Array(140).fill('PASSWORD=some_real_value_12345').join('\n'));
+    await writeFile(join(dir, 'many.txt'), Array(5100).fill('PASSWORD=some_real_value_12345').join('\n'));
     const report = await scanRepository(dir);
-    assert.equal(report.findings.length, 100);
+    assert.equal(report.findings.length, 5000);
     assert.equal(report.stats.complete, false);
     assert.equal(report.verdict, 'review_required');
   });
@@ -196,7 +196,7 @@ test('hard links are skipped and make scan coverage incomplete', async () => {
 
 test('long underscore-heavy identifiers are safely capped and reported as incomplete', { timeout: 4000 }, async () => {
   await withRepo(async dir => {
-    const longIdentifier = 'random_' + 'segment_'.repeat(1200) + 'not_a_credential';
+    const longIdentifier = 'random_' + 'segment_'.repeat(9000) + 'not_a_credential';
     await writeFile(join(dir, 'input.txt'), `const ${longIdentifier} = 1;\n`);
     const report = await scanRepository(dir);
     assert.equal(report.stats.complete, false);
@@ -216,7 +216,7 @@ test('secret-shaped filenames are masked in tool results', async () => {
 
 test('overlength lines report incomplete rather than hiding a clean scan', async () => {
   await withRepo(async dir => {
-    await writeFile(join(dir, 'verylong.txt'), 'a'.repeat(8500));
+    await writeFile(join(dir, 'verylong.txt'), 'a'.repeat(66000));
     const report = await scanRepository(dir);
     assert.equal(report.stats.complete, false);
     assert.equal(report.verdict, 'review_required');
