@@ -4,13 +4,13 @@ import { isAbsolute, join, parse, relative, sep } from 'node:path';
 import type { Finding, ScanReport, ScanStats } from './types.js';
 import { applyBaseline } from './baseline.js';
 
-const MAX_FILES = 1000;
-const MAX_DIRECTORIES = 2000;
-const MAX_BYTES = 10 * 1024 * 1024;
-const MAX_FILE_BYTES = 512 * 1024;
-const MAX_DEPTH = 10;
-export const MAX_FINDINGS = 100;
-const MAX_LINE_CHARS = 8192;
+const MAX_FILES = 10000;
+const MAX_DIRECTORIES = 20000;
+const MAX_BYTES = 64 * 1024 * 1024;
+const MAX_FILE_BYTES = 4 * 1024 * 1024;
+const MAX_DEPTH = 20;
+export const MAX_FINDINGS = 5000;
+const MAX_LINE_CHARS = 65536;
 
 const IGNORED_DIRS = new Set([
   '.git', 'node_modules', 'coverage', '.next',
