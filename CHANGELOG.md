@@ -6,6 +6,7 @@
 - Reject ambiguous Codex TOML forms (quoted/child tables, inline mappings) without changing any client configuration.
 - Reject future-dated checkpoint metadata and group/world-writable parent state directories.
 - Remove inherited `GIT_*` environment overrides before Git subprocesses; add two-repository boundary regression.
+- Align managed VS Code Copilot config with `COPILOT_HOME` and Claude Desktop Linux config with `XDG_CONFIG_HOME`; verify alternate locations and deliberate fail-closed relative-path handling.
 - These changes remain **draft/unmerged** pending acceptance of real client integrations and macOS Codex binary investigation.
 
 ## Unreleased — local MCP onboarding and scalable bounded scans (PR #10)
