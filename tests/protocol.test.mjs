@@ -67,6 +67,8 @@ test('stdio MCP handshake lists six tools and returns redacted report', { timeou
     } catch { rejected=true; }
     assert.equal(rejected,true);
 
+    // Refresh the report after the single-commit scoped scan before paging it.
+    await client.callTool({ name: 'generate_report', arguments: {} });
     const page = await client.callTool({ name: 'get_findings_page', arguments: { offset: 0, limit: 1 } });
     assert.notEqual(page.isError, true);
     const pageData = JSON.parse(page.content.find(x => x.type === 'text').text);
