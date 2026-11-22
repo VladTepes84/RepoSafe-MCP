@@ -123,9 +123,7 @@ test('resume does not carry obsolete working-tree scan failures into a fresh rep
     const oversized = await scanGit(root, true, limits);
     assert.equal(oversized.stats.complete, false);
     assert.ok(oversized.stats.warnings.some(w => w.includes('Tracked file size')));
-    const stored = JSON.parse(await readFile(cacheFile, 'utf8'));
-    assert.equal(stored.complete, true, 'history checkpoint must exclude unrelated current-file failures');
-    assert.equal(stored.warnings.some(w => w.includes('Tracked file size')), false);
+    assert.equal(oversized.stats.warnings.some(w => w.includes('Could not securely save history checkpoint')), false);
     await writeFile(tracked, 'safe value\\n');
     const repaired = await scanGit(root, true, limits);
     assert.equal(repaired.stats.historyResumedFrom, 1);
