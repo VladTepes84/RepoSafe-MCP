@@ -82,6 +82,12 @@ If you believe RepoSafe leaks a secret or crosses a filesystem boundary, private
 - An actual MCP SDK handshake is not an end-to-end GUI acceptance test. No client user permissions or approvals have been independently exercised.
 
 
+## Private checkpoint and MCP configuration writes (draft PR #10)
+
+- The default CLI and all MCP scanner tools remain read-only with respect to the inspected repository. The **opt-in** CLI `--resume-history` is different: it creates a private 7-day cache of **already-redacted finding metadata and commit progress** under `~/.reposafe/checkpoints/`. It never stores raw Git patches, matched values or the absolute repository path inside the checkpoint JSON. The hashed identity includes root, ref tips and scan policy. This is **local metadata, not encryption**; use ordinary scans without `--resume-history` for fresh verification. Invalid, expired, insecure, inaccessible or changed checkpoints are never trusted as clean coverage.
+- Explicit MCP `connect`/`disconnect` updates may write a private snapshot of the **complete previous IDE configuration** (which may contain unrelated credentials), next to that config. The operation creates a fail-closed lock, rereads the file and refuses changed/symlinked/unsafe configurations before an atomic rename. No automatic deletion of backup files occurs. Non-cooperating IDE writes and filesystem races are not a fully proven OS-level transaction; retain backups for manual recovery and confirm file ownership/permissions. No Gatekeeper bypass or Codex binary execution is involved.
+- Machine-readable CLI outputs and MCP reports never contain terminal color codes or progress messages. Neither automated STDIO tests nor GitHub CI certify GUI integration or third-party client privacy.
+
 ## Draft PR #10 — expanded local MCP and bounded scanning (not yet merged)
 
 - Requested history depth is capped at **5,000 commits**, processed in sequential batches of at most **100 commits**. Each Git batch has its own **1–16 MiB** patch budget and 12-second subprocess timeout; the entire history traversal has a **120-second** budget. The scanner retains completed commits on partial batches but does **not** persist checkpoints across process exits. An oversized single commit or another exceeded budget results in incomplete coverage, never a clean certification.
