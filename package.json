@@ -14,7 +14,7 @@
     "test:unit": "node --experimental-strip-types --test tests/scanner.test.mjs tests/detection.test.mjs tests/v04-detection.test.mjs tests/baseline.test.mjs",
     "test:git": "node --test tests/git.test.mjs tests/cli.test.mjs",
     "test:integration": "node --test tests/protocol.test.mjs",
-    "test": "npm run test:unit && npm run test:git && npm run test:config && npm run test:integration && npm run test:userflow && npm run test:sarif && npm run test:package && npm run test:structured && npm run test:history-options",
+    "test": "npm run test:unit && npm run test:git && npm run test:config && npm run test:integration && npm run test:userflow && npm run test:sarif && npm run test:package && npm run test:structured && npm run test:history-options && npm run test:report-contract",
     "check": "npm run typecheck && npm run build && npm test && npm run demo",
     "demo": "node tests/demo.mjs",
     "audit:deps": "npm audit --omit=dev --audit-level=high",
@@ -30,7 +30,8 @@
     "test:history-options": "node --test tests/history-options.test.mjs tests/history-checkpoint.test.mjs",
     "benchmark": "node tests/benchmark.mjs --smoke",
     "benchmark:full": "node tests/benchmark.mjs --full",
-    "verify:runtime": "npm run build && node scripts/verify-runtime.mjs"
+    "verify:runtime": "npm run build && node scripts/verify-runtime.mjs",
+    "test:report-contract": "node --test tests/report-contract.test.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "2.4.0",
