@@ -46,6 +46,7 @@
   "files": [
     "dist/",
     "scripts/config.mjs",
+    "scripts/client-setup.mjs",
     "README.md",
     "LICENSE",
     "docs/"
