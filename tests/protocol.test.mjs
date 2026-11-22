@@ -62,7 +62,7 @@ test('stdio MCP handshake lists six tools and returns redacted report', { timeou
     // Zod input validation must reject out-of-range AI arguments.
     let rejected=false;
     try {
-      const invalid=await client.callTool({name:'scan_git_history',arguments:{historyDepth:501}});
+      const invalid=await client.callTool({name:'scan_git_history',arguments:{historyDepth:5001}});
       rejected=invalid.isError===true;
     } catch { rejected=true; }
     assert.equal(rejected,true);
