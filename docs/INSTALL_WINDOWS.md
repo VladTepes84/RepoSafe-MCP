@@ -43,14 +43,16 @@ New-Item -ItemType Directory -Force -Path $Target | Out-Null
 Set-Content -Path (Join-Path $Target 'README.md') -Value '# Synthetic test project'
 Set-Content -Path (Join-Path $Target 'LICENSE') -Value 'MIT'
 Set-Content -Path (Join-Path $Target '.gitignore') -Value @('.env', '.env.*')
-node dist/cli.js scan --root "$Target" --no-git --json
+node "$HOME\.reposafe\node_modules\reposafe-mcp\dist\cli.js" scan --root "$Target" --no-git --json
 ```
 
 This current-tree-only report will contain no findings for the synthetic sample. Remove `--no-git` when testing a real Git repository; a target without a `.git` directory cannot produce a complete Git history check.
 
 ## 4. Generate exact client settings
 
-Run any one or more of these (still within `$HOME\RepoSafe-MCP`):
+For the **precompiled archive** installation from step 2, use `node "$HOME\.reposafe\node_modules\reposafe-mcp\dist\cli.js" init --root "$Target" --client cursor` (or a supported client) to preview its config without changing client files.
+
+For **source contributors only**, run any one or more of these (from `$HOME\RepoSafe-MCP`):
 
 ```powershell
 npm.cmd run config -- --client cursor --root "$Target"
