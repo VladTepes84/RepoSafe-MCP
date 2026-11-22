@@ -9,7 +9,7 @@ import { performance } from 'node:perf_hooks';
 import { generateReport } from '../dist/git.js';
 
 const full = process.argv.includes('--full');
-if (process.argv.some(a => a !== '--full' && a !== '--smoke')) {
+if (process.argv.slice(2).some(a => a !== '--full' && a !== '--smoke')) {
   console.error('Usage: node tests/benchmark.mjs [--smoke|--full]');
   process.exit(2);
 }
