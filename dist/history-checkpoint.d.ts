@@ -1,6 +1,6 @@
 import type { Finding } from './types.js';
 export interface HistorySnapshot {
-    version: 1;
+    version: 2;
     key: string;
     commits: number;
     batches: number;
