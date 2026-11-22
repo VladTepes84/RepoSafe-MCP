@@ -29,7 +29,7 @@ function selectReport(report: ScanReport, category?: Category): object {
 function createServer(): McpServer {
   const server = new McpServer({ name: 'reposafe-mcp', version: '0.7.0' });
   const historySchema = z.object({
-    historyDepth: z.number().int().min(1).max(500).optional(),
+    historyDepth: z.number().int().min(1).max(5000).optional(),
     since: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     maxDiffSizeMiB: z.number().int().min(1).max(16).optional(),
     currentBranchOnly: z.boolean().optional(),
