@@ -238,6 +238,39 @@ test('overlength lines report incomplete rather than hiding a clean scan', async
   });
 });
 
+test('overlength line: scan catches late and boundary-crossing synthetic token without returning value', async () => {
+  await withRepo(async dir => {
+    const token = 'AKIA' + 'Z'.repeat(16);
+    // Starts across a 65,536-character boundary; another copy is far beyond it.
+    const line = '-'.repeat(65530) + token + ';' + '-'.repeat(80000) + token + ';';
+    await writeFile(join(dir, 'long-source.ts'), line + '\n');
+    const report = await scanRepository(dir);
+    const matches = report.findings.filter(f => f.rule === 'aws_access_key_id');
+    assert.equal(matches.length, 1, 'one metadata finding per rule and source line');
+    assert.equal(matches[0].line, 1);
+    assert.equal(matches[0].severity, 'high');
+    assert.equal(report.stats.overlengthLinesSkipped, 1);
+    assert.equal(report.stats.complete, false, 'overlapping windows cannot certify complete coverage');
+    assert.equal(report.verdict, 'review_required');
+    assert.ok(!JSON.stringify(report).includes(token));
+  });
+});
+
+test('overlength Git-tracked excluded file: bounded checks detect synthetic secret but remain incomplete', async () => {
+  await withRepo(async dir => {
+    await mkdir(join(dir, 'node_modules'));
+    const token = 'AKIA' + 'W'.repeat(16);
+    await writeFile(join(dir, 'node_modules', 'bundled.txt'), '-'.repeat(90000) + token + ';');
+    const { scanSelectedTrackedFiles } = await import('../dist/scanner.js');
+    const report = await scanSelectedTrackedFiles(dir, ['node_modules/bundled.txt']);
+    assert.equal(report.complete, false);
+    assert.equal(report.filesScanned, 1);
+    assert.ok(report.findings.some(f => f.rule === 'aws_access_key_id' && f.line === 1));
+    assert.ok(report.warnings.some(w => w.includes('full-line analysis')));
+    assert.ok(!JSON.stringify(report).includes(token));
+  });
+});
+
 test('finding overflow still scans later files and retains higher-severity alerts', { timeout: 15000 }, async () => {
   await withRepo(async dir => {
     await writeFile(join(dir, 'many.txt'), Array(5100).fill('PASSWORD=some_real_value_12345').join('\n'));
