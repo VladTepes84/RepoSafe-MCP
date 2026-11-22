@@ -32,7 +32,7 @@ function help() {
         '  npm run demo',
         '',
         'init verifies MCP and PRINTS configuration only; --json produces structured onboarding output.',
-        'doctor performs a real local stdio MCP handshake and six-tool discovery.',
+        'doctor performs a real local stdio MCP handshake and seven-tool discovery.',
         'Exit codes: 0=pass/clean in scoped scan; 1=review required; 2=usage or runtime failure.',
         'Use synthetic data for security tests; never paste real credentials in bug reports.',
     ].join('\n'));
