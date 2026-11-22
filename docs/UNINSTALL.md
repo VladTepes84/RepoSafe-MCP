@@ -27,7 +27,7 @@
 
 ## Private checkpoint and configuration-backup cleanup
 
-The optional CLI `--resume-history` creates private redacted checkpoints under `~/.reposafe/checkpoints/`. Review that exact directory before removing **only its RepoSafe checkpoint files**. Do not remove `~/.reposafe` if it also contains the installed runtime or unrelated files. No checkpoint is written during normal CLI/MCP scanning.
+The optional CLI `--resume-history` creates private redacted checkpoints under `~/.reposafe/checkpoints/`. The seven-day limit controls **reuse**, not file retention: expired snapshots remain on disk until explicitly removed. Review that exact directory before removing **only its RepoSafe checkpoint files**. Do not remove `~/.reposafe` if it also contains the installed runtime or unrelated files. No checkpoint is written during normal CLI/MCP scanning.
 
 Explicit `connect`/`disconnect` operations create uniquely named, user-private `*.reposafe-backup-UUID` snapshots **beside the original client configuration** when modifying an existing file. These backups can include tokens from unrelated MCP servers; do not upload or paste them. Keep them for rollback until the client works, then review and remove only the exact intended snapshots. A crashed setup may leave a `*.reposafe.lock` file; inspect whether another setup is active before manually clearing a stale lock. Never blindly delete arbitrary lock files.
 
