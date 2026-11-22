@@ -35,7 +35,9 @@ test('opt-in history cache is private, bounded, and rejects poisoned metadata', 
     ] }), { mode: 0o600 });
     await assert.rejects(cache.load(), /validation/);
     await writeFile(file, JSON.stringify({ ...snapshot, version: 1 }), { mode: 0o600 });
-    await assert.rejects(cache.load(), /validation/, 'legacy v1 checkpoints must be rescanned');
+    assert.equal(await cache.load(), undefined, 'legacy v1 checkpoints must never be reused');
+    await cache.save(snapshot);
+    assert.deepEqual(await cache.load(), snapshot, 'fresh valid v2 snapshot replaces obsolete metadata');
     await writeFile(file, JSON.stringify({ ...snapshot,
       updatedAt: Date.now() + 24 * 60 * 60 * 1000 }), { mode: 0o600 });
     await assert.rejects(cache.load(), /validation/, 'future timestamps must not prolong cache validity');
