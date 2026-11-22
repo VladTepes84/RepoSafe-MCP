@@ -1,6 +1,6 @@
 # Manual MCP client acceptance matrix
 
-**Status: not yet executed in real GUI clients.** The MCP SDK tests prove stdio protocol and seven tool calls in an isolated Node test client; they do not prove that Codex Desktop, Cursor, Claude Desktop or VS Code/Copilot exposes the server to an AI session.
+**Status (2026-11-22): a Codex Desktop conversation was attempted and reported that RepoSafe tools were not exposed. No actual RepoSafe MCP tools were invoked. Codex in-product acceptance is therefore **NOT PASSED / UNAVAILABLE IN OBSERVED SESSION**; root cause remains undetermined. Cursor, Claude Desktop and VS Code/Copilot GUI checks remain not performed.** The MCP SDK tests prove stdio protocol and seven tool calls in an isolated Node test client; they do not prove that Codex Desktop, Cursor, Claude Desktop or VS Code/Copilot exposes the server to an AI session.
 
 ## Test environment and safeguards
 
@@ -12,7 +12,7 @@ Use a disposable repository with dummy non-live patterns and at least two synthe
 
 | Client | Connection method | Actual in-product test |
 | --- | --- | --- |
-| Codex Desktop/CLI | Managed `--client codex`; inspect `~/.codex/config.toml` without leaking other entries | Not verified |
+| Codex Desktop/CLI | Managed `--client codex`; inspect `~/.codex/config.toml` without leaking other entries | **Observed unavailable in a Codex Desktop conversation on 2026-11-22; no tool calls** |
 | Cursor | Managed `--client cursor`; validate local MCP approvals | Not verified |
 | VS Code/Copilot | Managed `--client vscode`; honor `COPILOT_HOME` where applicable | Not verified |
 | Claude Desktop | Managed `--client claude`; confirm OS-specific config location | Not verified |
@@ -40,5 +40,7 @@ For each configured client, require actual tool invocation receipts, not explana
 | Scope/redaction and incomplete verdict | NOT VERIFIED |
 | Restart and uninstall isolation | NOT VERIFIED |
 | Evidence link (redacted) | NOT VERIFIED |
+
+In a 2026-11-22 Codex Desktop chat attempt, tool discovery in the assistant session did not expose `reposafe` despite a successful Mac local `doctor` protocol test. No `generate_report` or `get_findings_page` call executed in that chat. **This is evidence of an unmet GUI acceptance gate, not proof of the underlying transport/configuration root cause.** The product feature is deferred, not reported as passed.
 
 The client passes only when all applicable checks have observed evidence. Otherwise report **NOT VERIFIED** or **FAILED**, never **PASS** by inference.

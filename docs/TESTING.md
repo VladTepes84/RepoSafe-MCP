@@ -1,5 +1,10 @@
 # Test and evidence plan
 
+> **Current evidence (22 Nov 2026):** combined PR #20 merged to `main` at `1fe5bbb4c14e738f1fd196b839346f967909bf58`. Its combined head passed four GitHub CI jobs and **146 local Mac automated tests**, plus demo, runtime verification, benchmark, audit and manual synthetic CLI Git/history/JSON/SARIF/checkpoint checks. Those results do **not** validate the subsequent new CLI display flags until a fresh run completes. **Codex Desktop tools were not exposed in the observed client conversation; GUI acceptance has not passed.**
+
+> Historical references below to **six** tools are old v0.7 development checkpoints; the merged current implementation exposes **seven** via SDK `doctor`, including `get_findings_page`. Do not use historical counts as today's requirement.
+
+
 ## Repeatable real scenario
 
 Run `npm run check` (after installing dependencies), then `npm run demo`. The demo creates a real local Git repo, commits a **synthetic** GitHub-format token, detects it, commits its deletion, detects it again in history, asserts the token does not appear in JSON output, then deletes the temporary test directory.
@@ -22,14 +27,14 @@ REAL OFFLINE DEMO PASS (synthetic credentials only)
 | `npm run test:unit` | Native Node test runner: existing security tests plus v0.3 provider fixtures, false positives, duplicates, build/vendor detection and filename redaction |
 | `npm run test:git` | Real `git init`, `git add`, `git commit`, secret deletion, introducing-commit IDs, tracked excluded files, hostile fsmonitor config, Git env injection, tracked `.env`, CLI exit codes |
 | `npm run test:config` | Native Windows / macOS configuration path and schema simulation for Cursor, Claude, VS Code, Codex |
-| `npm run test:integration` | Starts real compiled server via official MCP stdio client SDK, lists 6 tools, calls report and checks no raw token leakage |
+| `npm run test:integration` | Starts real compiled server via official MCP stdio client SDK, lists 7 tools, calls report and checks no raw token leakage |
 | `npm run typecheck` | TypeScript strict typecheck |
 | `npm run audit:deps` | npm high/critical production dependency audit |
 | GitHub Actions | `npm run check` and dependency audit on Ubuntu, Windows, macOS (each run must be inspected) |
 
 ## Honest verification levels
 
-- **Verified locally:** Node.js scanner / Git / CLI / config-generator tests actually executed in an isolated Linux container.
+- **Verified locally:** current scanner/Git/CLI/config SDK tests executed on a real Apple Silicon Mac (Node 24.19.0), as detailed in the 2026-11-22 acceptance logs; CI also runs isolated runners. Real GUI client calls have not passed.
 - **Verified in GitHub Actions:** only when a named workflow run explicitly shows each matrix job succeeded, with its associated commit SHA.
 - **Vendor-documented:** host supports local stdio MCP and documents file schema.
 - **Not tested:** GUI calls in Claude Desktop, Cursor, Codex, JetBrains etc. A successful official SDK handshake is not equivalent to all of those manual tests.
@@ -37,6 +42,10 @@ REAL OFFLINE DEMO PASS (synthetic credentials only)
 ## Script-free distribution regression (2026-11-22)
 
 The GitHub repository tracks compiled JavaScript and declarations in `dist/`. CI runs `npm run verify:runtime` after building to catch any drift from TypeScript sources. A real pinned GitHub archive is installed in an isolated prefix with `npm --ignore-scripts`, then `--help`, `doctor --json` and `init --json` verify executable availability, an actual SDK MCP handshake and six tools. This is run on Linux, Windows and macOS, including Node.js 24 on macOS. Direct runtime dependencies are pinned to the tested versions. The existing GitHub-source install smoke also uses `--ignore-scripts`. The npm registry remains unpublished, and actual Cursor/Claude GUI integration is still pending.
+
+## New human-readable CLI UX regression
+
+The source adds `tests/cli-display.test.mjs` to `npm run test:userflow`. Acceptance requires severity grouping, summary-only counts, compact file-grouped output, incomplete coverage display, no credential leakage and rejection of invalid options. **This new suite is pending fresh CI verification on its PR**, separate from the 146 tests reported for merged PR #20.
 
 ## Security regression tests worth adding next
 

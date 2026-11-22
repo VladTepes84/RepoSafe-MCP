@@ -1,3 +1,16 @@
+## Unreleased — CLI readability and documentation refresh (PR pending)
+
+- Human-oriented scan display modes: `--summary`, `--compact`, `--group-by severity|file`; severity/file section headings, deterministic sort and clearer coverage (including Git completeness).
+- No extra runtime dependencies, no scanner/retention engine changes; JSON/SARIF and MCP protocol contracts unchanged.
+- Full README/CLI reference/first-run/uninstall/quickstart refresh with explicit dependency versions and actual Codex Desktop GUI limitation.
+- New local CLI presentation regression tests; fresh CI required before marking this update validated.
+
+## 2026-11-22 — Integrated PRO updates merged (#20)
+
+- Merged consolidated PRs #11–#18 through PR #20, merge commit `1fe5bbb4c14e738f1fd196b839346f967909bf58`.
+- Combined head passed four CI matrix jobs; user-run Mac M3 testing passed 146 automated tests, runtime sync, synthetic benchmark and dependency audit.
+- Codex Desktop GUI session did not expose the tools; no GUI integration claim is made.
+
 # Changelog
 
 ## Unreleased — security hardening merged in PR #10 (22 November 2026)
