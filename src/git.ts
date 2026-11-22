@@ -9,7 +9,9 @@ import { applyBaseline } from './baseline.js';
 const execFileAsync = promisify(execFile);
 const DEFAULT_MAX_COMMITS = 100;
 const DEFAULT_PATCH_MIB = 4;
-const ABSOLUTE_MAX_COMMITS = 500;
+const ABSOLUTE_MAX_COMMITS = 5000;
+const HISTORY_BATCH_COMMITS = 100;
+const MAX_TOTAL_HISTORY_MS = 120_000;
 const ABSOLUTE_MAX_PATCH_MIB = 16;
 
 export interface HistoryScanOptions {
@@ -23,7 +25,7 @@ function boundedHistoryOptions(options: HistoryScanOptions): Required<HistorySca
   const maxDiffSizeMiB = options.maxDiffSizeMiB ?? DEFAULT_PATCH_MIB;
   const since = options.since ?? '';
   if (!Number.isInteger(depth) || depth < 1 || depth > ABSOLUTE_MAX_COMMITS) {
-    throw new Error('History depth is outside the safe 1..500 range.');
+    throw new Error('History depth is outside the safe 1..5000 range.');
   }
   if (!Number.isInteger(maxDiffSizeMiB) || maxDiffSizeMiB < 1 || maxDiffSizeMiB > ABSOLUTE_MAX_PATCH_MIB) {
     throw new Error('Maximum history diff size is outside the safe 1..16 MiB range.');
@@ -93,7 +95,7 @@ async function git(root: string, args: string[], maxBuffer = 1024 * 1024): Promi
 }
 
 type HistoryStreamOutcome = 'complete' | 'byte_limit' | 'timeout' | 'git_error' | 'finding_limit';
-const MAX_HISTORY_LINE_CHARS = 8193;
+const MAX_HISTORY_LINE_CHARS = 65537;
 
 /**
  * Read Git history incrementally. Bound memory by line length and byte budget.
@@ -253,51 +255,99 @@ export async function scanGit(root: string, history = true, limits: HistoryScanO
     stats.warnings.push('Git history inspection disabled by explicit request.');
     return { findings, stats };
   }
-  const logArgs = [
+
+  // Repeated bounded Git processes avoid a single global 16 MiB history cutoff.
+  // Each batch has an independent byte/time budget and retains only complete commits.
+  // --skip is advanced only by fully processed commits: a partial commit is retried,
+  // never counted as inspected or silently skipped.
+  const historyArgs = [
     'log', ...(window.currentBranchOnly ? [] : ['--all']),
-    `--max-count=${window.depth}`,
-    ...(window.since ? [`--since=${window.since}T00:00:00Z`] : []),
+    ...(window.since ? ['--since=' + window.since + 'T00:00:00Z'] : []),
     '--no-ext-diff', '--no-textconv', '--no-renames',
     '--format=RS_COMMIT_START:%H', '--unified=0', '-p',
     ...(window.currentBranchOnly ? ['HEAD'] : []),
   ];
-  let currentFile = '[GIT_HISTORY]';
-  let currentCommit: string | undefined;
-  let commitOpen = false;
-  const onLine = (line: string): boolean => {
-    if (line.startsWith('RS_COMMIT_START:')) {
-      // Count only a completed commit: next marker or successful EOF.
-      if (commitOpen) stats.commitsInspected++;
-      commitOpen = true;
-      const hash = line.slice('RS_COMMIT_START:'.length).trim();
-      currentCommit = /^[a-f0-9]{40,64}$/i.test(hash) ? hash.slice(0, 12) : undefined;
-      currentFile = '[GIT_HISTORY]';
+  const startedAt = Date.now();
+  let reachedEnd = false;
+  stats.historyBatches = 0;
+  while (stats.commitsInspected < window.depth && !reachedEnd) {
+    if (Date.now() - startedAt > MAX_TOTAL_HISTORY_MS) {
+      warning('Overall Git history time budget reached; completed commits were preserved.');
+      break;
+    }
+    const remaining = window.depth - stats.commitsInspected;
+    const batchSize = Math.min(HISTORY_BATCH_COMMITS, remaining);
+    let currentFile = '[GIT_HISTORY]';
+    let currentCommit: string | undefined;
+    let commitOpen = false;
+    let completedInBatch = 0;
+    let limitReached = false;
+    let pending: Finding[] = [];
+    const completeCommit = (): boolean => {
+      if (!commitOpen) return true;
+      commitOpen = false;
+      completedInBatch++;
+      for (const finding of pending) {
+        if (findings.length >= MAX_GIT_FINDINGS) {
+          limitReached = true;
+          break;
+        }
+        findings.push(finding);
+      }
+      pending = [];
+      return !limitReached;
+    };
+    const onLine = (line: string): boolean => {
+      if (line.startsWith('RS_COMMIT_START:')) {
+        if (commitOpen && !completeCommit()) return false;
+        commitOpen = true;
+        const hash = line.slice('RS_COMMIT_START:'.length).trim();
+        currentCommit = /^[a-f0-9]{40,64}$/i.test(hash) ? hash.slice(0, 12) : undefined;
+        currentFile = '[GIT_HISTORY]';
+        return true;
+      }
+      if (!commitOpen) return true;
+      if (line.startsWith('+++ b/')) { currentFile = safeRelativePath(line.slice(6)); return true; }
+      if (line.startsWith('+++ ') || line.startsWith('--- ') || line.startsWith('diff ') || line.startsWith('@@')) return true;
+      if (!line.startsWith('+')) return true;
+      for (const finding of checkSecrets(line.slice(1), currentFile, 0, 'history')) {
+        if (pending.length + findings.length >= MAX_GIT_FINDINGS) { limitReached = true; return false; }
+        pending.push({ ...finding, file: safeRelativePath(finding.file), line: undefined,
+          commit: currentCommit, rule: 'git_history_' + finding.rule,
+          message: 'Possible credential remains in the Git history.',
+          action: 'Treat the credential as exposed, rotate it, and review history before publishing. Rewriting history alone does not revoke it.' });
+      }
       return true;
+    };
+    const args = [...historyArgs, '--skip=' + stats.commitsInspected, '--max-count=' + batchSize];
+    const outcome = await streamGitHistory(root, args, window.maxDiffSizeMiB * 1024 * 1024, onLine,
+      () => warning('Long lines in Git history were not analyzed.'));
+    stats.historyBatches++;
+    if (outcome === 'complete' && commitOpen) completeCommit();
+    stats.commitsInspected += completedInBatch;
+    if (limitReached || outcome === 'finding_limit') {
+      warning('Git finding storage limit reached; further findings were not inspected.');
+      break;
     }
-    if (!commitOpen) return true;
-    if (line.startsWith('+++ b/')) { currentFile = safeRelativePath(line.slice(6)); return true; }
-    if (line.startsWith('+++ ') || line.startsWith('--- ') || line.startsWith('diff ') || line.startsWith('@@')) return true;
-    if (!line.startsWith('+')) return true;
-    for (const finding of checkSecrets(line.slice(1), currentFile, 0, 'history')) {
-      if (findings.length >= MAX_GIT_FINDINGS) return false;
-      findings.push({ ...finding, file: safeRelativePath(finding.file), line: undefined,
-        commit: currentCommit, rule: `git_history_${finding.rule}`,
-        message: 'Possible credential remains in the Git history.',
-        action: 'Treat the credential as exposed, rotate it, and review history before publishing. Rewriting history alone does not revoke it.' });
+    if (outcome === 'complete') {
+      if (completedInBatch < batchSize) reachedEnd = true;
+      continue;
     }
-    return findings.length < MAX_GIT_FINDINGS;
-  };
-  const outcome = await streamGitHistory(
-    root, logArgs, window.maxDiffSizeMiB * 1024 * 1024, onLine,
-    () => warning('Long lines in Git history were not analyzed.'),
-  );
+    if (outcome === 'byte_limit' && completedInBatch > 0) {
+      // Retry the first incomplete commit in the next bounded Git batch.
+      continue;
+    }
+    if (outcome === 'byte_limit') {
+      warning('A single Git commit exceeded the per-batch diff budget (' + window.maxDiffSizeMiB + ' MiB); unable to advance without losing coverage.');
+    } else if (outcome === 'timeout') {
+      warning('Git history batch exceeded its ' + GIT_TIMEOUT_MS / 1000 + 's timeout; completed commits were preserved.');
+    } else {
+      warning('Git history command failed; completed commits were preserved.');
+    }
+    break;
+  }
   stats.historyChecked = true;
-  if (outcome === 'complete' && commitOpen) stats.commitsInspected++;
-  if (outcome === 'byte_limit') warning(`Git history diff byte budget reached (${window.maxDiffSizeMiB} MiB); previously completed commits were preserved.`);
-  else if (outcome === 'timeout') warning(`Git history exceeded its ${GIT_TIMEOUT_MS / 1000}s timeout; previously completed commits were preserved.`);
-  else if (outcome === 'git_error') warning('Git history command failed; previously completed commits were preserved.');
-  else if (outcome === 'finding_limit') warning('Git finding limit reached; additional history findings were not inspected.');
-  if (outcome === 'complete' && stats.commitsInspected === window.depth) {
+  if (stats.commitsInspected === window.depth) {
     warning('History depth limit reached; older commits are outside the selected scan.');
   }
   if (window.since || window.currentBranchOnly) {
