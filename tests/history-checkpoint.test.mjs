@@ -34,6 +34,9 @@ test('opt-in history cache is private, bounded, and rejects poisoned metadata', 
       { ...snapshot.findings[0], value: 'synthetic forbidden value' },
     ] }), { mode: 0o600 });
     await assert.rejects(cache.load(), /validation/);
+    await writeFile(file, JSON.stringify({ ...snapshot,
+      updatedAt: Date.now() + 24 * 60 * 60 * 1000 }), { mode: 0o600 });
+    await assert.rejects(cache.load(), /validation/, 'future timestamps must not prolong cache validity');
   } finally { await unlink(file).catch(() => {}); }
 });
 
