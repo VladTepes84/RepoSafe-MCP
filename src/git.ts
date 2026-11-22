@@ -256,6 +256,15 @@ export async function scanGit(root: string, history = true, limits: HistoryScanO
     return { findings, stats };
   }
 
+  try {
+    const candidates = (await git(root, [
+      'rev-list', '--count', ...(window.currentBranchOnly ? ['HEAD'] : ['--all']),
+      ...(window.since ? ['--since=' + window.since + 'T00:00:00Z'] : []),
+    ])).trim();
+    if (/^[0-9]+$/.test(candidates)) stats.historyCandidates = Number(candidates);
+  } catch {
+    stats.warnings.push('Reachable Git commit count unavailable; progress percentage is unknown.');
+  }
   // Repeated bounded Git processes avoid a single global 16 MiB history cutoff.
   // Each batch has an independent byte/time budget and retains only complete commits.
   // --skip is advanced only by fully processed commits: a partial commit is retried,
@@ -347,7 +356,8 @@ export async function scanGit(root: string, history = true, limits: HistoryScanO
     break;
   }
   stats.historyChecked = true;
-  if (stats.commitsInspected === window.depth) {
+  if (stats.commitsInspected === window.depth &&
+      (stats.historyCandidates === undefined || stats.historyCandidates > window.depth)) {
     warning('History depth limit reached; older commits are outside the selected scan.');
   }
   if (window.since || window.currentBranchOnly) {
