@@ -367,10 +367,16 @@ export async function generateReport(root: string, options: { includeGit?: boole
   }
   const g = await scanGit(root, options.includeHistory !== false, options.historyOptions);
   report.git = g.stats;
-  report.findings = [...report.findings, ...g.findings].slice(0, MAX_FINDINGS);
-  if (report.findings.length === MAX_FINDINGS) {
+  const severityRank = (s: Finding['severity']): number =>
+    ({ critical: 0, high: 1, medium: 2, low: 3 })[s];
+  const combined = [...report.findings, ...g.findings].sort((a, b) =>
+    severityRank(a.severity) - severityRank(b.severity) ||
+    a.file.localeCompare(b.file) || (a.line ?? 0) - (b.line ?? 0));
+  report.findings = combined.slice(0, MAX_FINDINGS);
+  if (combined.length > MAX_FINDINGS) {
     report.stats.complete = false;
-    report.stats.warnings.push('Total finding limit reached.');
+    report.stats.findingsOmitted = (report.stats.findingsOmitted ?? 0) + combined.length - MAX_FINDINGS;
+    report.stats.warnings.push('Total finding retention limit reached; highest-severity results were prioritized.');
   }
   if (!g.stats.complete) {
     report.stats.complete = false;
@@ -379,6 +385,6 @@ export async function generateReport(root: string, options: { includeGit?: boole
   report.findings.sort((a, b) => a.file.localeCompare(b.file) || (a.line ?? 0) - (b.line ?? 0) || a.rule.localeCompare(b.rule));
   report.verdict = report.stats.complete && report.findings.length === 0 ? 'no_findings_in_scope' : 'review_required';
   report.limitations = report.limitations.filter(x => !x.startsWith('Scans current local files only'));
-  report.limitations.push('Git history is always bounded (default: 100 commits and 4 MiB output; operator caps: 500 commits and 16 MiB). Unreachable/dangling objects and remote settings are not inspected.');
+  report.limitations.push('Git history is always bounded (default: 100 commits and 4 MiB per batch; operator caps: 5000 commits and 16 MiB per Git batch). Unreachable/dangling objects and remote settings are not inspected.');
   return applyBaseline(report, root);
 }
