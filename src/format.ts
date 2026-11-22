@@ -2,7 +2,7 @@ import type { Finding, ScanReport, Severity } from './types.js';
 
 const order: Severity[] = ['critical', 'high', 'medium', 'low'];
 
-export function formatHumanReport(report: ScanReport): string {
+export function formatHumanReport(report: ScanReport, maxDisplayed = 50): string {
   const count = Object.fromEntries(order.map(s => [s, report.findings.filter(f => f.severity === s).length]));
   const output: string[] = [
     'RepoSafe MCP — ' + (report.verdict === 'review_required' ? 'REVIEW REQUIRED' : 'NO FINDINGS IN SCANNED SCOPE'),
@@ -26,12 +26,13 @@ export function formatHumanReport(report: ScanReport): string {
     const sorted = [...report.findings].sort((a, b) =>
       order.indexOf(a.severity) - order.indexOf(b.severity) ||
       a.file.localeCompare(b.file) || (a.line ?? 0) - (b.line ?? 0));
-    for (const [index, item] of sorted.entries()) {
+    for (const [index, item] of sorted.slice(0, maxDisplayed).entries()) {
       output.push((index + 1) + '. [' + item.severity.toUpperCase() + '] ' + item.rule +
         ' — ' + item.file + (item.line ? ':' + item.line : '') +
         (item.commit ? ' (commit ' + item.commit + ')' : ''));
       output.push('   Reason: ' + item.message, '   Action: ' + item.action);
     }
+    if (sorted.length > maxDisplayed) output.push('... ' + (sorted.length - maxDisplayed) + ' additional findings; rerun with --all-findings or --json to see them.');
   } else {
     if ((report.baseline?.highSuppressed ?? 0) > 0) {
       output.push('', 'WARNING: high/critical findings were hidden by baseline exceptions. Review required.');
