@@ -29,6 +29,8 @@ export interface GitStats {
   commitsInspected: number;
   /** Completed Git process batches; no raw diff data is retained. */
   historyBatches?: number;
+  /** Number of completed Git commits reused from a validated opt-in local checkpoint. */
+  historyResumedFrom?: number;
   /** Local reachable commit candidates within requested branch/date scope. */
   historyCandidates?: number;
   historyWindow?: { maxCommits: number; maxDiffSizeMiB: number; since?: string; currentBranchOnly: boolean };
