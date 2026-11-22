@@ -102,6 +102,12 @@ export async function historyCheckpoint(key) {
             catch {
                 throw new Error('History checkpoint is invalid; rerun without --resume-history.');
             }
+            // A validly located legacy snapshot is never reused. A fresh scan may
+            // replace it atomically with the current schema after completing a batch.
+            if (snapshot && typeof snapshot === 'object' && !Array.isArray(snapshot) &&
+                snapshot.version === 1 &&
+                snapshot.key === key)
+                return undefined;
             if (!validSnapshot(snapshot, key)) {
                 throw new Error('History checkpoint failed validation; rerun without --resume-history.');
             }
