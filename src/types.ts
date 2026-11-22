@@ -18,6 +18,8 @@ export interface ScanStats {
   directoriesVisited: number;
   bytesScanned: number;
   filesSkipped: number;
+  /** Number of findings beyond bounded in-memory retention. */
+  findingsOmitted?: number;
   complete: boolean;
   warnings: string[];
 }
