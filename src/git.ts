@@ -64,10 +64,10 @@ const EXCLUDED_WORKING_TREE_DIRS = new Set([
 // Apply the same environment controls to metadata and streaming history.
 function gitCommand(root: string, args: string[]): { args: string[]; env: NodeJS.ProcessEnv } {
   const environment = { ...process.env };
+  // Strip inherited repository selection, object stores, index overrides,
+  // external helpers and trace destinations before applying known-safe Git options.
   for (const key of Object.keys(environment)) {
-    if (key === 'GIT_CONFIG_PARAMETERS' || key === 'GIT_CONFIG_COUNT' ||
-        /^GIT_CONFIG_(?:KEY|VALUE)_\d+$/.test(key) ||
-        key === 'GIT_EXTERNAL_DIFF' || key === 'GIT_DIFF_OPTS') delete environment[key];
+    if (/^GIT_/i.test(key)) delete environment[key];
   }
   return {
     args: [
