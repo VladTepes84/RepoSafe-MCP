@@ -5,7 +5,7 @@
 | Client / AI | Local stdio MCP according to vendor docs | RepoSafe configuration | RepoSafe in-product test |
 | --- | --- | --- | --- |
 | **Cursor Agent** | Yes | `npm run config -- --client cursor --root ABS_PATH`; `~/.cursor/mcp.json` | **Not yet manually tested** |
-| **Claude Desktop** | Yes | `--client claude`; macOS `~/Library/Application Support/Claude/claude_desktop_config.json`, Windows `%APPDATA%\Claude\claude_desktop_config.json` | **Not yet manually tested** |
+| **Claude Desktop** | Yes | `--client claude`; macOS `~/Library/Application Support/Claude/claude_desktop_config.json`, Windows `%APPDATA%\Claude\claude_desktop_config.json`, Linux `$XDG_CONFIG_HOME/Claude/claude_desktop_config.json` or `~/.config/Claude/claude_desktop_config.json` | **Not yet manually tested** |
 | **VS Code + GitHub Copilot** | Yes, modern Copilot harness | `--client vscode`; `$COPILOT_HOME/mcp-config.json` if configured, else `~/.copilot/mcp-config.json`, native `mcpServers` | **Not yet manually tested** |
 | **OpenAI Codex CLI / IDE extension / supported ChatGPT desktop** | Yes, local config | `--client codex`; `~/.codex/config.toml` | **Not yet manually tested** |
 | **JetBrains AI Assistant** | Vendor documents STDIO MCP integrations | Add a custom STDIO server with the absolute `node` executable and `dist/server.js`; `REPOSAFE_ROOT` in env | Not tested |
