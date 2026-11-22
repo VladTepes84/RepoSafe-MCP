@@ -97,12 +97,14 @@ export async function updateClient({ client, root, remove = false, dryRun = fals
     const tmp = cfg.file + '.reposafe-' + randomUUID() + '.tmp';
     try {
       let current = '';
+      let currentExists = false;
       let currentMode = 0o600;
       try {
         const st = await lstat(cfg.file);
         if (!st.isFile() || st.isSymbolicLink() || st.size > MAX_CONFIG_BYTES) {
           throw new Error('Unsafe MCP configuration; no changes made.');
         }
+        currentExists = true;
         currentMode = st.mode & 0o777;
         current = await readFile(cfg.file, 'utf8');
         if (Buffer.byteLength(current) > MAX_CONFIG_BYTES) {
@@ -112,7 +114,7 @@ export async function updateClient({ client, root, remove = false, dryRun = fals
         if (error?.code !== 'ENOENT') throw error;
         if (exists) throw new Error('MCP configuration was removed concurrently; no changes made.');
       }
-      if (current !== old || (current.length > 0) !== exists) {
+      if (current !== old || currentExists !== exists) {
         throw new Error('MCP configuration changed concurrently; no changes made.');
       }
       if (exists) {
