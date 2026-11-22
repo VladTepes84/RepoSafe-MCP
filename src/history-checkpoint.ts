@@ -35,7 +35,7 @@ function validFinding(value: unknown): value is Finding {
     !finding.file.startsWith('/') && !/^[A-Za-z]:[\\/]/.test(finding.file) &&
     typeof finding.message === 'string' && finding.message.length <= 512 &&
     typeof finding.action === 'string' && finding.action.length <= 512 &&
-    (finding.line === undefined || (Number.isSafeInteger(finding.line) && Number(finding.line) >= 0)) &&
+    (finding.line === undefined || (typeof finding.line === 'number' && Number.isSafeInteger(finding.line) && finding.line >= 0)) &&
     (finding.commit === undefined || (typeof finding.commit === 'string' && /^[a-f0-9]{12}$/.test(finding.commit)));
 }
 
@@ -43,8 +43,8 @@ function validSnapshot(value: unknown, key: string): value is HistorySnapshot {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const data = value as Record<string, unknown>;
   return data.version === 1 && data.key === key &&
-    Number.isSafeInteger(data.commits) && Number(data.commits) >= 0 && Number(data.commits) <= 5000 &&
-    Number.isSafeInteger(data.batches) && Number(data.batches) >= 0 && Number(data.batches) <= 5000 &&
+    typeof data.commits === 'number' && Number.isSafeInteger(data.commits) && data.commits >= 0 && data.commits <= 5000 &&
+    typeof data.batches === 'number' && Number.isSafeInteger(data.batches) && data.batches >= 0 && data.batches <= 5000 &&
     typeof data.complete === 'boolean' &&
     typeof data.updatedAt === 'number' && Number.isFinite(data.updatedAt) &&
     Array.isArray(data.warnings) && data.warnings.length <= 128 &&
