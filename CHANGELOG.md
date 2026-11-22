@@ -6,7 +6,10 @@
 - Git history scanned in sequential 100-commit batches with per-batch byte/timeout limits, commit-boundary resumption, local history candidate counts, and 5,000 requested commit ceiling. CLI-only opt-in `--resume-history` now persists bounded, private redacted checkpoint metadata for restart-safe resumption, keyed by canonical root, Git ref tips and scan options (7-day reuse window). Default CLI and all MCP tools do not write scan state.
 - Working-tree resource bounds increased while preserving fail-closed warnings; 5,000 findings retained with High/Critical priority and explicit omissions.
 - MCP `get_findings_page` provides paginated, in-process cached results; CLI summarizes the first 50 and offers `--all-findings`, JSON and SARIF.
-- Safe cross-platform onboarding/uninstall guides, expanded synthetic tests, and verified precompiled runtime sync in CI. Real GUI client acceptance remains unverified.
+- Explicit client configuration writes now use a fail-closed lock, change detection and private recovery backups when an existing configuration is replaced. Recovery snapshots may contain unrelated credentials and require careful local retention/deletion.
+- Minimal TTY-only status and severity colors (disabled for JSON/SARIF and `NO_COLOR`), retained/omitted finding counts and optional checkpoint-reuse status.
+- Synthetic small/medium/large benchmarks and opt-in extended benchmark measure elapsed scan time and observed RSS on each CI OS.
+- Safe cross-platform onboarding/uninstall guides, expanded synthetic tests, and precompiled runtime checked against TypeScript in CI. Real GUI client acceptance remains unverified.
 
 
 Changes describe the committed source and automated test evidence, **not a security certification**.
