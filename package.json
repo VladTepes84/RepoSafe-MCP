@@ -28,6 +28,8 @@
     "test:sarif": "node --test tests/sarif.test.mjs",
     "test:structured": "node --test tests/structured-config.test.mjs",
     "test:history-options": "node --test tests/history-options.test.mjs tests/history-checkpoint.test.mjs",
+    "benchmark": "node tests/benchmark.mjs --smoke",
+    "benchmark:full": "node tests/benchmark.mjs --full",
     "verify:runtime": "npm run build && node scripts/verify-runtime.mjs"
   },
   "dependencies": {
