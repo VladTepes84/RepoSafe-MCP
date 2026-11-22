@@ -63,9 +63,26 @@ try {
   const doctor = JSON.parse(doctorProcess.stdout);
   assert.equal(doctor.status, 'pass');
   assert.equal(doctor.tools.length, 6);
-  const init = JSON.parse(run(process.execPath, [
+  const initProcess = spawnSync(process.execPath, [
     cli, 'init', '--root', target, '--client', 'cursor', '--json',
-  ]).stdout);
+  ], { encoding: 'utf8', timeout: 180000, maxBuffer: 4 * 1024 * 1024 });
+  if (initProcess.status !== 0) {
+    console.error('Archive init failure stderr:', String(initProcess.stderr).slice(0, 1200));
+    const config = join(prefix, 'node_modules', 'reposafe-mcp', 'scripts', 'config.mjs');
+    const generator = spawnSync(process.execPath, [
+      config, '--client', 'cursor', '--root', target, '--json',
+    ], { encoding: 'utf8', timeout: 30000, maxBuffer: 4 * 1024 * 1024 });
+    console.error('Archive standalone config status:', generator.status,
+      'stderr:', String(generator.stderr).slice(0, 1800),
+      'stdout:', String(generator.stdout).slice(0, 500));
+    const doctorAgain = spawnSync(process.execPath, [cli, 'doctor', '--root', target, '--json'], {
+      encoding: 'utf8', timeout: 30000, maxBuffer: 4 * 1024 * 1024,
+    });
+    console.error('Archive second doctor status:', doctorAgain.status,
+      'stderr:', String(doctorAgain.stderr).slice(0, 1200));
+  }
+  assert.equal(initProcess.status, 0, 'Installed archive init failed');
+  const init = JSON.parse(initProcess.stdout);
   assert.equal(init.verifiedProtocol, true);
   assert.equal(init.verifiedGUI, false);
   assert.equal(init.discoveredTools.length, 6);
