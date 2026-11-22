@@ -54,6 +54,10 @@ Run `node "$RS" scan --root "/ABSOLUTE/PATH/TO/PROJECT" --resume-history` only w
 
 Human CLI output defaults to the first 50 highest-severity findings, without losing the rest of the internally retained report. --all-findings expands the view, and JSON/SARIF remain available. Git history is processed in bounded sequential batches of up to 100 commits each; max-diff-size 1–16 MiB applies **per batch**. The maximum requested history depth is 5,000 commits. A single commit exceeding the per-batch budget is not silently skipped: coverage is marked incomplete. All work remains offline.
 
+## Synthetic performance checks
+
+`npm run benchmark` runs small/medium/large synthetic repository scans, reports elapsed milliseconds and sampled process RSS, and is included in the cross-platform CI matrix. `npm run benchmark:full` is optional and more CPU/Git-intensive; it should be run deliberately, not automatically on every commit. Synthetic metrics are **not estimates for a real repository** or proof of a fixed resource ceiling. No actual project data, credential or AI provider is involved in these benchmarks.
+
 ## 4. Privacy and safety
 
 - The scan engine does not execute code from the target repository or upload it to a RepoSafe server.
