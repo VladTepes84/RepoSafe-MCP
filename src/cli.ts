@@ -26,7 +26,7 @@ function help(): void {
     '',
     'Usage:',
     '  reposafe scan --root ABSOLUTE_PATH [--json|--sarif] [--no-history] [--no-git]',
-    '       [--all-findings] [--history-depth 1..5000] [--since YYYY-MM-DD] [--max-diff-size MiB:1..16] [--current-branch]',
+    '       [--all-findings] [--no-color] [--history-depth 1..5000] [--since YYYY-MM-DD] [--max-diff-size MiB:1..16] [--current-branch]',
     '  reposafe doctor --root ABSOLUTE_PATH [--json]',
     '  reposafe connect --root ABSOLUTE_PATH --client cursor|claude|vscode|codex [--dry-run]',
     '  reposafe disconnect --client cursor|claude|vscode|codex [--dry-run]',
@@ -106,7 +106,7 @@ async function main(): Promise<void> {
   if (!command || command === '--help' || command === '-h') { help(); return; }
   if (command === 'scan') {
     if (!validateFlags(['scan', '--root', '--json', '--sarif', '--no-history', '--no-git',
-          '--history-depth', '--since', '--max-diff-size', '--current-branch', '--all-findings']) ||
+          '--history-depth', '--since', '--max-diff-size', '--current-branch', '--all-findings', '--no-color']) ||
         (args.includes('--json') && args.includes('--sarif'))) throw new Error('Invalid scan arguments.');
     const historyFlags = ['--history-depth', '--since', '--max-diff-size', '--current-branch'];
     if ((args.includes('--no-git') || args.includes('--no-history')) &&
@@ -132,12 +132,16 @@ async function main(): Promise<void> {
       currentBranchOnly: args.includes('--current-branch'),
     };
     const root = await validateRoot(option('--root') ?? '');
+    if (process.stderr.isTTY && !args.includes('--json') && !args.includes('--sarif')) {
+      process.stderr.write('RepoSafe: scanning the approved repository (read-only)...\n');
+    }
     const report: ScanReport = args.includes('--no-git')
       ? await scanRepository(root)
       : await generateReport(root, { includeHistory: !args.includes('--no-history'), historyOptions });
     if (args.includes('--json')) console.log(JSON.stringify(report, null, 2));
     else if (args.includes('--sarif')) console.log(JSON.stringify(reportToSarif(report), null, 2));
-    else console.log(formatHumanReport(report, args.includes('--all-findings') ? Infinity : 50));
+    else console.log(formatHumanReport(report, args.includes('--all-findings') ? Infinity : 50,
+      Boolean(process.stdout.isTTY && process.env.NO_COLOR === undefined && !args.includes('--no-color'))));
     process.exitCode = report.verdict === 'review_required' ? 1 : 0;
     return;
   }
@@ -192,7 +196,7 @@ async function main(): Promise<void> {
       }, null, 2));
       return;
     }
-    console.log('RepoSafe init: real MCP handshake PASSED; approved root and six tools validated.');
+    console.log('RepoSafe init: real MCP handshake PASSED; approved root and seven tools validated.');
     process.stdout.write(output);
     console.log('DRY RUN: no client file was changed. Add/merge the entry manually, restart the app and verify tool calls.');
     console.log('In the client ask: "Use RepoSafe generate_report for my approved repository and summarize findings without quoting secrets."');
