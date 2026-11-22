@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — security hardening of draft PR #10
+
+- Separate persisted history warnings from fresh tracked-file checks to avoid stale incomplete verdicts across resumed scans; add regression with fixed uncommitted oversized file.
+- Reject ambiguous Codex TOML forms (quoted/child tables, inline mappings) without changing any client configuration.
+- Reject future-dated checkpoint metadata and group/world-writable parent state directories.
+- Remove inherited `GIT_*` environment overrides before Git subprocesses; add two-repository boundary regression.
+- These changes remain **draft/unmerged** pending acceptance of real client integrations and macOS Codex binary investigation.
+
 ## Unreleased — local MCP onboarding and scalable bounded scans (PR #10)
 
 - Optional `connect` / `disconnect` for Codex Desktop/CLI, Cursor, Claude Desktop and VS Code, with reversible RepoSafe-only client configuration; no AI client executables or macOS security policy are invoked.
