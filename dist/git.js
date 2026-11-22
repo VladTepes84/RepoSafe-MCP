@@ -1,4 +1,5 @@
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
+import { StringDecoder } from 'node:string_decoder';
 import { promisify } from 'node:util';
 import { devNull } from 'node:os';
 import { checkSecrets, safeRelativePath, MAX_FINDINGS, scanRepository, scanSelectedTrackedFiles } from './scanner.js';
@@ -39,8 +40,9 @@ const EXCLUDED_WORKING_TREE_DIRS = new Set([
 ]);
 // Never use a shell, fetch, checkout, filters, hooks or textconv. No repository content is executed.
 // On-disk .git/config still has to be trusted; only run on a root explicitly approved by the operator.
-async function git(root, args, maxBuffer = 1024 * 1024) {
-    // Do not inherit Git config injection from the MCP host environment.
+// Git commands inherit neither host Git injections nor shell execution.
+// Apply the same environment controls to metadata and streaming history.
+function gitCommand(root, args) {
     const environment = { ...process.env };
     for (const key of Object.keys(environment)) {
         if (key === 'GIT_CONFIG_PARAMETERS' || key === 'GIT_CONFIG_COUNT' ||
@@ -48,16 +50,13 @@ async function git(root, args, maxBuffer = 1024 * 1024) {
             key === 'GIT_EXTERNAL_DIFF' || key === 'GIT_DIFF_OPTS')
             delete environment[key];
     }
-    const { stdout } = await execFileAsync('git', [
-        '--no-pager', '-C', root, '-c', `core.hooksPath=${GIT_NULL}`,
-        '-c', 'core.pager=cat', '-c', 'core.fsmonitor=false',
-        '-c', `core.attributesFile=${GIT_NULL}`, '-c', 'diff.external=',
-        ...args,
-    ], {
-        timeout: GIT_TIMEOUT_MS,
-        maxBuffer,
-        windowsHide: true,
-        encoding: 'utf8',
+    return {
+        args: [
+            '--no-pager', '-C', root, '-c', `core.hooksPath=${GIT_NULL}`,
+            '-c', 'core.pager=cat', '-c', 'core.fsmonitor=false',
+            '-c', `core.attributesFile=${GIT_NULL}`, '-c', 'diff.external=',
+            ...args,
+        ],
         env: {
             ...environment,
             GIT_CONFIG_NOSYSTEM: '1',
@@ -69,8 +68,98 @@ async function git(root, args, maxBuffer = 1024 * 1024) {
             GIT_ATTR_NOSYSTEM: '1',
             GIT_PAGER: 'cat',
         },
+    };
+}
+async function git(root, args, maxBuffer = 1024 * 1024) {
+    const command = gitCommand(root, args);
+    const { stdout } = await execFileAsync('git', command.args, {
+        timeout: GIT_TIMEOUT_MS,
+        maxBuffer,
+        windowsHide: true,
+        encoding: 'utf8',
+        env: command.env,
     });
     return stdout;
+}
+const MAX_HISTORY_LINE_CHARS = 8193;
+/**
+ * Read Git history incrementally. Bound memory by line length and byte budget.
+ * Never retain or return raw diff content, stderr, or matched credential values.
+ */
+async function streamGitHistory(root, args, maxBytes, onLine, onLongLine) {
+    const command = gitCommand(root, args);
+    return new Promise(resolve => {
+        let reason;
+        let bytesReceived = 0;
+        let pending = '';
+        let discardLongLine = false;
+        const decoder = new StringDecoder('utf8');
+        const child = spawn('git', command.args, {
+            env: command.env,
+            windowsHide: true,
+            stdio: ['ignore', 'pipe', 'ignore'],
+        });
+        const stop = (why) => {
+            if (reason)
+                return;
+            reason = why;
+            child.kill();
+        };
+        const processText = (text) => {
+            let offset = 0;
+            while (offset < text.length && !reason) {
+                const end = text.indexOf('\n', offset);
+                const fragment = text.slice(offset, end === -1 ? undefined : end);
+                if (!discardLongLine) {
+                    if (pending.length + fragment.length > MAX_HISTORY_LINE_CHARS) {
+                        pending = '';
+                        discardLongLine = true;
+                        onLongLine();
+                    }
+                    else {
+                        pending += fragment;
+                    }
+                }
+                if (end === -1)
+                    break;
+                if (!discardLongLine && !onLine(pending.endsWith('\r') ? pending.slice(0, -1) : pending)) {
+                    stop('finding_limit');
+                    break;
+                }
+                pending = '';
+                discardLongLine = false;
+                offset = end + 1;
+            }
+        };
+        const timer = setTimeout(() => stop('timeout'), GIT_TIMEOUT_MS);
+        child.stdout?.on('data', (chunk) => {
+            if (reason)
+                return;
+            const permitted = Math.min(chunk.length, maxBytes - bytesReceived);
+            if (permitted > 0) {
+                bytesReceived += permitted;
+                processText(decoder.write(chunk.subarray(0, permitted)));
+            }
+            if (!reason && (permitted < chunk.length || bytesReceived >= maxBytes))
+                stop('byte_limit');
+        });
+        child.once('error', () => { if (!reason)
+            reason = 'git_error'; });
+        child.once('close', code => {
+            clearTimeout(timer);
+            if (!reason && code === 0) {
+                processText(decoder.end());
+                if (!reason && pending && !discardLongLine &&
+                    !onLine(pending.endsWith('\r') ? pending.slice(0, -1) : pending)) {
+                    reason = 'finding_limit';
+                }
+            }
+            else if (!reason) {
+                reason = 'git_error';
+            }
+            resolve(reason ?? 'complete');
+        });
+    });
 }
 export async function scanGit(root, history = true, limits = {}) {
     // Validate before any Git operation; invalid options must fail rather than silently relax limits.
@@ -165,66 +254,68 @@ export async function scanGit(root, history = true, limits = {}) {
         stats.warnings.push('Git history inspection disabled by explicit request.');
         return { findings, stats };
     }
-    try {
-        const logArgs = [
-            'log', ...(window.currentBranchOnly ? [] : ['--all']),
-            `--max-count=${window.depth}`,
-            ...(window.since ? [`--since=${window.since}T00:00:00Z`] : []),
-            '--no-ext-diff', '--no-textconv', '--no-renames',
-            '--format=RS_COMMIT_START:%H', '--unified=0', '-p',
-            ...(window.currentBranchOnly ? ['HEAD'] : []),
-        ];
-        const patch = await git(root, logArgs, window.maxDiffSizeMiB * 1024 * 1024);
-        stats.historyChecked = true;
-        let currentFile = '[GIT_HISTORY]';
-        let currentCommit;
-        for (const line of patch.split(/\r?\n/)) {
-            if (line.startsWith('RS_COMMIT_START:')) {
+    const logArgs = [
+        'log', ...(window.currentBranchOnly ? [] : ['--all']),
+        `--max-count=${window.depth}`,
+        ...(window.since ? [`--since=${window.since}T00:00:00Z`] : []),
+        '--no-ext-diff', '--no-textconv', '--no-renames',
+        '--format=RS_COMMIT_START:%H', '--unified=0', '-p',
+        ...(window.currentBranchOnly ? ['HEAD'] : []),
+    ];
+    let currentFile = '[GIT_HISTORY]';
+    let currentCommit;
+    let commitOpen = false;
+    const onLine = (line) => {
+        if (line.startsWith('RS_COMMIT_START:')) {
+            // Count only a completed commit: next marker or successful EOF.
+            if (commitOpen)
                 stats.commitsInspected++;
-                const hash = line.slice('RS_COMMIT_START:'.length).trim();
-                currentCommit = /^[a-f0-9]{40,64}$/i.test(hash) ? hash.slice(0, 12) : undefined;
-                currentFile = '[GIT_HISTORY]';
-                continue;
-            }
-            if (line.startsWith('+++ b/')) {
-                currentFile = safeRelativePath(line.slice(6));
-                continue;
-            }
-            if (line.startsWith('+++ ') || line.startsWith('--- ') || line.startsWith('diff ') || line.startsWith('@@'))
-                continue;
-            // Only additions can attribute an exposed value to the commit being inspected.
-            // A removed line belongs to its parent, not to this commit's final tree.
-            if (!line.startsWith('+'))
-                continue;
-            if (line.length > 8193) {
-                warning('Long lines in Git history were not analyzed.');
-                continue;
-            }
-            for (const finding of checkSecrets(line.slice(1), currentFile, 0, 'history')) {
-                if (findings.length >= MAX_GIT_FINDINGS) {
-                    warning('Git finding limit reached.');
-                    break;
-                }
-                // Commit hashes and matched values are intentionally omitted.
-                findings.push({ ...finding, file: safeRelativePath(finding.file), line: undefined,
-                    commit: currentCommit, rule: `git_history_${finding.rule}`,
-                    message: 'Possible credential remains in the Git history.',
-                    action: 'Treat the credential as exposed, rotate it, and review history before publishing. Rewriting history alone does not revoke it.' });
-            }
+            commitOpen = true;
+            const hash = line.slice('RS_COMMIT_START:'.length).trim();
+            currentCommit = /^[a-f0-9]{40,64}$/i.test(hash) ? hash.slice(0, 12) : undefined;
+            currentFile = '[GIT_HISTORY]';
+            return true;
+        }
+        if (!commitOpen)
+            return true;
+        if (line.startsWith('+++ b/')) {
+            currentFile = safeRelativePath(line.slice(6));
+            return true;
+        }
+        if (line.startsWith('+++ ') || line.startsWith('--- ') || line.startsWith('diff ') || line.startsWith('@@'))
+            return true;
+        if (!line.startsWith('+'))
+            return true;
+        for (const finding of checkSecrets(line.slice(1), currentFile, 0, 'history')) {
             if (findings.length >= MAX_GIT_FINDINGS)
-                break;
+                return false;
+            findings.push({ ...finding, file: safeRelativePath(finding.file), line: undefined,
+                commit: currentCommit, rule: `git_history_${finding.rule}`,
+                message: 'Possible credential remains in the Git history.',
+                action: 'Treat the credential as exposed, rotate it, and review history before publishing. Rewriting history alone does not revoke it.' });
         }
-        if (stats.commitsInspected === window.depth)
-            warning('History depth limit reached; older commits are outside the selected scan.');
-        if (window.since || window.currentBranchOnly) {
-            stats.warnings.push('History was restricted by operator options; commits outside that window/scope were not inspected.');
-        }
-        if (window.since && stats.commitsInspected === 0) {
-            warning('Selected history window has no inspected commits; history coverage cannot be inferred.');
-        }
+        return findings.length < MAX_GIT_FINDINGS;
+    };
+    const outcome = await streamGitHistory(root, logArgs, window.maxDiffSizeMiB * 1024 * 1024, onLine, () => warning('Long lines in Git history were not analyzed.'));
+    stats.historyChecked = true;
+    if (outcome === 'complete' && commitOpen)
+        stats.commitsInspected++;
+    if (outcome === 'byte_limit')
+        warning(`Git history diff byte budget reached (${window.maxDiffSizeMiB} MiB); previously completed commits were preserved.`);
+    else if (outcome === 'timeout')
+        warning(`Git history exceeded its ${GIT_TIMEOUT_MS / 1000}s timeout; previously completed commits were preserved.`);
+    else if (outcome === 'git_error')
+        warning('Git history command failed; previously completed commits were preserved.');
+    else if (outcome === 'finding_limit')
+        warning('Git finding limit reached; additional history findings were not inspected.');
+    if (outcome === 'complete' && stats.commitsInspected === window.depth) {
+        warning('History depth limit reached; older commits are outside the selected scan.');
     }
-    catch {
-        warning('Git history could not be fully scanned (size, timeout, permissions, or Git error).');
+    if (window.since || window.currentBranchOnly) {
+        stats.warnings.push('History was restricted by operator options; commits outside that window/scope were not inspected.');
+    }
+    if (window.since && stats.commitsInspected === 0) {
+        warning('Selected history window has no inspected commits; history coverage cannot be inferred.');
     }
     return { findings, stats };
 }
