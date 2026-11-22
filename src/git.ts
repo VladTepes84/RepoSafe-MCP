@@ -295,7 +295,7 @@ export async function scanGit(root: string, history = true, limits: HistoryScanO
   if (window.resume) {
     try {
       const refs = await git(root, ['show-ref', '--head'], 1024 * 1024);
-      cacheKey = createHash('sha256').update(JSON.stringify([root, refs, window])).digest('hex');
+      cacheKey = createHash('sha256').update(JSON.stringify([await realpath(root), refs, window])).digest('hex');
       cache = await historyCheckpoint(cacheKey);
       const saved = await cache.load();
       if (saved && saved.commits <= window.depth &&
