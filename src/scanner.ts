@@ -11,6 +11,8 @@ const MAX_FILE_BYTES = 4 * 1024 * 1024;
 const MAX_DEPTH = 20;
 export const MAX_FINDINGS = 5000;
 const MAX_LINE_CHARS = 65536;
+// Recheck overlength lines in bounded overlapping windows; never claim complete coverage.
+const LONG_LINE_OVERLAP_CHARS = 4096;
 
 const IGNORED_DIRS = new Set([
   '.git', 'node_modules', 'coverage', '.next',
@@ -326,6 +328,26 @@ export function checkPrivacy(line: string, file: string, lineNumber: number): Fi
   return findings;
 }
 
+/** Best-effort checks on long lines, with a bounded regex input and overlap.
+ * Structural/full-line semantics are unavailable; caller must flag incomplete coverage.
+ * A single rule on one source line is reported once, never with matched values.
+ */
+function checkOverlengthLine(line: string, file: string, lineNumber: number): Finding[] {
+  const findings: Finding[] = [];
+  const seen = new Set<string>();
+  const stride = MAX_LINE_CHARS - LONG_LINE_OVERLAP_CHARS;
+  for (let offset = 0; offset < line.length; offset += stride) {
+    const window = line.slice(offset, offset + MAX_LINE_CHARS);
+    for (const finding of [...checkSecrets(window, file, lineNumber), ...checkPrivacy(window, file, lineNumber)]) {
+      const key = finding.category + ':' + finding.rule;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      findings.push(finding);
+    }
+  }
+  return findings;
+}
+
 /** Filename hint for human triage; a real secret may still exist in a test. */
 export function isLikelyTestFile(file: string): boolean {
   const normalized = file.replaceAll('\\', '/');
@@ -488,7 +510,8 @@ export async function scanRepository(approvedRoot: string, options: { skipBaseli
         for (let n = 0; n < lines.length; n++) {
           if (lines[n].length > MAX_LINE_CHARS) {
             stats.overlengthLinesSkipped = (stats.overlengthLinesSkipped ?? 0) + 1;
-            markPartial('One or more lines exceeded the analysis length limit.');
+            markPartial('One or more lines exceeded the full-line analysis limit; overlapping heuristic checks do not provide complete coverage.');
+            for (const finding of checkOverlengthLine(lines[n], rel, n + 1)) addFinding(finding);
             continue;
           }
           for (const f of checkSecrets(lines[n], rel, n + 1)) addFinding(f);
@@ -587,7 +610,14 @@ export async function scanSelectedTrackedFiles(approvedRoot: string, names: stri
       bytesScanned += buf.byteLength;
       const lines = buf.toString('utf8').split(/\r?\n/);
       for (const [n, line] of lines.entries()) {
-        if (line.length > MAX_LINE_CHARS) { mark('A tracked file line exceeded the analysis length limit.'); continue; }
+        if (line.length > MAX_LINE_CHARS) {
+          mark('A tracked file line exceeded the full-line analysis limit; overlapping heuristic checks do not provide complete coverage.');
+          for (const finding of checkOverlengthLine(line, name, n + 1)) {
+            if (findings.length >= MAX_FINDINGS) { mark('Tracked file finding limit reached.'); break; }
+            findings.push({ ...finding, file: safeRelativePath(finding.file) });
+          }
+          continue;
+        }
         for (const finding of [...checkSecrets(line, name, n + 1), ...checkPrivacy(line, name, n + 1)]) {
           if (findings.length >= MAX_FINDINGS) { mark('Tracked file finding limit reached.'); break; }
           findings.push({ ...finding, file: safeRelativePath(finding.file) });

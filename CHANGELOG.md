@@ -1,3 +1,9 @@
+## Unreleased — bounded overlength-line heuristic checks (PR pending)
+
+- Overlength current-file and Git-tracked excluded-file lines receive overlapping, 65,536-character bounded pattern checks rather than being silently omitted from heuristic matching. Repeated rules on a single source line are deduplicated; matched values are never included in results.
+- The existing overlength counter and fail-closed incomplete-coverage verdict remain. Full-line structured parsing, arbitrary-length secrets and historical patch-line handling are **not** certified as covered; broader architecture remains necessary before calling overlength coverage complete.
+- Synthetic regressions cover a credential spanning a chunk boundary, a late-line match, repeated copies on one source line, and an excluded Git-tracked file.
+
 ## Unreleased — contextual finding triage and CLI readability (PR #26)
 
 - Human-oriented scan display modes: `--summary`, `--compact`, `--group-by severity|file`; severity/file section headings, deterministic sort and clearer coverage (including Git completeness).
