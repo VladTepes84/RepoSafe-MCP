@@ -101,7 +101,7 @@ test('minimal human report never requires colors and discloses known omissions',
   assert.match(plain, /Known omissions: 3/);
   assert.match(plain, /INCOMPLETE/);
   const colored = formatHumanReport(report, 50, true);
-  assert.match(colored, /\u001b\\[31m/);
+  assert.match(colored, /\u001b\[31m/);
   assert.equal(colored.replace(/\u001b\[[0-9;]*m/g, ''), plain);
 });
 
