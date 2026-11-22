@@ -376,7 +376,7 @@ export async function scanGit(root: string, history = true, limits: HistoryScanO
         (outcome === 'complete' || outcome === 'byte_limit') && !limitReached) {
       try {
         await cache.save({
-          version: 1, key: cacheKey, commits: stats.commitsInspected,
+          version: 2, key: cacheKey, commits: stats.commitsInspected,
           batches: stats.historyBatches, findings: findings.slice(preHistoryFindings),
           warnings: stats.warnings.slice(historyWarningsStart),
           complete: !historyIncomplete, updatedAt: Date.now(),
