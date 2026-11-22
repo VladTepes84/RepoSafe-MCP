@@ -28,12 +28,12 @@
     "test:sarif": "node --test tests/sarif.test.mjs",
     "test:structured": "node --test tests/structured-config.test.mjs",
     "test:history-options": "node --test tests/history-options.test.mjs",
-    "verify:runtime": "npm run build && git diff --exit-code -- dist && git ls-files --error-unmatch dist/cli.js"
+    "verify:runtime": "npm run build && node scripts/verify-runtime.mjs"
   },
   "dependencies": {
-    "@modelcontextprotocol/server": "^2.3.0",
-    "zod": "^4.2.0",
-    "@modelcontextprotocol/client": "^2.3.0"
+    "@modelcontextprotocol/server": "2.4.0",
+    "zod": "4.6.7",
+    "@modelcontextprotocol/client": "2.4.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

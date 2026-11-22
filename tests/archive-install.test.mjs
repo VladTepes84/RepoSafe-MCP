@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 // Real pinned GitHub archive installation: precompiled files, no npm lifecycle scripts.
 const sha = process.env.REPOSAFE_SOURCE_SHA ?? '';
@@ -22,10 +22,15 @@ try {
   const prefix = join(directory, 'installed');
   await mkdir(prefix);
   const archive = 'https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/' + sha;
-  const installed = run('npm', [
+  const npmArgs = [
     'install', '--prefix', prefix, '--ignore-scripts', '--no-save',
     '--no-audit', '--no-fund', archive,
-  ], { env: { ...process.env, npm_config_cache: join(directory, 'cache') } });
+  ];
+  // On Windows, invoke the npm JS CLI through node to avoid shell quoting and .cmd spawn issues.
+  const windowsNpm = join(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js');
+  const installed = process.platform === 'win32'
+    ? run(process.execPath, [windowsNpm, ...npmArgs], { env: { ...process.env, npm_config_cache: join(directory, 'cache') } })
+    : run('npm', npmArgs, { env: { ...process.env, npm_config_cache: join(directory, 'cache') } });
   assert.doesNotMatch(installed.stderr, /allow-scripts|skipping integrity check for git dependency/i);
   const cli = join(prefix, 'node_modules', 'reposafe-mcp', 'dist', 'cli.js');
   assert.match(run(process.execPath, [cli, '--help']).stdout, /RepoSafe MCP/);

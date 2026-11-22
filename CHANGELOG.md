@@ -6,7 +6,7 @@ Changes describe the committed source and automated test evidence, **not a secur
 
 - Check in generated `dist/` JavaScript and declarations alongside TypeScript sources. Remove npm `prepare` lifecycle hook so installing RepoSafe need not run TypeScript on the user machine.
 - Recommend direct HTTPS GitHub archives plus `npm --ignore-scripts` to avoid the Git-dependency integrity warning and `allow-scripts` approval warning seen with npm Git installs. The archive is pinned to a commit SHA for CI; documentation's `main` example is mutable and explicitly flagged.
-- CI rebuilds and checks that `dist/` matches sources. Add pinned-archive fresh-install smoke tests for Linux/macOS (including Node.js 24 on macOS) and keep the existing GitHub-source/packed-package acceptance checks.
+- Pin direct runtime dependency versions, and check modified **and untracked** generated files. CI rebuilds and checks that `dist/` matches sources. Add pinned-archive fresh-install smoke tests for Linux/Windows/macOS (including Node.js 24 on macOS) and keep the existing GitHub-source/packed-package acceptance checks.
 - Preserve the six MCP tools, read-only scan behavior, local install prefix and manual-only client configuration. No npm publication, signing or real GUI client acceptance claimed.
 
 ## [0.7.0] — 2026-11-21 (beta source)

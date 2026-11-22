@@ -53,8 +53,7 @@ jobs:
           REPOSAFE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node tests/github-install.test.mjs
 
-      - name: Script-free pinned GitHub archive install + MCP smoke (Linux/macOS)
-        if: runner.os == 'Linux' || runner.os == 'macOS'
+      - name: Script-free pinned GitHub archive install + MCP smoke (all OS)
         env:
           REPOSAFE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node tests/archive-install.test.mjs
