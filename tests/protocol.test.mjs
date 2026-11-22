@@ -7,7 +7,7 @@ import { join, resolve } from 'node:path';
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 
-test('stdio MCP handshake lists six tools and returns redacted report', { timeout: 20_000 }, async () => {
+test('stdio MCP handshake lists seven tools and returns redacted report', { timeout: 20_000 }, async () => {
   const root = await mkdtemp(join(tmpdir(), 'reposafe-mcp-protocol-'));
   let client;
   try {
