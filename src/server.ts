@@ -75,7 +75,8 @@ function createServer(): McpServer {
     }).strict(),
   }, async ({ offset, limit }) => {
     try {
-      if (!lastReport) lastReport = { report: await generateReport(root) };
+      if (!lastReport) return { isError: true, content: [{ type: 'text' as const,
+        text: 'No prior RepoSafe scan in this MCP session. Call generate_report before get_findings_page.' }] };
       return { content: [{ type: 'text' as const,
         text: JSON.stringify(selectReport(lastReport.report, lastReport.category, offset, limit), null, 2) }] };
     } catch {
