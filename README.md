@@ -4,7 +4,7 @@
 
 RepoSafe is a privacy-first, read-only repository scanner available as a **local Model Context Protocol (MCP) server** and **standalone CLI**. It flags possible secrets, private infrastructure references, Git-tracked credential files, ineffective `.gitignore` rules, and secrets left in *recent Git commits*. It returns **metadata only**: never source snippets or matched secret values.
 
-**Release status: v0.7.0 beta source (pre-release). Not a security certification.** A clean scan is *not* evidence that a repository is safe to publish.
+**Release status: v0.7.0 beta source (pre-release); next improvements under review in draft PR #10. Not a security certification.** A clean scan is *not* evidence that a repository is safe to publish.
 
 [![Support RepoSafe MCP on GitHub Sponsors](https://img.shields.io/badge/Support%20RepoSafe%20MCP-GitHub%20Sponsors-EA4AAA?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/VladTepes84)
 
@@ -24,6 +24,25 @@ Requires Node.js 22+ and Git (Git is needed for repository/history checks). Repl
 
 **Supply-chain:** `main` in the URL is *mutable*. For reproducible installations replace the final `main` with a reviewed 40-character Git commit SHA. Unlike npm's `github:` Git transport, the HTTPS archive avoids Git-dependency integrity-check warnings; it does **not** provide a cryptographic signature or independent artifact attestation. Do not install unreviewed source. See [FIRST_RUN.md](docs/FIRST_RUN.md), including Windows commands. **No npm registry package has been published.**
 
+## Opt-in restart-safe local Git history checkpoints (draft PR #10)
+
+The **CLI only** accepts `scan --root ABSOLUTE_PATH --resume-history` to reuse completed Git batches after interruption. Checkpoints contain **redacted finding metadata only**, under `~/.reposafe/checkpoints/` in files intended to be private (0700 directory, 0600 files on Unix), eligible for reuse for seven days (older files are not automatically deleted). They are keyed by the canonical root, local Git ref tips and scan options; changed refs or options cause a fresh history scan. Current working-tree files and Git exposure checks are **always rescanned**. Nothing is written into the audited repository. A checkpoint may still contain sensitive repository metadata, so this disk feature is **off by default**, including for MCP calls. Do not use it for an adversarial/forensic assurance scan: omit `--resume-history` to force a fresh history traversal. Invalid/unavailable state is never trusted and triggers a fresh history scan with a warning.
+
+`--resume-history` cannot be combined with `--no-history` or `--no-git`. The cache is not a shared service, not encrypted, not a replacement for credential rotation and not a promise that all 5,000 requested commits will complete within resource budgets. See [SECURITY.md](docs/SECURITY.md) and [UNINSTALL.md](docs/UNINSTALL.md).
+
+## Local MCP connection and scaled CLI scans (development branch)
+
+**Draft PR #10 only:** the `connect`/`disconnect`, 5,000-commit history, and `get_findings_page` functionality below are not included in `main` until the PR is merged. The quick-start GitHub archive URL above installs `main`, so it cannot be used to exercise these draft features. To test the draft, use a separately reviewed PR-branch commit SHA, not the mutable `main` archive; keep existing installations separate.
+
+- RepoSafe remains **CLI + STDIO MCP only**. No desktop GUI, cloud hosting, tunnel, telemetry or AI API key is required for scanning. An AI provider may receive the **redacted report** if its client calls MCP.
+- **Connect** to Codex Desktop/CLI, Cursor, VS Code or Claude Desktop using `reposafe connect --root ABS_PATH --client codex` (or another supported client). This writes only the RepoSafe entry; it does not run the Codex executable. For preview use `--dry-run`; to undo use `reposafe disconnect --client codex`.
+- Git history processes **bounded 100-commit batches**, preserving completed commits and retrying incomplete batch boundaries. The 1–16 MiB patch budget is now **per batch**, with a 5,000-commit maximum requested depth. A single oversized commit still fails closed.
+- Scanner resource ceilings remain finite (64 MiB total current files, 4 MiB per file, 5,000 retained findings). Critical/High findings take precedence when retention is exhausted; omitted results and incomplete coverage must be reviewed.
+- CLI displays the first 50 findings by severity; use `--all-findings`, `--json` or `--sarif` for the retained full report. Human-facing terminal output now supports subtle severity colors **only on TTY**, unless `NO_COLOR` is set or `--no-color` is supplied. No colors or progress text are written into JSON/SARIF stdout. MCP shows up to 50 at first, then `get_findings_page` retrieves more from the server process's cached session report.
+- See [Local MCP onboarding](docs/LOCAL_MCP.md) and [macOS/Linux/Windows uninstall](docs/UNINSTALL.md).
+
+**Compatibility warning:** CI protocol tests do **not** verify the actual Codex Desktop or other client UI. A macOS malware warning about a separate `codex` executable is not evidence of RepoSafe malware; investigate it independently and never disable OS protection to proceed.
+
 ## Important: Cursor and Claude Desktop are NOT yet manually verified
 
 > **Integration validation pending.** RepoSafe's installation, TypeScript build, scanner tests, actual MCP `stdio` handshake using the official MCP SDK, and synthetic Git-repository demo have passed automated CI on **Windows, macOS and Ubuntu**.
@@ -38,7 +57,7 @@ Requires Node.js 22+ and Git (Git is needed for repository/history checks). Repl
 2. Run `npm ci && npm run check && npm run demo` (in PowerShell, invoke the commands separately if needed). All must pass before connecting a client.
 3. Generate the client configuration using `npm run config -- --client cursor --root ABSOLUTE_PROJECT_PATH` or replace `cursor` with `claude`; use a small **synthetic test repository**, never real credentials.
 4. Add the generated entry to the client's MCP configuration, restart/reload the client as documented, and ask it to list RepoSafe tools and call `generate_report`.
-5. Verify all six tools are visible, the report is returned, the dummy secret is never disclosed and out-of-scope paths are inaccessible. Report the operating system and client version plus **redacted** logs in a GitHub issue. Do not upload private code, credentials, or unredacted configuration.
+5. Verify all seven tools are visible, the report is returned, the dummy secret is never disclosed and out-of-scope paths are inaccessible. Report the operating system and client version plus **redacted** logs in a GitHub issue. Do not upload private code, credentials, or unredacted configuration.
 
 See [client compatibility and explicit verification status](docs/CLIENTS.md) and [security limitations](docs/SECURITY.md).
 
@@ -73,6 +92,7 @@ JSON report: severity, relative file, rule, action, coverage
 | `check_git_exposure` | Identify tracked sensitive filenames and ineffective `.env` ignore rules |
 | `scan_git_history` | Stream bounded Git diffs (100 commits / 4 MiB by default) with capped memory, preserving completed commits and metadata-only findings when a budget stops the scan |
 | `generate_report` | Consolidate all findings, scope, coverage and warnings |
+| `get_findings_page` | Retrieve up to 100 additional retained findings per call from the running MCP server's last report (draft PR #10) |
 
 Additional CLI: `node dist/cli.js scan --root ABSOLUTE_PATH [--json|--sarif] [--no-history] [--no-git]`. The default view is a severity-sorted actionable human report.
 
@@ -87,12 +107,12 @@ Additional CLI: `node dist/cli.js scan --root ABSOLUTE_PATH [--json|--sarif] [--
 ### v0.7 first-run improvements
 
 - **GitHub-source install without clone and manual TypeScript compilation**, using npm's Git-based installation into a dedicated prefix. A CI smoke tests the exact source commit and performs a real MCP handshake.
-- `reposafe init --json` is machine-readable: includes the target config filename, client-format content, six discovered tools, `verifiedProtocol: true`, `verifiedGUI: false`, and `writesFiles: false`. The plain-text flow also prints the first real-client test prompt.
+- `reposafe init --json` is machine-readable: includes the target config filename, client-format content, seven discovered tools, `verifiedProtocol: true`, `verifiedGUI: false`, and `writesFiles: false`. The plain-text flow also prints the first real-client test prompt.
 - Dedicated [five-minute onboarding checklist](docs/FIRST_RUN.md) for macOS and Windows. The GUI test is **not claimed** until manually performed.
 
 ### v0.6 bounded Git history and configuration-format coverage
 
-- Operator-selectable, **strictly bounded** Git history windows: `--history-depth 1..500`, `--since YYYY-MM-DD`, `--max-diff-size 1..16` (MiB), and `--current-branch`. Defaults remain 100 commits and 4 MiB. MCP history/report tools accept the equivalent optional numeric/date/boolean arguments. No tool can change `REPOSAFE_ROOT`.
+- **In v0.6 (historical baseline):** operator-selectable Git history windows `--history-depth 1..500`, `--since YYYY-MM-DD`, `--max-diff-size 1..16` (MiB), and `--current-branch`. Defaults remain 100 commits and 4 MiB. MCP history/report tools accept the equivalent optional numeric/date/boolean arguments. No tool can change `REPOSAFE_ROOT`.
 - More precise detection for **Spring/application properties**, Terraform hardcoded sensitive variable defaults, and Kubernetes `kind: Secret` **Base64-encoded credentials**. Base64 is encoding, not encryption.
 - `reposafe init --dry-run` explicitly documents the existing read-only behavior. Better diagnostics identify Git missing from PATH and unsupported Node versions.
 - Additional synthetic positive/benign fixtures, strict scan-limit validation, and explicit history-scope warnings. Findings still contain metadata only.
@@ -115,7 +135,7 @@ Additional CLI: `node dist/cli.js scan --root ABSOLUTE_PATH [--json|--sarif] [--
 - Added heuristic indicators for **GitLab, Hugging Face, DigitalOcean, Twilio API key IDs, Slack/Discord webhook URLs, Azure Storage account keys and GCP service-account key material**.
 - Git-tracked files under excluded dependency/cache directories are now **read directly within strict file/byte/path budgets**, with a review warning. Unsafe links, binary files, and unreadable content fail closed.
 - Strict `.reposafe.json` exact-path/exact-rule exceptions with mandatory explanation, optional expiration and suppression counts. High/critical exceptions never yield a clean verdict; malformed policies fail closed.
-- `reposafe doctor` validates Node, Git, the authorized folder and actually connects to the local server via the official MCP client to discover all six tools.
+- `reposafe doctor` validates Node, Git, the authorized folder and actually connects to the local server via the official MCP client to discover all seven tools.
 - `reposafe init` performs the same handshake and **prints** an exact client configuration without writing or changing any host files.
 
 **Neither `doctor` nor `init` proves Cursor/Claude Desktop GUI functionality.** Those app tests remain pending. See [the v0.4 user guide](docs/QUICKSTART.md) and [baseline security rules](docs/BASELINE.md).
@@ -155,7 +175,7 @@ node dist/cli.js doctor --root "/absolute/path/to/project"
 node dist/cli.js init --root "/absolute/path/to/project" --client cursor
 ```
 
-`doctor` actually starts RepoSafe over stdio and discovers six MCP tools. `init` also prints the target client configuration but **does not overwrite** any user files or claim the GUI application itself was tested. The authorized directory must be a specific existing absolute path.
+`doctor` actually starts RepoSafe over stdio and discovers six tools on `main`, or seven on the PR #10 development branch. `init` also prints the target client configuration but **does not overwrite** any user files or claim the GUI application itself was tested. The authorized directory must be a specific existing absolute path.
 
 ### Generate a real MCP configuration for your computer
 

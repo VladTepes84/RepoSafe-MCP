@@ -1,12 +1,12 @@
 # MCP client compatibility — 21 November 2026
 
-**Three distinct claims must not be conflated:** (1) the vendor documents local `stdio` MCP support; (2) RepoSafe's **real SDK integration test** succeeds in CI; (3) a person has tested RepoSafe inside the actual GUI client. This project currently verifies **(1) and (2), not (3)**. v0.4 adds a CLI `doctor` that launches the *real RepoSafe MCP server* through the official SDK and verifies six tools, but this still does NOT constitute a Cursor or Claude GUI test. Some clients require specific versions, subscriptions, approvals or settings.
+**Three distinct claims must not be conflated:** (1) the vendor documents local `stdio` MCP support; (2) RepoSafe's **real SDK integration test** succeeds in CI; (3) a person has tested RepoSafe inside the actual GUI client. This project currently verifies **(1) and (2), not (3)**. The `main` baseline `doctor` discovers six tools; the **draft PR #10** version discovers seven tools, including `get_findings_page`, but this still does NOT constitute a Cursor or Claude GUI test. Some clients require specific versions, subscriptions, approvals or settings.
 
 | Client / AI | Local stdio MCP according to vendor docs | RepoSafe configuration | RepoSafe in-product test |
 | --- | --- | --- | --- |
 | **Cursor Agent** | Yes | `npm run config -- --client cursor --root ABS_PATH`; `~/.cursor/mcp.json` | **Not yet manually tested** |
-| **Claude Desktop** | Yes | `--client claude`; macOS `~/Library/Application Support/Claude/claude_desktop_config.json`, Windows `%APPDATA%\Claude\claude_desktop_config.json` | **Not yet manually tested** |
-| **VS Code + GitHub Copilot** | Yes, modern Copilot harness | `--client vscode`; `~/.copilot/mcp-config.json`, native `mcpServers` | **Not yet manually tested** |
+| **Claude Desktop** | Yes | `--client claude`; macOS `~/Library/Application Support/Claude/claude_desktop_config.json`, Windows `%APPDATA%\Claude\claude_desktop_config.json`, Linux `$XDG_CONFIG_HOME/Claude/claude_desktop_config.json` or `~/.config/Claude/claude_desktop_config.json` | **Not yet manually tested** |
+| **VS Code + GitHub Copilot** | Yes, modern Copilot harness | `--client vscode`; `$COPILOT_HOME/mcp-config.json` if configured, else `~/.copilot/mcp-config.json`, native `mcpServers` | **Not yet manually tested** |
 | **OpenAI Codex CLI / IDE extension / supported ChatGPT desktop** | Yes, local config | `--client codex`; `~/.codex/config.toml` | **Not yet manually tested** |
 | **JetBrains AI Assistant** | Vendor documents STDIO MCP integrations | Add a custom STDIO server with the absolute `node` executable and `dist/server.js`; `REPOSAFE_ROOT` in env | Not tested |
 | **Gemini CLI** | Vendor documents STDIO MCP integrations | Use local MCP config (`mcpServers`) / `gemini mcp add`; adapt the `cursor` snippet | Not tested |
@@ -31,7 +31,7 @@
 
 `Cursor` / `Claude Desktop` use `mcpServers` with `command`, `args`, `env`. **VS Code's current Copilot harness** uses *portable* `mcpServers` and should specify `type: stdio`; the older `.vscode/mcp.json` editor-managed format uses `servers` and is being phased out. **Codex** uses TOML under `[mcp_servers.reposafe]`. Do not reuse a JSON fragment as TOML or use the wrong VS Code configuration format.
 
-The `npm run config` generator makes these four variants deterministically for the machine on which it runs; unit tests cover both Windows and macOS rendering, but do not imply successful GUI acceptance.
+The `npm run config` generator makes these four variants deterministically for the machine on which it runs; unit tests cover Windows, macOS and Linux rendering, but do not imply successful GUI acceptance. The Copilot harness honors `COPILOT_HOME` instead of always reading `~/.copilot`. On Linux, Claude Desktop follows `XDG_CONFIG_HOME` when set. Before explicit `connect`, inspect the `--dry-run` destination, especially when environment overrides or remote hosts are used.
 
 ## v0.6 optional history parameters
 
@@ -46,7 +46,7 @@ For `scan_git_history` and `generate_report`, MCP callers may request a **bounde
 }
 ```
 
-There is still no tool argument for a repository path; the operator-approved `REPOSAFE_ROOT` remains fixed. The accepted depth/patch limits are hard-coded ceilings (500 commits and 16 MiB). This protocol-level capability does not constitute a Cursor/Claude Desktop GUI acceptance test.
+There is still no tool argument for a repository path; the operator-approved `REPOSAFE_ROOT` remains fixed. The accepted depth/patch limits are hard-coded ceilings (5,000 commits and 16 MiB per batch). This protocol-level capability does not constitute a Cursor/Claude Desktop GUI acceptance test.
 
 **GUI verification remains NOT VERIFIED:** document actual client version, OS, required approvals and redacted output only after a person runs the workflow inside each application.
 
@@ -57,3 +57,14 @@ There is still no tool argument for a repository path; the operator-approved `RE
 The standalone `npm run config -- --client ... --root ... --json` can render a configuration without invoking a server; it correctly sets `verifiedProtocol: false`.
 
 Install using the precompiled GitHub archive and `--ignore-scripts` in [FIRST_RUN.md](FIRST_RUN.md) to avoid local lifecycle builds. Client-specific launch, approval prompts and UI details are still unverified, and user-supplied installation experiences should not be treated as security guarantees without reproducible evidence.
+
+See [LOCAL_MCP.md](LOCAL_MCP.md) for tested configuration commands and [UNINSTALL.md](UNINSTALL.md) for complete removal. Codex local connect does not invoke the Codex CLI binary.
+
+
+## IDE-native presentation and current integration boundary
+
+RepoSafe is not a browser UI or desktop app. Its optional terminal colors are restricted to a human-facing TTY; JSON, SARIF, and MCP responses remain structured and free of terminal control codes. Codex, Cursor, Claude Desktop and VS Code control their own chat/tool presentation, approvals and UX. Installing an MCP entry cannot bypass plan, sandbox, session or platform restrictions.
+
+The four managed `--client` targets are **Codex, Cursor, Claude Desktop and VS Code Copilot**. Other hosts whose vendors document STDIO MCP, such as **JetBrains AI Assistant, Gemini CLI and Claude Code**, can use the same local Node server through their vendor-supported manual MCP setup; RepoSafe has **not** tested these integrations inside the actual applications and does not silently edit their settings. The VS Code implementation specifically targets Copilot's portable `~/.copilot/mcp-config.json` format, not the older editor-managed `.vscode/mcp.json` format (source: https://code.visualstudio.com/docs/agents/reference/mcp-configuration). Remote IDE sessions need the executable installed on the machine that runs the MCP server.
+
+If macOS blocks a separate `codex` executable as malware, **stop using that binary until the alert has been investigated**. RepoSafe does not invoke it during managed connection and has not inspected the affected Mac. See [safe macOS Codex warning triage](LOCAL_MCP.md#5-macos-warning-for-a-separate-codex-executable). Do not weaken Gatekeeper or infer that an SDK handshake clears the warning.

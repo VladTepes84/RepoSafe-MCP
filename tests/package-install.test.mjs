@@ -36,7 +36,7 @@ try {
   const doctor=exec(bin,['doctor','--root',root,'--json']);
   const result=JSON.parse(doctor);
   assert.equal(result.status,'pass');
-  assert.equal(result.tools.length,6);
+  assert.equal(result.tools.length,7);
   console.log('REAL PACKED NPM INSTALL PASS (temporary prefix, no registry publication)');
 } finally {
   await rm(directory,{recursive:true,force:true});

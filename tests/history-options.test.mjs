@@ -52,7 +52,7 @@ test('branch-only and since options are accepted and explicitly restrict coverag
 });
 test('invalid history bounds and calendar dates are rejected before Git starts',async()=>{
   await withRepo(async(root)=>{
-    for(const limits of [{depth:0},{depth:501},{maxDiffSizeMiB:0},{maxDiffSizeMiB:17},{since:'2026-02-30'}]){
+    for(const limits of [{depth:0},{depth:5001},{maxDiffSizeMiB:0},{maxDiffSizeMiB:17},{since:'2026-02-30'}]){
       await assert.rejects(scanGit(root,true,limits));
     }
   });
@@ -65,7 +65,7 @@ test('CLI restricts history flags and emits JSON without credentials',async()=>{
     assert.equal(report.git.historyChecked,true);
     assert.ok(report.git.warnings.some(x=>x.includes('operator options')));
     for(const args of [
-      ['--history-depth','0'],['--history-depth','501'],
+      ['--history-depth','0'],['--history-depth','5001'],
       ['--max-diff-size','17'],['--since','2026-02-30'],
       ['--no-git','--history-depth','5'],['--no-history','--since','2026-01-01'],
       ['--history-depth','5','--history-depth','6'],

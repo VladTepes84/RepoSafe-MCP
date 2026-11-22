@@ -7,20 +7,34 @@ import { fileURLToPath } from 'node:url';
 const current = fileURLToPath(import.meta.url);
 const server = join(dirname(current), '..', 'dist', 'server.js');
 
-export function makeClientConfig({ client, platform, home, appdata, root, node = process.execPath, serverPath = server }) {
+export function makeClientConfig({ client, platform, home, appdata,
+  copilotHome = process.env.COPILOT_HOME, xdgConfigHome = process.env.XDG_CONFIG_HOME,
+  root, node = process.execPath, serverPath = server }) {
   if (!['cursor', 'claude', 'vscode', 'codex'].includes(client)) throw new Error('Choose cursor, claude, vscode or codex.');
   if (!['win32', 'darwin', 'linux'].includes(platform)) throw new Error('Unsupported platform.');
   const paths = platform === 'win32' ? win32 : posix;
   if (!paths.isAbsolute(root) || !paths.isAbsolute(node) || !paths.isAbsolute(serverPath)) {
     throw new Error('Root, Node executable and server path must all be absolute.');
   }
+  // Copilot's portable native config follows COPILOT_HOME on this host.
+  // Claude Desktop on Linux follows XDG_CONFIG_HOME when provided.
+  if (client === 'vscode' && copilotHome &&
+      (!paths.isAbsolute(copilotHome) || copilotHome === paths.parse(copilotHome).root)) {
+    throw new Error('COPILOT_HOME must be an absolute non-root directory.');
+  }
+  if (client === 'claude' && platform === 'linux' && xdgConfigHome &&
+      (!paths.isAbsolute(xdgConfigHome) || xdgConfigHome === paths.parse(xdgConfigHome).root)) {
+    throw new Error('XDG_CONFIG_HOME must be an absolute non-root directory.');
+  }
   const cfg = { command: node, args: [serverPath], env: { REPOSAFE_ROOT: root } };
   const file = {
     cursor: paths.join(home, '.cursor', 'mcp.json'),
     claude: platform === 'win32'
       ? paths.join(appdata || paths.join(home, 'AppData', 'Roaming'), 'Claude', 'claude_desktop_config.json')
-      : paths.join(home, 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json'),
-    vscode: paths.join(home, '.copilot', 'mcp-config.json'),
+      : platform === 'darwin'
+        ? paths.join(home, 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json')
+        : paths.join(xdgConfigHome || paths.join(home, '.config'), 'Claude', 'claude_desktop_config.json'),
+    vscode: paths.join(copilotHome || paths.join(home, '.copilot'), 'mcp-config.json'),
     codex: paths.join(home, '.codex', 'config.toml'),
   }[client];
   if (client === 'codex') {

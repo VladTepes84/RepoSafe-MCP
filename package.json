@@ -19,7 +19,7 @@
     "demo": "node tests/demo.mjs",
     "audit:deps": "npm audit --omit=dev --audit-level=high",
     "config": "node scripts/config.mjs",
-    "test:config": "node --test tests/config.test.mjs",
+    "test:config": "node --test tests/config.test.mjs tests/client-setup.test.mjs",
     "doctor": "node dist/cli.js doctor",
     "init": "node dist/cli.js init",
     "test:userflow": "node --test tests/userflow.test.mjs",
@@ -27,7 +27,9 @@
     "test:package": "node --test tests/package.test.mjs",
     "test:sarif": "node --test tests/sarif.test.mjs",
     "test:structured": "node --test tests/structured-config.test.mjs",
-    "test:history-options": "node --test tests/history-options.test.mjs",
+    "test:history-options": "node --test tests/history-options.test.mjs tests/history-checkpoint.test.mjs",
+    "benchmark": "node tests/benchmark.mjs --smoke",
+    "benchmark:full": "node tests/benchmark.mjs --full",
     "verify:runtime": "npm run build && node scripts/verify-runtime.mjs"
   },
   "dependencies": {
@@ -46,6 +48,7 @@
   "files": [
     "dist/",
     "scripts/config.mjs",
+    "scripts/client-setup.mjs",
     "README.md",
     "LICENSE",
     "docs/"

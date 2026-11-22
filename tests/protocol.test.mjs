@@ -7,7 +7,7 @@ import { join, resolve } from 'node:path';
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 
-test('stdio MCP handshake lists six tools and returns redacted report', { timeout: 20_000 }, async () => {
+test('stdio MCP handshake lists seven tools and returns redacted report', { timeout: 20_000 }, async () => {
   const root = await mkdtemp(join(tmpdir(), 'reposafe-mcp-protocol-'));
   let client;
   try {
@@ -35,7 +35,7 @@ test('stdio MCP handshake lists six tools and returns redacted report', { timeou
     await client.connect(transport);
     const names = (await client.listTools()).tools.map(x => x.name).sort();
     assert.deepEqual(names, [
-      'check_git_exposure', 'check_repo_readiness', 'generate_report', 'scan_git_history', 'scan_private_refs', 'scan_secrets',
+      'check_git_exposure', 'check_repo_readiness', 'generate_report', 'get_findings_page', 'scan_git_history', 'scan_private_refs', 'scan_secrets',
     ]);
     const res = await client.callTool({ name: 'generate_report', arguments: {} });
     assert.notEqual(res.isError, true);
@@ -62,10 +62,19 @@ test('stdio MCP handshake lists six tools and returns redacted report', { timeou
     // Zod input validation must reject out-of-range AI arguments.
     let rejected=false;
     try {
-      const invalid=await client.callTool({name:'scan_git_history',arguments:{historyDepth:501}});
+      const invalid=await client.callTool({name:'scan_git_history',arguments:{historyDepth:5001}});
       rejected=invalid.isError===true;
     } catch { rejected=true; }
     assert.equal(rejected,true);
+
+    // Refresh the report after the single-commit scoped scan before paging it.
+    await client.callTool({ name: 'generate_report', arguments: {} });
+    const page = await client.callTool({ name: 'get_findings_page', arguments: { offset: 0, limit: 1 } });
+    assert.notEqual(page.isError, true);
+    const pageData = JSON.parse(page.content.find(x => x.type === 'text').text);
+    assert.equal(pageData.pagination.limit, 1);
+    assert.ok(pageData.pagination.total >= 1);
+    assert.equal(pageData.findings.length, 1);
 
     for (const name of names) {
       const result = await client.callTool({ name, arguments: {} });

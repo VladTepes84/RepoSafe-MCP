@@ -18,6 +18,8 @@ export interface ScanStats {
   directoriesVisited: number;
   bytesScanned: number;
   filesSkipped: number;
+  /** Number of findings beyond bounded in-memory retention. */
+  findingsOmitted?: number;
   complete: boolean;
   warnings: string[];
 }
@@ -25,6 +27,12 @@ export interface ScanStats {
 export interface GitStats {
   historyChecked: boolean;
   commitsInspected: number;
+  /** Completed Git process batches; no raw diff data is retained. */
+  historyBatches?: number;
+  /** Number of completed Git commits reused from a validated opt-in local checkpoint. */
+  historyResumedFrom?: number;
+  /** Local reachable commit candidates within requested branch/date scope. */
+  historyCandidates?: number;
   historyWindow?: { maxCommits: number; maxDiffSizeMiB: number; since?: string; currentBranchOnly: boolean };
   trackedExcludedFilesRequested?: number;
   trackedExcludedFilesScanned?: number;

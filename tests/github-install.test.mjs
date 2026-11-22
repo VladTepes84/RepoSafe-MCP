@@ -32,12 +32,12 @@ try {
   const installed=join(prefix,'node_modules','reposafe-mcp','dist','cli.js');
   const doctor=JSON.parse(exec(process.execPath,[installed,'doctor','--root',target,'--json']));
   assert.equal(doctor.status,'pass');
-  assert.equal(doctor.tools.length,6);
+  assert.equal(doctor.tools.length,7);
   const init=JSON.parse(exec(process.execPath,[installed,'init','--client','cursor','--root',target,'--json']));
   assert.equal(init.verifiedProtocol,true);
   assert.equal(init.verifiedGUI,false);
   assert.equal(init.writesFiles,false);
-  assert.equal(init.discoveredTools.length,6);
+  assert.equal(init.discoveredTools.length,7);
   assert.match(init.content,/REPOSAFE_ROOT/);
   console.log('GITHUB SOURCE INSTALL + REAL MCP ONBOARDING PASS (temporary prefix, no npm publish)');
 } finally {

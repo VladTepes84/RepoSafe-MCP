@@ -195,7 +195,7 @@ test('Symlinked tracked file cannot traverse outside the permitted root',async(t
   } finally {await remove(outside,{recursive:true,force:true});}
 });
 
-test('large 100-commit Git logs retain completed history and findings at the byte cap', async () => {
+test('large 100-commit Git logs resume automatically across 4 MiB batches', async () => {
   await withGitRepo(async root => {
     const { mkdir } = await import('node:fs/promises');
     await mkdir(join(root, 'commits'));
@@ -212,9 +212,9 @@ test('large 100-commit Git logs retain completed history and findings at the byt
     git(root, 'commit', '-qm', 'synthetic most recent token');
     const limited = await scanGit(root, true, { depth: 100, maxDiffSizeMiB: 4 });
     assert.equal(limited.stats.historyChecked, true);
-    assert.ok(limited.stats.commitsInspected > 0 && limited.stats.commitsInspected < 100,
-      `preserved ${limited.stats.commitsInspected} completed commits`);
-    assert.ok(limited.stats.warnings.some(x => x.includes('diff byte budget')));
+    assert.equal(limited.stats.commitsInspected, 100);
+    assert.ok(limited.stats.historyBatches > 1);
+    assert.ok(!limited.stats.warnings.some(x => x.includes('single Git commit exceeded')));
     assert.ok(limited.findings.some(x => x.rule === 'git_history_github_token'));
     assert.ok(!JSON.stringify(limited).includes(secret));
     const expanded = await scanGit(root, true, { depth: 100, maxDiffSizeMiB: 16 });
@@ -227,7 +227,7 @@ test('large 100-commit Git logs retain completed history and findings at the byt
 test('oversized single history line is skipped without hiding subsequent secret', async () => {
   await withGitRepo(async root => {
     const secret = 'ghp_' + 'S'.repeat(36);
-    await writeFile(join(root, 'sample.txt'), 'x'.repeat(9000) + `\nGITHUB_TOKEN=${secret}\n`);
+    await writeFile(join(root, 'sample.txt'), 'x'.repeat(66000) + `\nGITHUB_TOKEN=${secret}\n`);
     git(root, 'add', 'sample.txt');
     git(root, 'commit', '-qm', 'synthetic oversized line');
     const result = await scanGit(root, true, { depth: 2 });
@@ -236,5 +236,59 @@ test('oversized single history line is skipped without hiding subsequent secret'
     assert.ok(result.stats.warnings.some(x => x.includes('Long lines')));
     assert.ok(result.findings.some(x => x.rule === 'git_history_github_token'));
     assert.ok(!JSON.stringify(result).includes(secret));
+  });
+});
+
+
+test('history batches cover more than 200 commits without a global diff cap', { timeout: 40_000 }, async () => {
+  await withGitRepo(async root => {
+    await writeFile(join(root, 'README.md'), '# Batch test\n');
+    git(root, 'add', 'README.md');
+    git(root, 'commit', '-qm', 'initial');
+    const synthetic = 'ghp_' + 'N'.repeat(36);
+    for (let i = 0; i < 210; i++) {
+      await writeFile(join(root, 'history.txt'), i === 30 ? 'GITHUB_TOKEN=' + synthetic + '\n' : 'safe=' + i + '\n');
+      git(root, 'add', 'history.txt');
+      git(root, 'commit', '-qm', 'synthetic batch ' + i);
+    }
+    const result = await scanGit(root, true, { depth: 1000, maxDiffSizeMiB: 1 });
+    assert.equal(result.stats.commitsInspected, 211);
+    assert.equal(result.stats.historyCandidates, 211);
+    assert.equal(result.stats.historyBatches, 3);
+    assert.equal(result.stats.complete, true, result.stats.warnings.join('; '));
+    assert.ok(result.findings.some(f => f.rule === 'git_history_github_token'));
+    assert.ok(!JSON.stringify(result).includes(synthetic));
+  });
+});
+
+test('inherited GIT_DIR and GIT_WORK_TREE cannot redirect history outside approved root', async () => {
+  await withGitRepo(async approved => {
+    await withGitRepo(async outside => {
+      git(approved, 'add', '.');
+      git(approved, 'commit', '-qm', 'approved synthetic files');
+      const foreignToken = 'ghp_' + 'Q'.repeat(36);
+      await writeFile(join(outside, 'foreign.txt'), 'GITHUB_TOKEN=' + foreignToken + '\\n');
+      git(outside, 'add', '.');
+      git(outside, 'commit', '-qm', 'outside synthetic token');
+      const keys = ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_OBJECT_DIRECTORY'];
+      const before = keys.map(key => process.env[key]);
+      try {
+        process.env.GIT_DIR = join(outside, '.git');
+        process.env.GIT_WORK_TREE = approved;
+        process.env.GIT_INDEX_FILE = join(outside, '.git', 'index');
+        process.env.GIT_OBJECT_DIRECTORY = join(outside, '.git', 'objects');
+        const scanned = await scanGit(approved, true, { depth: 10 });
+        assert.equal(scanned.stats.gitAvailable, true);
+        assert.equal(scanned.stats.historyChecked, true);
+        assert.equal(scanned.stats.commitsInspected, 1);
+        assert.equal(scanned.findings.some(x => x.rule === 'git_history_github_token'), false);
+        assert.ok(!JSON.stringify(scanned).includes(foreignToken));
+      } finally {
+        keys.forEach((key, index) => {
+          if (before[index] === undefined) delete process.env[key];
+          else process.env[key] = before[index];
+        });
+      }
+    });
   });
 });

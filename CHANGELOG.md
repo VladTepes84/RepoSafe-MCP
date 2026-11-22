@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased — security hardening of draft PR #10
+
+- Separate persisted history warnings from fresh tracked-file checks to avoid stale incomplete verdicts across resumed scans; add regression with fixed uncommitted oversized file. Invalidate old v1 checkpoint schema; new v2 snapshots are only eligible for reuse for seven days, with manual cleanup of old files.
+- Reject ambiguous Codex TOML forms (quoted/child tables, inline mappings) without changing any client configuration.
+- Reject future-dated checkpoint metadata and group/world-writable parent state directories.
+- Remove inherited `GIT_*` environment overrides before Git subprocesses; add two-repository boundary regression.
+- Align managed VS Code Copilot config with `COPILOT_HOME` and Claude Desktop Linux config with `XDG_CONFIG_HOME`; verify alternate locations and deliberate fail-closed relative-path handling.
+- These changes remain **draft/unmerged** pending acceptance of real client integrations and macOS Codex binary investigation.
+
+## Unreleased — local MCP onboarding and scalable bounded scans (PR #10)
+
+- Optional `connect` / `disconnect` for Codex Desktop/CLI, Cursor, Claude Desktop and VS Code, with reversible RepoSafe-only client configuration; no AI client executables or macOS security policy are invoked.
+- Git history scanned in sequential 100-commit batches with per-batch byte/timeout limits, commit-boundary resumption, local history candidate counts, and 5,000 requested commit ceiling. CLI-only opt-in `--resume-history` now persists bounded, private redacted checkpoint metadata for restart-safe resumption, keyed by canonical root, Git ref tips and scan options (7-day reuse window). Default CLI and all MCP tools do not write scan state.
+- Working-tree resource bounds increased while preserving fail-closed warnings; 5,000 findings retained with High/Critical priority and explicit omissions.
+- MCP `get_findings_page` provides paginated, in-process cached results; CLI summarizes the first 50 and offers `--all-findings`, JSON and SARIF.
+- Explicit client configuration writes now use a fail-closed lock, change detection and private recovery backups when an existing configuration is replaced. Recovery snapshots may contain unrelated credentials and require careful local retention/deletion.
+- Minimal TTY-only status and severity colors (disabled for JSON/SARIF and `NO_COLOR`), retained/omitted finding counts and optional checkpoint-reuse status.
+- Synthetic small/medium/large benchmarks and opt-in extended benchmark measure elapsed scan time and observed RSS on each CI OS.
+- Safe cross-platform onboarding/uninstall guides, expanded synthetic tests, and precompiled runtime checked against TypeScript in CI. Real GUI client acceptance remains unverified.
+
+
 Changes describe the committed source and automated test evidence, **not a security certification**.
 
 ## [Unreleased] — 2026-11-22 (script-free distribution update)
