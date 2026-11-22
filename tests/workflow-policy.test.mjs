@@ -1,19 +1,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 
-// Static review guard only; never starts a runner, checks out code, or calls a network API.
-const workflow = readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
+// Static, offline review guard. Future workflows are included automatically.
+const directory = new URL('../.github/workflows/', import.meta.url);
+const workflows = readdirSync(directory).filter(name => /\.ya?ml$/.test(name));
 
-test('CI workflow uses immutable reviewed action revisions and minimal token permissions', () => {
-  const uses = [...workflow.matchAll(/^\s*(?:-\s*)?uses:\s*([^\s#]+)/gm)].map(x => x[1]);
-  assert.ok(uses.length >= 3, 'Expected two external actions and the local composite Action');
-  for (const action of uses) {
-    if (action.startsWith('./')) continue;
-    assert.match(action, /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+@[a-f0-9]{40}$/,
-      'External Actions must use immutable reviewed full commit SHAs: ' + action);
-  }
-  assert.match(workflow, /^permissions:\s*\n  contents: read\s*$/m);
-  assert.doesNotMatch(workflow, /\bpull_request_target\s*:/);
-  assert.doesNotMatch(workflow, /\bsecurity-events:\s*write\b/);
+test('repository defines at least one reviewed GitHub Actions workflow', () => {
+  assert.ok(workflows.length > 0);
 });
+
+for (const name of workflows) {
+  test(name + ': immutable external Actions and read-only token permission', () => {
+    const workflow = readFileSync(new URL(name, directory), 'utf8');
+    const uses = [...workflow.matchAll(/^\s*(?:-\s*)?uses:\s*([^\s#]+)/gm)].map(x => x[1]);
+    assert.ok(uses.length > 0, name + ': no Actions steps discovered');
+    for (const action of uses) {
+      if (action.startsWith('./')) continue; // Local repository action needs no remote ref.
+      assert.match(action, /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+@[a-f0-9]{40}$/,
+        name + ': external Action is not pinned to a full reviewed SHA: ' + action);
+    }
+    assert.match(workflow, /^permissions:\s*\n  contents: read\s*$/m,
+      name + ': workflow must declare minimal read-only repository permission');
+    assert.doesNotMatch(workflow, /\bpull_request_target\s*:/);
+    assert.doesNotMatch(workflow, /\bsecurity-events:\s*write\b/);
+  });
+}
