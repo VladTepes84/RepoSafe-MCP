@@ -60,3 +60,19 @@ Human CLI output defaults to the first 50 highest-severity findings, without los
 - Undo client setup and remove RepoSafe by following [UNINSTALL.md](UNINSTALL.md).
 
 References: [Codex configuration](https://developers.openai.com/codex/config-reference), [VS Code MCP](https://code.visualstudio.com/docs/agents/reference/mcp-configuration), [MCP local STDIO](https://modelcontextprotocol.io/docs/develop/connect-local-servers).
+
+
+## 5. macOS warning for a separate Codex executable
+
+A macOS warning that the **`codex` executable** was blocked as potentially malicious is a separate security event. RepoSafe's `connect --client codex` writes a user-level MCP configuration entry **without invoking `codex`**, so neither a successful MCP handshake nor this repository's CI determines why macOS blocked that other executable. Do not assume a false positive, do not automatically reinstall or launch the blocked binary, and do not override Gatekeeper, remove quarantine flags, or disable XProtect.
+
+To investigate safely on the affected Mac, first identify the exact blocked item and its origin in the macOS warning and Finder's Get Info view. If comfortable using Terminal, the following **inspection-only** commands can be run with the real blocked executable path, without executing the item:
+
+```sh
+file "/PATH/TO/BLOCKED/codex"
+shasum -a 256 "/PATH/TO/BLOCKED/codex"
+codesign -dv --verbose=4 "/PATH/TO/BLOCKED/codex"
+spctl --assess --type execute --verbose=4 "/PATH/TO/BLOCKED/codex"
+```
+
+These checks establish file identity, reported signing metadata and local policy assessment; none alone proves a file is safe or malicious. A failed/unsigned signature or a blocked assessment needs further investigation with the distribution source and vendor, **not a security bypass**. Do not post private filesystem paths, diagnostic logs containing personal data or unredacted application settings. Until the warning is resolved, prefer RepoSafe's standalone CLI or a different verified MCP host rather than relying on the blocked Codex binary. Apple's explanation: https://support.apple.com/en-us/102445 .
