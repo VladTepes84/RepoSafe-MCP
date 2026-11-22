@@ -90,4 +90,8 @@ node dist/cli.js init --root "ABSOLUTE_PROJECT_PATH" --client cursor
 node dist/cli.js init --root "ABSOLUTE_PROJECT_PATH" --client claude
 ```
 
-`doctor` must return `RepoSafe doctor PASS` and six tools. `init` prints the exact configuration target and JSON for the current computer. **Copy/merge it manually; neither command edits client config.** A real Cursor or Claude Desktop GUI session has NOT yet been verified on this platform. See [QUICKSTART](QUICKSTART.md).
+`doctor` must return `RepoSafe doctor PASS` and seven tools. `init` prints the exact configuration target and JSON for the current computer. **Copy/merge it manually; neither command edits client config.** A real Cursor or Claude Desktop GUI session has NOT yet been verified on this platform. See [QUICKSTART](QUICKSTART.md).
+
+## Managed local client configuration
+
+See [LOCAL_MCP.md](LOCAL_MCP.md) for `connect`/`disconnect` with user-level configuration and [UNINSTALL.md](UNINSTALL.md) for clean removal without PowerShell policy changes.
