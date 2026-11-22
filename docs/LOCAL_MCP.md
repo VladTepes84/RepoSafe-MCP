@@ -7,6 +7,8 @@ RepoSafe runs as a **local STDIO MCP server**, not as a hosted plugin or GUI app
 
 ## 1. Install and check
 
+**Version boundary:** the installation examples below use the current `main` branch and support baseline `doctor`, `scan`, and `init`. Managed `connect`/`disconnect`, seven MCP tools, and expanded Git batches are **draft PR #10 features only**. To test those commands, install a separately reviewed full PR-head commit SHA instead of `main`; otherwise they will be unavailable. Do not overwrite an existing production/baseline prefix with an unreviewed draft.
+
 Requirements: Node.js 22+, Git, npm. On macOS/Linux:
 
     npm install --prefix "$HOME/.reposafe" --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
