@@ -15,15 +15,15 @@ RepoSafe is a **local-only, read-only scanner** distributed as CLI and a local s
 
 | Gate | Evidence required | Current status on 2026-11-22 |
 | --- | --- | --- |
-| P0 — Post-merge integrity | CI on exact `main` SHA, four OS/Node jobs, typecheck/build/tests/archive/runtime/audit | **PR #20** integrated at `1fe5bbb4c14e738f1fd196b839346f967909bf58`. Combined head `aa81a7a...` passed 4/4 CI, 146 local Mac tests and demos; **separate CI of merge SHA and subsequent UX changes must be verified** |
+| P0 — Post-merge integrity | CI on exact `main` SHA, four OS/Node jobs, typecheck/build/tests/archive/runtime/audit | **PR #26** merged at `93306e02495d70f015347c172f619e22067e209c`; [post-merge run #45056415178](https://github.com/VladTepes84/RepoSafe-MCP/actions/runs/45056415178) passed 4/4. **PR #27** merged at `55f9e1de76ff25f0c0b9bb33b3680c29039343e6`; [PR run #45073840053](https://github.com/VladTepes84/RepoSafe-MCP/actions/runs/45073840053) passed 4/4. Post-merge CI must separately pass on the exact PR #27 merge SHA. |
 | P0 — Security boundaries | Adversarial path/symlink/hardlink/Git env tests, secret redaction, fail-closed limits, config locks and checkpoint corruption tests | Synthetic tests exist; independent threat review outstanding |
-| P0 — Real MCP client integration | Actual GUI tool calls with receipts and approvals | **NOT PASSED for Codex Desktop** (tools not exposed in observed 2026-11-22 conversation). Other GUI clients **NOT VERIFIED** |
+| P0 — Real MCP client integration | Actual GUI tool calls with receipts and approvals | **CLI/SDK discovery:** user-reported Mac `doctor PASS` with seven tools (Node 24.19.0, Git 2.54.0); **NOT** an actual client invocation. Codex Desktop acceptance remains **NOT PASSED** (tools unavailable in observed chat). Other GUI clients **NOT VERIFIED**. |
 | P1 — Detection precision | Synthetic ground-truth corpus; per-rule precision/recall and duplicate-rate report | Synthetic fixture gate: **10 expected positives and 10 benign examples**, all correctly classified in observed local test; **no representative per-rule real-world benchmark** |
 | P1 — Report contract | JSON schema versioning, SARIF validation with consumers, deterministic pagination, counts, omission reporting and redact-only guarantee | JSON/SARIF smoke checked locally; independent interoperability outstanding |
 | P1 — Large-repository performance | Representative real-world authorized local datasets; p50/p95 runtime, peak RSS, cancellation, history limits and coverage | Synthetic small/medium/large CI benchmark only |
 | P1 — GitHub governance | Reviewed branch rules, required checks, Dependabot PR process, disclosure path and supply-chain audit | Repository workflow and security guide present; platform rules/settings require separate verification |
 | P1 — Onboarding/uninstall | Pinned archives, four OS/client-specific paths, restoration of unrelated MCP servers, private backup handling | CLI/config tests exist; manual user-journey tests outstanding |
-| P2 — Release supply chain | SemVer, changelog, source tag, checksums, independently verifiable provenance/SBOM, install/rollback and license | Beta `0.7.0`; npm publication and signed release not performed |
+| P2 — Release supply chain | SemVer, changelog, source tag, checksums, independently verifiable provenance/SBOM, install/rollback and license | Source beta `0.7.0`; precompiled, SHA-pinned source archive verified in CI. Manual release-candidate workflow exists, but its execution and candidate artifact verification are **NOT VERIFIED**. No signed release, provenance attestation, release tag or npm registry publication has been verified. |
 | P2 — UX and regressions | Bounded clear CLI output, actionable errors, no ANSI in JSON/SARIF, property/fuzz/regression corpus | Automated CLI/protocol tests exist; usability and fuzz matrix outstanding |
 
 ## Required manual client test
@@ -41,5 +41,7 @@ Use only a **synthetic disposable local repository**. Install RepoSafe from a re
 ## GitHub review/release policy
 
 Each change uses a scoped PR and immutable evidence link. Keep `main` protected with review and required CI where available; this document cannot itself configure GitHub settings. Check `npm audit --omit=dev`, dependency update PRs, third-party Action revision integrity and branch head before merging. A merged feature is not automatically a stable release or a successful manual client test.
+
+**Version scope:** PR #26 adds path/Git-index context and overlength counts. PR #27 adds best-effort overlapping checks on long current-file and tracked-excluded-file lines. Neither guarantees complete coverage of arbitrary-length secrets or structured/multiline patterns; partial scans must stay review-required. Existing synthetic precision tests do not measure real-world accuracy.
 
 **Release blockers:** unbounded/unspecified scan scope, potential raw secret disclosure, false clean verdict on incomplete coverage, unsafe client-config overwrite, broken archive install, failing cross-platform CI, or claims of GUI verification without actual GUI evidence.
