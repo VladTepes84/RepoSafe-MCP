@@ -4,6 +4,8 @@ export interface HistoryScanOptions {
     since?: string;
     maxDiffSizeMiB?: number;
     currentBranchOnly?: boolean;
+    /** Explicit CLI-only opt-in to private, redacted checkpoint storage. */
+    resume?: boolean;
 }
 export interface GitResults {
     findings: Finding[];
