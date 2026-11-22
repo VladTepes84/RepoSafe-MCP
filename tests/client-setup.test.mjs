@@ -83,7 +83,7 @@ test('CLI connection and disconnect work without invoking codex binary', { timeo
     const r = spawnSync(process.execPath, ['dist/cli.js', 'doctor', '--root', fakeHome],
       { encoding: 'utf8', timeout: 10000 });
     assert.equal(r.status, 0, r.stderr);
-    assert.match(r.stdout, /MCP handshake: 6 tools/);
+    assert.match(r.stdout, /MCP handshake: 7 tools/);
   } finally {
     if (oldHome !== undefined) process.env.HOME = oldHome;
     await rm(fakeHome, { recursive: true, force: true });
