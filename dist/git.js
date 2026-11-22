@@ -1,9 +1,11 @@
 import { execFile, spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { StringDecoder } from 'node:string_decoder';
 import { promisify } from 'node:util';
 import { devNull } from 'node:os';
 import { checkSecrets, safeRelativePath, MAX_FINDINGS, scanRepository, scanSelectedTrackedFiles } from './scanner.js';
 import { applyBaseline } from './baseline.js';
+import { historyCheckpoint } from './history-checkpoint.js';
 const execFileAsync = promisify(execFile);
 const DEFAULT_MAX_COMMITS = 100;
 const DEFAULT_PATCH_MIB = 4;
@@ -26,10 +28,14 @@ function boundedHistoryOptions(options) {
         new Date(since + 'T00:00:00Z').toISOString().slice(0, 10) !== since)) {
         throw new Error('History --since must be a valid ISO calendar date YYYY-MM-DD.');
     }
+    if (options.resume !== undefined && typeof options.resume !== 'boolean') {
+        throw new Error('History resume option must be boolean.');
+    }
     if (options.currentBranchOnly !== undefined && typeof options.currentBranchOnly !== 'boolean') {
         throw new Error('History branch scope must be boolean.');
     }
-    return { depth, since, maxDiffSizeMiB, currentBranchOnly: options.currentBranchOnly ?? false };
+    return { depth, since, maxDiffSizeMiB, currentBranchOnly: options.currentBranchOnly ?? false,
+        resume: options.resume ?? false };
 }
 const GIT_TIMEOUT_MS = 12_000;
 // Git for Windows expects the native NUL device, not Node's \\.\NUL spelling.
@@ -281,6 +287,32 @@ export async function scanGit(root, history = true, limits = {}) {
     const startedAt = Date.now();
     let reachedEnd = false;
     stats.historyBatches = 0;
+    // Only the explicitly opted-in CLI uses persistent metadata. No raw Git
+    // diffs, credential values, or absolute repository paths are stored.
+    const preHistoryFindings = findings.length;
+    let cache;
+    let cacheKey = '';
+    if (window.resume) {
+        try {
+            const refs = await git(root, ['show-ref', '--head'], 1024 * 1024);
+            cacheKey = createHash('sha256').update(JSON.stringify([root, refs, window])).digest('hex');
+            cache = await historyCheckpoint(cacheKey);
+            const saved = await cache.load();
+            if (saved && saved.commits <= window.depth &&
+                saved.findings.length + findings.length <= MAX_GIT_FINDINGS) {
+                stats.commitsInspected = saved.commits;
+                stats.historyBatches = saved.batches;
+                stats.complete = saved.complete;
+                stats.warnings.push(...saved.warnings.filter(x => !stats.warnings.includes(x)));
+                findings.push(...saved.findings);
+                stats.historyResumedFrom = saved.commits;
+            }
+        }
+        catch {
+            stats.warnings.push('Local history checkpoint unavailable or invalid; a full fresh history scan is used.');
+            cache = undefined;
+        }
+    }
     while (stats.commitsInspected < window.depth && !reachedEnd) {
         if (Date.now() - startedAt > MAX_TOTAL_HISTORY_MS) {
             warning('Overall Git history time budget reached; completed commits were preserved.');
@@ -347,6 +379,19 @@ export async function scanGit(root, history = true, limits = {}) {
         if (outcome === 'complete' && commitOpen)
             completeCommit();
         stats.commitsInspected += completedInBatch;
+        if (cache && cacheKey && completedInBatch > 0) {
+            try {
+                await cache.save({
+                    version: 1, key: cacheKey, commits: stats.commitsInspected,
+                    batches: stats.historyBatches, findings: findings.slice(preHistoryFindings),
+                    warnings: stats.warnings, complete: stats.complete, updatedAt: Date.now(),
+                });
+            }
+            catch {
+                stats.warnings.push('Could not securely save history checkpoint; a subsequent scan will start fresh.');
+                cache = undefined;
+            }
+        }
         if (limitReached || outcome === 'finding_limit') {
             warning('Git finding storage limit reached; further findings were not inspected.');
             break;
