@@ -75,6 +75,8 @@ Severity groups are rendered in priority order **critical > high > medium > low*
 - **NO FINDINGS IN SCANNED SCOPE / exit 0:** no unsuppressed finding within the bounded inspected data. It is **not** proof of publication safety.
 - **Usage or runtime error / exit 2:** invalid arguments, unavailable path/Git/Node or a failed local check.
 
+**v0.7 finding context:** detailed human output may annotate a test-like path (`testFile`) or local Git index membership (`gitTracked`). Neither verifies a live secret or remote publication; these are independent triage hints, and severity is unchanged. The coverage header shows `Long lines skipped: N` when relevant; a nonzero value means incomplete analysis. JSON schema v2 includes the optional `testFile`, `gitTracked` and `stats.overlengthLinesSkipped` fields.
+
 Check these limitations: skipped binary/oversize files, unreadable files, history depth, patch budget, local refs, retained finding cap, links/hardlinks and any scan warnings. There is no cloud search of deleted Git objects or unreachable remote histories.
 
 ## Sensitive information and automation

@@ -5,6 +5,9 @@ The standalone CLI emits a **base metadata-only report** with `schemaVersion: "2
 ## Semantics and privacy
 
 - `findings` are **suspicions**, not confirmed active vulnerabilities. `severity` prioritizes review; no confidence calibration or precision guarantee is currently published.
+- Optional `testFile: true` means only the path resembles a test/fixture. This is **not** evidence that a matching token is fake and never reduces severity.
+- Optional `gitTracked: true|false` is **local Git index status for a current-file finding**, not proof of remote publication. An absent field means status was not established. An untracked file may have been present in older commits.
+- Optional `stats.overlengthLinesSkipped` counts skipped overlength lines in regular working-tree traversal; targeted Git-tracked excluded files and historical patches have separate coverage warnings. `stats.complete` remains false when a line is skipped.
 - `stats.complete` means requested scope examined **within declared scanner limits**. It is not a comprehensive code audit or a safe-to-publish certificate. Read `filesSkipped`, `warnings`, `findingsOmitted` and `limitations`.
 - `verdict: "review_required"` is produced if findings exist or scanning was incomplete. No-finding reports cannot certify safety.
 - `git` is optional (omitted when Git checks are disabled); Git history is bounded and may be incomplete. Check history scope/counts rather than treating the number of scanned commits as total repository history.

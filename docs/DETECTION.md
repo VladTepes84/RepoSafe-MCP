@@ -1,4 +1,4 @@
-# Detection matrix and reliability limits (v0.6)
+# Detection matrix and reliability limits (v0.7)
 
 **Rule-based detection is a safety aid, not a formal guarantee of absence.**
 Only use synthetic fixtures in public issues. No token values or source snippets are returned in findings.
@@ -17,7 +17,7 @@ Only use synthetic fixtures in public issues. No token values or source snippets
 
 **Directories:** `dist/`, `build/`, and `vendor/` are scanned as text. Standard dependency/cache directories like `node_modules/` are omitted for resource safety. If Git tracks excluded-directory files, the Git-aware report fails closed and requires separate review. Binary formats, huge files and lines can be skipped with a coverage warning.
 
-**History:** added diff lines are examined within a bounded window (default: 100 recent commits and 4 MiB; operator caps: 500 commits and 16 MiB). Findings include a 12-character introducing commit prefix, not a matched value. Rewriting history alone does not revoke credentials.
+**History:** added diff lines are examined within a bounded window (default: 100 recent commits and 4 MiB; operator caps: 5,000 commits and 16 MiB). Findings include a 12-character introducing commit prefix, not a matched value. Rewriting history alone does not revoke credentials.
 
 **Validation:** run `npm ci`, `npm run check`, `npm run audit:deps` and inspect cross-platform CI results. Use independent security scanners (for example, Gitleaks and TruffleHog) and human review for higher assurance. Successful CI does not verify Cursor or Claude Desktop graphical integrations.
 
@@ -28,6 +28,13 @@ Only use synthetic fixtures in public issues. No token values or source snippets
 - The scanner does not verify whether a token is active. Some providers use other credential formats; unknown formats can be missed.
 
 **False-positive control:** read `docs/BASELINE.md` before enabling any exceptions. An exception is exact-match and always visible in suppressed counters; high/critical matches cannot make the overall verdict clean.
+
+### v0.7 contextual triage (not credential verification)
+
+- `testFile: true`: the path resembles a test, spec, fixture or mock. **Keep the original severity**: production credentials can also leak into tests. A public example string requires explicit manual classification.
+- `gitTracked: true` / `false`: membership in the **current local index**, when available. It does not establish whether a secret was published to a remote. Untracked now does **not** mean absent from all Git history.
+- `stats.overlengthLinesSkipped`: current-file lines skipped by the bounded parser. If nonzero, scanning is incomplete and requires manual review. Historical patches and tracked excluded files may have separate coverage warnings.
+- Human CLI reports show relevant context and counts; JSON schema v2 exposes these optional fields. No token text is returned. These fields do not reduce the number or severity of findings.
 
 **Tracked files:** Git-tracked files in normally skipped dependency/cache directories are now scanned directly under budgets. Even where readable, the existing `tracked_excluded_file` alert remains to highlight that such files are tracked. Missing, binary, linked or excessive files cause incomplete scan status.
 
@@ -43,6 +50,6 @@ These checks work for current text files and targeted Git-tracked files, under e
 ## History selection limits
 
 - Defaults: 100 commits, 4 MiB patch output, all local refs.
-- Operator controls: `historyDepth` (1–500), `since` (strict `YYYY-MM-DD`), `maxDiffSizeMiB` (1–16), `currentBranchOnly`.
+- Operator controls: `historyDepth` (1–5000), `since` (strict `YYYY-MM-DD`), `maxDiffSizeMiB` (1–16), `currentBranchOnly`.
 - Too many commits, excessive diff output or unreadable Git metadata produce an incomplete review state. A `since` or branch-only selection explicitly records limited scope, even if no findings are found.
 - Excludes unreferenced/dangling objects and remote-hosted history. Increasing a cap increases resource use; this remains **bounded scanning**, not credential certification.

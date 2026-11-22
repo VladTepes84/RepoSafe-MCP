@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { StringDecoder } from 'node:string_decoder';
 import { promisify } from 'node:util';
 import { devNull } from 'node:os';
-import { checkSecrets, safeRelativePath, MAX_FINDINGS, scanRepository, scanSelectedTrackedFiles } from './scanner.js';
+import { checkSecrets, isLikelyTestFile, safeRelativePath, MAX_FINDINGS, scanRepository, scanSelectedTrackedFiles } from './scanner.js';
 import type { Finding, GitStats, ScanReport } from './types.js';
 import { applyBaseline } from './baseline.js';
 import { historyCheckpoint } from './history-checkpoint.js';
@@ -429,6 +429,36 @@ export async function generateReport(root: string, options: { includeGit?: boole
   }
   const g = await scanGit(root, options.includeHistory !== false, options.historyOptions);
   report.git = g.stats;
+  // Index membership describes local state only, not publication on a remote.
+  // Re-check the exact approved Git root and withhold status if it is ambiguous.
+  if (g.stats.gitAvailable) {
+    try {
+      const { realpath } = await import('node:fs/promises');
+      const localGitRoot = (await git(root, ['rev-parse', '--show-toplevel'])).trim();
+      if (await realpath(localGitRoot) === await realpath(root)) {
+        const indexed = new Set(
+          (await git(root, ['ls-files', '--cached', '-z'], 8 * 1024 * 1024))
+            .split('\0').filter(Boolean).map(path => path.replaceAll('\\', '/')),
+        );
+        for (const finding of report.findings) {
+          if (finding.category === 'secrets' || finding.category === 'privacy') {
+            // Redacted, shortened or escaped display paths cannot be mapped reliably.
+            if (!finding.file.startsWith('[') && finding.file.length < 240 &&
+                !finding.file.includes('?')) {
+              finding.gitTracked = indexed.has(finding.file);
+            }
+          }
+        }
+      }
+    } catch {
+      report.stats.warnings.push('Git index status of individual findings is unavailable.');
+    }
+  }
+  for (const finding of g.findings) {
+    if (isLikelyTestFile(finding.file)) finding.testFile = true;
+    // These additional findings arise only from Git-index-tracked excluded files.
+    if (finding.category === 'secrets' || finding.category === 'privacy') finding.gitTracked = true;
+  }
   const severityRank = (s: Finding['severity']): number =>
     ({ critical: 0, high: 1, medium: 2, low: 3 })[s];
   const combined = [...report.findings, ...g.findings].sort((a, b) =>

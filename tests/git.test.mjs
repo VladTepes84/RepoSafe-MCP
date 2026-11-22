@@ -52,6 +52,28 @@ test('flags tracked .env and uses Git ignore semantics, not mere .gitignore pres
   });
 });
 
+test('distinguishes untracked environment values from Git-index-tracked test fixtures', async () => {
+  await withGitRepo(async root => {
+    const { mkdir } = await import('node:fs/promises');
+    await mkdir(join(root, 'tests'));
+    const aws = 'AKIA' + 'R'.repeat(16);
+    const openai = 'sk-proj-' + 'S'.repeat(36);
+    await writeFile(join(root, 'tests', 'example.test.ts'),
+      `const result = validate("ACCESS_KEY_REFERENCE", "${aws}");\n`);
+    await writeFile(join(root, '.env.local'), `OPENAI_API_KEY=${openai}\n`);
+    git(root, 'add', 'tests/example.test.ts', '.gitignore');
+    const report = await generateReport(root, { includeHistory: false });
+    const fixture = report.findings.find(f => f.rule === 'aws_access_key_id');
+    const env = report.findings.find(f => f.rule === 'openai_key');
+    assert.equal(fixture?.severity, 'high');
+    assert.equal(fixture?.testFile, true);
+    assert.equal(fixture?.gitTracked, true);
+    assert.equal(env?.gitTracked, false);
+    assert.ok(!JSON.stringify(report).includes(aws));
+    assert.ok(!JSON.stringify(report).includes(openai));
+  });
+});
+
 test('does not read a parent Git repository when scoped to nested directory', async () => {
   await withGitRepo(async root => {
     const nested = join(root, 'nested');

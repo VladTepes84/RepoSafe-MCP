@@ -11,6 +11,10 @@ export interface Finding {
   commit?: string;
   message: string;
   action: string;
+  /** Path-only hint: this looks like a test/fixture, NOT evidence of a harmless value. */
+  testFile?: boolean;
+  /** Current local Git index status; no assertion of remote exposure. */
+  gitTracked?: boolean;
 }
 
 export interface ScanStats {
@@ -18,6 +22,8 @@ export interface ScanStats {
   directoriesVisited: number;
   bytesScanned: number;
   filesSkipped: number;
+  /** Current-file lines skipped by the bounded line parser. */
+  overlengthLinesSkipped?: number;
   /** Number of findings beyond bounded in-memory retention. */
   findingsOmitted?: number;
   complete: boolean;

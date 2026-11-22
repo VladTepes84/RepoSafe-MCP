@@ -7,6 +7,8 @@ export declare function checkSecrets(line: string, file: string, lineNumber: num
  */
 export declare function checkStructuredFile(lines: string[], file: string): Finding[];
 export declare function checkPrivacy(line: string, file: string, lineNumber: number): Finding[];
+/** Filename hint for human triage; a real secret may still exist in a test. */
+export declare function isLikelyTestFile(file: string): boolean;
 export declare function safeRelativePath(raw: string): string;
 export declare function validateRoot(configuredPath: string): Promise<string>;
 export declare function scanRepository(approvedRoot: string, options?: {

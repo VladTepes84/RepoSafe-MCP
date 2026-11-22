@@ -104,6 +104,12 @@
         },
         "action": {
           "type": "string"
+        },
+        "testFile": {
+          "type": "boolean"
+        },
+        "gitTracked": {
+          "type": "boolean"
         }
       }
     },
@@ -142,6 +148,9 @@
           "items": {
             "type": "string"
           }
+        },
+        "overlengthLinesSkipped": {
+          "$ref": "#/$defs/nonnegative"
         }
       }
     },

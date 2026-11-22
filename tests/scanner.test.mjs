@@ -41,6 +41,20 @@ test('high-confidence patterns found; token value never returned', async () => {
   });
 });
 
+test('AWS-shaped fixture remains HIGH but is marked as test-path context', async () => {
+  await withRepo(async dir => {
+    await mkdir(join(dir, 'tests'));
+    const syntheticId = 'AKIA' + 'X'.repeat(16);
+    await writeFile(join(dir, 'tests', 'validator.test.ts'),
+      `const result = validate("ACCESS_KEY_REFERENCE", "${syntheticId}");\n`);
+    const report = await scanRepository(dir);
+    const finding = report.findings.find(f => f.rule === 'aws_access_key_id');
+    assert.equal(finding?.severity, 'high');
+    assert.equal(finding?.testFile, true);
+    assert.ok(!JSON.stringify(report).includes(syntheticId));
+  });
+});
+
 test('generic assignment and example values differ', async () => {
   await withRepo(async dir => {
     await writeFile(join(dir, 'values.env'), 'PASSWORD=realvalue12345\nAPI_KEY=your_api_key_here\nSECRET=${ENV_SECRET}\n');
@@ -220,6 +234,7 @@ test('overlength lines report incomplete rather than hiding a clean scan', async
     const report = await scanRepository(dir);
     assert.equal(report.stats.complete, false);
     assert.equal(report.verdict, 'review_required');
+    assert.equal(report.stats.overlengthLinesSkipped, 1);
   });
 });
 
