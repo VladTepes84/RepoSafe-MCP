@@ -8,25 +8,25 @@ const root = await validateRoot(process.env.REPOSAFE_ROOT ?? '').catch(() => {
     console.error('RepoSafe: REPOSAFE_ROOT must be set to an existing absolute directory.');
     process.exit(1);
 });
-function selectReport(report, category) {
-    if (!category)
-        return report;
+const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+function selectReport(report, category, offset = 0, limit = 50) {
+    const matches = report.findings
+        .filter(f => !category || f.category === category || (category === 'git' && f.rule === 'env_not_gitignored'))
+        .sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity] ||
+        a.file.localeCompare(b.file) || (a.line ?? 0) - (b.line ?? 0));
     return {
-        schemaVersion: report.schemaVersion,
-        scanner: report.scanner,
-        category,
-        findings: report.findings.filter(f => f.category === category || (category === 'git' && f.rule === 'env_not_gitignored')),
-        verdict: report.verdict,
-        stats: report.stats,
-        git: report.git,
-        limitations: report.limitations,
-        note: 'verdict reflects the complete scan, not only this category',
+        ...report,
+        ...(category ? { category, note: 'Verdict reflects the complete scan, not only this category.' } : {}),
+        findings: matches.slice(offset, offset + limit),
+        pagination: { offset, limit, total: matches.length, hasMore: offset + limit < matches.length },
+        note: 'Metadata-only findings; call get_findings_page for additional results. Coverage warnings are not suppressed.',
     };
 }
 function createServer() {
     const server = new McpServer({ name: 'reposafe-mcp', version: '0.7.0' });
+    let lastReport;
     const historySchema = z.object({
-        historyDepth: z.number().int().min(1).max(500).optional(),
+        historyDepth: z.number().int().min(1).max(5000).optional(),
         since: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
         maxDiffSizeMiB: z.number().int().min(1).max(16).optional(),
         currentBranchOnly: z.boolean().optional(),
@@ -46,6 +46,7 @@ function createServer() {
                         ...(category === 'history' ? { historyOptions } : {}) })
                     : category === 'readiness' ? await generateReport(root, { includeHistory: false })
                         : category ? await scanRepository(root) : await generateReport(root, { historyOptions });
+                lastReport = { report, category };
                 return { content: [{ type: 'text', text: JSON.stringify(selectReport(report, category), null, 2) }] };
             }
             catch {
@@ -63,6 +64,23 @@ function createServer() {
     register('scan_git_history', 'Read-only bounded Git history scan for secrets that may remain in old commits (no fetch or modification).', 'history');
     register('check_git_exposure', 'Check tracked sensitive files and .env Git ignore rules without changing the repo.', 'git');
     register('generate_report', 'Combined current files and bounded Git publication-readiness findings and coverage.');
+    server.registerTool('get_findings_page', {
+        description: 'Read the next page of redacted findings from the most recent RepoSafe scan in this local MCP session. No rescan and no file contents.',
+        inputSchema: z.object({
+            offset: z.number().int().min(0).max(5000).default(0),
+            limit: z.number().int().min(1).max(100).default(50),
+        }).strict(),
+    }, async ({ offset, limit }) => {
+        try {
+            if (!lastReport)
+                lastReport = { report: await generateReport(root) };
+            return { content: [{ type: 'text',
+                        text: JSON.stringify(selectReport(lastReport.report, lastReport.category, offset, limit), null, 2) }] };
+        }
+        catch {
+            return { isError: true, content: [{ type: 'text', text: 'RepoSafe findings unavailable; check local scan configuration.' }] };
+        }
+    });
     return server;
 }
 void serveStdio(createServer);
