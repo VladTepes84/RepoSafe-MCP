@@ -19,7 +19,7 @@
     "demo": "node tests/demo.mjs",
     "audit:deps": "npm audit --omit=dev --audit-level=high",
     "config": "node scripts/config.mjs",
-    "test:config": "node --test tests/config.test.mjs",
+    "test:config": "node --test tests/config.test.mjs tests/client-setup.test.mjs",
     "doctor": "node dist/cli.js doctor",
     "init": "node dist/cli.js init",
     "test:userflow": "node --test tests/userflow.test.mjs",
