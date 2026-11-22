@@ -290,6 +290,9 @@ export async function scanGit(root, history = true, limits = {}) {
     // Only the explicitly opted-in CLI uses persistent metadata. No raw Git
     // diffs, credential values, or absolute repository paths are stored.
     const preHistoryFindings = findings.length;
+    const historyWarningsStart = stats.warnings.length;
+    let historyIncomplete = false;
+    const historyWarning = (message) => { historyIncomplete = true; warning(message); };
     let cache;
     let cacheKey = '';
     if (window.resume) {
@@ -304,6 +307,8 @@ export async function scanGit(root, history = true, limits = {}) {
                 stats.historyBatches = saved.batches;
                 // Do not erase an incomplete verdict from the fresh working-tree/Git checks.
                 stats.complete = stats.complete && saved.complete;
+                if (!saved.complete)
+                    historyIncomplete = true;
                 stats.warnings.push(...saved.warnings.filter(x => !stats.warnings.includes(x)));
                 findings.push(...saved.findings);
                 stats.historyResumedFrom = saved.commits;
@@ -316,7 +321,7 @@ export async function scanGit(root, history = true, limits = {}) {
     }
     while (stats.commitsInspected < window.depth && !reachedEnd) {
         if (Date.now() - startedAt > MAX_TOTAL_HISTORY_MS) {
-            warning('Overall Git history time budget reached; completed commits were preserved.');
+            historyWarning('Overall Git history time budget reached; completed commits were preserved.');
             break;
         }
         const remaining = window.depth - stats.commitsInspected;
@@ -375,7 +380,7 @@ export async function scanGit(root, history = true, limits = {}) {
             return true;
         };
         const args = [...historyArgs, '--skip=' + stats.commitsInspected, '--max-count=' + batchSize];
-        const outcome = await streamGitHistory(root, args, window.maxDiffSizeMiB * 1024 * 1024, onLine, () => warning('Long lines in Git history were not analyzed.'));
+        const outcome = await streamGitHistory(root, args, window.maxDiffSizeMiB * 1024 * 1024, onLine, () => historyWarning('Long lines in Git history were not analyzed.'));
         stats.historyBatches++;
         if (outcome === 'complete' && commitOpen)
             completeCommit();
@@ -386,7 +391,8 @@ export async function scanGit(root, history = true, limits = {}) {
                 await cache.save({
                     version: 1, key: cacheKey, commits: stats.commitsInspected,
                     batches: stats.historyBatches, findings: findings.slice(preHistoryFindings),
-                    warnings: stats.warnings, complete: stats.complete, updatedAt: Date.now(),
+                    warnings: stats.warnings.slice(historyWarningsStart),
+                    complete: !historyIncomplete, updatedAt: Date.now(),
                 });
             }
             catch {
@@ -395,7 +401,7 @@ export async function scanGit(root, history = true, limits = {}) {
             }
         }
         if (limitReached || outcome === 'finding_limit') {
-            warning('Git finding storage limit reached; further findings were not inspected.');
+            historyWarning('Git finding storage limit reached; further findings were not inspected.');
             break;
         }
         if (outcome === 'complete') {
@@ -408,13 +414,13 @@ export async function scanGit(root, history = true, limits = {}) {
             continue;
         }
         if (outcome === 'byte_limit') {
-            warning('A single Git commit exceeded the per-batch diff budget (' + window.maxDiffSizeMiB + ' MiB); unable to advance without losing coverage.');
+            historyWarning('A single Git commit exceeded the per-batch diff budget (' + window.maxDiffSizeMiB + ' MiB); unable to advance without losing coverage.');
         }
         else if (outcome === 'timeout') {
-            warning('Git history batch exceeded its ' + GIT_TIMEOUT_MS / 1000 + 's timeout; completed commits were preserved.');
+            historyWarning('Git history batch exceeded its ' + GIT_TIMEOUT_MS / 1000 + 's timeout; completed commits were preserved.');
         }
         else {
-            warning('Git history command failed; completed commits were preserved.');
+            historyWarning('Git history command failed; completed commits were preserved.');
         }
         break;
     }
