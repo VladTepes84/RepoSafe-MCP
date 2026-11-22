@@ -1,0 +1,113 @@
+#!/usr/bin/env node
+// Local-only MCP client configuration. Never executes a client binary, and never
+// overwrites unrelated MCP entries. connect/disconnect affect only "reposafe".
+import { mkdir, readFile, rename, lstat, unlink, writeFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
+import { homedir } from 'node:os';
+import { makeClientConfig } from './config.mjs';
+
+const MAX_CONFIG_BYTES = 1024 * 1024;
+const CLIENTS = new Set(['cursor', 'claude', 'vscode', 'codex']);
+
+export function updateCodexToml(existing, entry, remove) {
+  // TOML sections are line-oriented; refuse ambiguous duplicate or quoted
+  // RepoSafe tables rather than editing a config we cannot safely interpret.
+  const markers = [...existing.matchAll(/^\[mcp_servers\.reposafe\][ \t]*(?:\r?\n|$)/gm)];
+  if (markers.length > 1 || /^\[(?:mcp_servers\."reposafe"|mcp_servers\.'reposafe')\]/m.test(existing)) {
+    throw new Error('Ambiguous RepoSafe TOML sections; no changes made.');
+  }
+  if (!markers.length) {
+    if (remove) return existing;
+    return existing.replace(/\s*$/, '\n\n') + entry.trimEnd() + '\n';
+  }
+  const start = markers[0].index;
+  const afterHeader = start + markers[0][0].length;
+  const nextTable = /^\s*\[/gm;
+  nextTable.lastIndex = afterHeader;
+  const next = nextTable.exec(existing);
+  const end = next ? next.index : existing.length;
+  if (remove) return existing.slice(0, start) + existing.slice(end);
+  return existing.slice(0, start) + entry.trimEnd() + '\n' + existing.slice(end);
+}
+
+export function updateJsonConfig(existing, entry, remove) {
+  let data;
+  try { data = existing.trim() ? JSON.parse(existing) : {}; }
+  catch { throw new Error('Invalid existing JSON configuration; no changes made.'); }
+  if (!data || Array.isArray(data) || typeof data !== 'object') {
+    throw new Error('Existing client configuration must be a JSON object.');
+  }
+  if (data.mcpServers !== undefined &&
+      (!data.mcpServers || Array.isArray(data.mcpServers) || typeof data.mcpServers !== 'object')) {
+    throw new Error('Existing mcpServers is not an object; no changes made.');
+  }
+  if (remove && (!data.mcpServers || !Object.hasOwn(data.mcpServers, 'reposafe'))) return existing;
+  data.mcpServers ??= {};
+  if (remove) delete data.mcpServers.reposafe;
+  else data.mcpServers.reposafe = entry;
+  return JSON.stringify(data, null, 2) + '\n';
+}
+
+export async function updateClient({ client, root, remove = false, dryRun = false,
+  platform = process.platform, home = homedir(), appdata = process.env.APPDATA,
+  node = process.execPath, serverPath } = {}) {
+  if (!CLIENTS.has(client)) throw new Error('Unknown MCP client.');
+  const fakeRoot = platform === 'win32' ? 'C:\\' : '/';
+  const cfg = makeClientConfig({ client, root: remove ? fakeRoot : root,
+    platform, home, appdata, node, ...(serverPath ? { serverPath } : {}) });
+  let old = '';
+  let exists = false;
+  let mode = 0o600;
+  try {
+    const st = await lstat(cfg.file);
+    if (!st.isFile() || st.isSymbolicLink() || st.size > MAX_CONFIG_BYTES) {
+      throw new Error('Unsafe, linked, or oversized MCP configuration; no changes made.');
+    }
+    exists = true;
+    mode = st.mode & 0o777;
+    old = await readFile(cfg.file, 'utf8');
+    if (Buffer.byteLength(old) > MAX_CONFIG_BYTES) throw new Error('Oversized configuration.');
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+  }
+  const entry = cfg.format === 'toml' ? cfg.content : JSON.parse(cfg.content).mcpServers.reposafe;
+  const updated = cfg.format === 'toml'
+    ? updateCodexToml(old, entry, remove)
+    : updateJsonConfig(old, entry, remove);
+  const changed = updated !== old;
+  if (changed && !dryRun) {
+    await mkdir(dirname(cfg.file), { recursive: true, mode: 0o700 });
+    const tmp = cfg.file + '.reposafe-' + process.pid + '.tmp';
+    try {
+      await writeFile(tmp, updated, { encoding: 'utf8', flag: 'wx', mode: exists ? mode : 0o600 });
+      await rename(tmp, cfg.file);
+    } finally {
+      await unlink(tmp).catch(() => {});
+    }
+  }
+  return { client, configFile: cfg.file, changed, dryRun, action: remove ? 'disconnect' : 'connect',
+    applied: changed && !dryRun, protocolVerified: false, clientGuiVerified: false };
+}
+
+async function main() {
+  const argv = process.argv.slice(2);
+  const action = argv[0];
+  const flag = name => { const i = argv.indexOf(name); return i < 0 ? undefined : argv[i + 1]; };
+  const client = flag('--client');
+  const root = flag('--root');
+  const dryRun = argv.includes('--dry-run');
+  const asJson = argv.includes('--json');
+  if (!['connect', 'disconnect'].includes(action) || !CLIENTS.has(client) ||
+      (action === 'connect' && !root) ||
+      argv.some(x => x.startsWith('--') && !['--client','--root','--dry-run','--json'].includes(x))) {
+    throw new Error('Usage: client-setup.mjs connect|disconnect --client CLIENT [--root ABS_PATH] [--dry-run] [--json]');
+  }
+  const result = await updateClient({ client, root, remove: action === 'disconnect', dryRun });
+  console.log(asJson ? JSON.stringify(result, null, 2) :
+    'RepoSafe ' + action + ': ' + (result.changed ? (dryRun ? 'change previewed' : 'configuration updated') : 'already in desired state') +
+    '\nClient: ' + client + '\nConfig: ' + result.configFile +
+    '\nClient GUI test: NOT VERIFIED; restart client and call generate_report.');
+}
+if (process.argv[1] && import.meta.url === new URL('file://' + process.argv[1]).href) {
+  main().catch(() => { console.error('RepoSafe client configuration refused; review client config and paths.'); process.exitCode = 2; });
+}
