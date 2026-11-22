@@ -63,6 +63,16 @@ const main = async () => {
   console.log(`Configuration target: ${data.file}\n\n${data.content}`);
   console.log('Merge only the reposafe entry into an existing configuration. Never overwrite other MCP servers. Restart the client and verify tool discovery.');
 };
-if (process.argv[1] && fileURLToPath(import.meta.url) === (await realpath(process.argv[1]).catch(() => ''))) {
+// Node may use different casing or symlink/junction spellings for the same
+// entry point on Windows (notably when installed from an npm archive).
+// Compare canonical paths rather than a raw file URL path against realpath.
+const mainScript = await realpath(current).catch(() => '');
+const invokedScript = process.argv[1] ? await realpath(process.argv[1]).catch(() => '') : '';
+const directlyInvoked = mainScript && invokedScript && (
+  process.platform === 'win32'
+    ? mainScript.toLowerCase() === invokedScript.toLowerCase()
+    : mainScript === invokedScript
+);
+if (directlyInvoked) {
   main().catch(() => { console.error('Configuration generation failed. Check client, absolute root and permissions.'); process.exitCode = 2; });
 }
