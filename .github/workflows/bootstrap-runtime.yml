@@ -1,0 +1,36 @@
+name: One-time precompiled runtime bootstrap
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  compile-runtime:
+    if: ${{ github.event.pull_request.head.repo.full_name == 'VladTepes84/RepoSafe-MCP' && github.head_ref == 'fix/reliable-first-install-20261122' }}
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/reliable-first-install-20261122
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Build JavaScript distribution from committed TypeScript
+        run: npm run build
+      - name: Commit built runtime only to this feature branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -f dist/
+          if git diff --cached --quiet; then
+            echo "Compiled runtime already present."
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "build: include compiled runtime for script-free installation"
+          git push origin HEAD:refs/heads/fix/reliable-first-install-20261122
