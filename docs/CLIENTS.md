@@ -31,7 +31,7 @@
 
 `Cursor` / `Claude Desktop` use `mcpServers` with `command`, `args`, `env`. **VS Code's current Copilot harness** uses *portable* `mcpServers` and should specify `type: stdio`; the older `.vscode/mcp.json` editor-managed format uses `servers` and is being phased out. **Codex** uses TOML under `[mcp_servers.reposafe]`. Do not reuse a JSON fragment as TOML or use the wrong VS Code configuration format.
 
-The `npm run config` generator makes these four variants deterministically for the machine on which it runs; unit tests cover both Windows and macOS rendering, but do not imply successful GUI acceptance.
+The `npm run config` generator makes these four variants deterministically for the machine on which it runs; unit tests cover Windows, macOS and Linux rendering, but do not imply successful GUI acceptance. The Copilot harness honors `COPILOT_HOME` instead of always reading `~/.copilot`. On Linux, Claude Desktop follows `XDG_CONFIG_HOME` when set. Before explicit `connect`, inspect the `--dry-run` destination, especially when environment overrides or remote hosts are used.
 
 ## v0.6 optional history parameters
 
