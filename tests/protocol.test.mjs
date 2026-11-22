@@ -35,7 +35,7 @@ test('stdio MCP handshake lists six tools and returns redacted report', { timeou
     await client.connect(transport);
     const names = (await client.listTools()).tools.map(x => x.name).sort();
     assert.deepEqual(names, [
-      'check_git_exposure', 'check_repo_readiness', 'generate_report', 'scan_git_history', 'scan_private_refs', 'scan_secrets',
+      'check_git_exposure', 'check_repo_readiness', 'generate_report', 'get_findings_page', 'scan_git_history', 'scan_private_refs', 'scan_secrets',
     ]);
     const res = await client.callTool({ name: 'generate_report', arguments: {} });
     assert.notEqual(res.isError, true);
@@ -66,6 +66,13 @@ test('stdio MCP handshake lists six tools and returns redacted report', { timeou
       rejected=invalid.isError===true;
     } catch { rejected=true; }
     assert.equal(rejected,true);
+
+    const page = await client.callTool({ name: 'get_findings_page', arguments: { offset: 0, limit: 1 } });
+    assert.notEqual(page.isError, true);
+    const pageData = JSON.parse(page.content.find(x => x.type === 'text').text);
+    assert.equal(pageData.pagination.limit, 1);
+    assert.ok(pageData.pagination.total >= 1);
+    assert.equal(pageData.findings.length, 1);
 
     for (const name of names) {
       const result = await client.callTool({ name, arguments: {} });
