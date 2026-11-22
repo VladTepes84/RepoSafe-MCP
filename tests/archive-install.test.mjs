@@ -3,6 +3,8 @@ import { spawnSync } from 'node:child_process';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { Client } from '@modelcontextprotocol/client';
+import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 
 // Real pinned GitHub archive installation: precompiled files, no npm lifecycle scripts.
 const sha = process.env.REPOSAFE_SOURCE_SHA ?? '';
@@ -37,7 +39,28 @@ try {
   const target = join(directory, 'test-repository');
   await mkdir(target);
   await writeFile(join(target, 'README.md'), '# Test\n');
-  const doctor = JSON.parse(run(process.execPath, [cli, 'doctor', '--root', target, '--json']).stdout);
+  const doctorProcess = spawnSync(process.execPath, [cli, 'doctor', '--root', target, '--json'], {
+    encoding: 'utf8', timeout: 180000, maxBuffer: 4 * 1024 * 1024,
+  });
+  if (doctorProcess.status !== 0) {
+    console.error('Archive doctor failure stderr:', String(doctorProcess.stderr).slice(0, 1000));
+    // Diagnose the actual SDK failure rather than relying on CLI's intentionally redacted error.
+    const server = join(prefix, 'node_modules', 'reposafe-mcp', 'dist', 'server.js');
+    const transport = new StdioClientTransport({
+      command: process.execPath, args: [server], env: { ...process.env, REPOSAFE_ROOT: target },
+    });
+    const client = new Client({ name: 'archive-diagnostic', version: '0.0.1' });
+    try {
+      await client.connect(transport);
+      console.error('Archive direct MCP tool list:', (await client.listTools()).tools.map(x => x.name));
+    } catch (error) {
+      console.error('Archive direct MCP diagnostic:', error instanceof Error ? error.stack : String(error));
+    } finally {
+      await client.close().catch(() => {});
+    }
+  }
+  assert.equal(doctorProcess.status, 0, 'Installed archive doctor failed');
+  const doctor = JSON.parse(doctorProcess.stdout);
   assert.equal(doctor.status, 'pass');
   assert.equal(doctor.tools.length, 6);
   const init = JSON.parse(run(process.execPath, [
