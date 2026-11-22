@@ -62,7 +62,7 @@ The generator prints a complete configuration with **your actual Node binary pat
 
 | Client | Destination (macOS) | How to verify |
 | --- | --- | --- |
-| Cursor | `~/.cursor/mcp.json` | Restart Cursor; Customize > MCPs; confirm 6 RepoSafe tools and run `generate_report` |
+| Cursor | `~/.cursor/mcp.json` | Restart Cursor; Customize > MCPs; confirm 7 RepoSafe tools and run `generate_report` |
 | Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json` | Restart Claude Desktop; inspect connector/tools and call `generate_report` |
 | VS Code Copilot harness | `~/.copilot/mcp-config.json` | Choose Copilot harness; Chat: Open Customizations > MCP Servers; confirm `reposafe` |
 | Codex CLI / IDE / supported ChatGPT desktop environment | `~/.codex/config.toml` | Restart client, inspect MCP tools (e.g. `/mcp` in supported clients) |
@@ -92,4 +92,8 @@ node dist/cli.js init --root "ABSOLUTE_PROJECT_PATH" --client cursor
 node dist/cli.js init --root "ABSOLUTE_PROJECT_PATH" --client claude
 ```
 
-`doctor` must return `RepoSafe doctor PASS` and six tools. `init` prints the exact configuration target and JSON for the current computer. **Copy/merge it manually; neither command edits client config.** A real Cursor or Claude Desktop GUI session has NOT yet been verified on this platform. See [QUICKSTART](QUICKSTART.md).
+`doctor` must return `RepoSafe doctor PASS` and seven tools. `init` prints the exact configuration target and JSON for the current computer. **Copy/merge it manually; neither command edits client config.** A real Cursor or Claude Desktop GUI session has NOT yet been verified on this platform. See [QUICKSTART](QUICKSTART.md).
+
+## Managed local client configuration
+
+See [LOCAL_MCP.md](LOCAL_MCP.md) for `connect`/`disconnect` without executing Codex CLI and [UNINSTALL.md](UNINSTALL.md) for safe removal. The app's GUI acceptance remains unverified until tested in the actual client.
