@@ -194,3 +194,47 @@ test('Symlinked tracked file cannot traverse outside the permitted root',async(t
     });
   } finally {await remove(outside,{recursive:true,force:true});}
 });
+
+test('large 100-commit Git logs retain completed history and findings at the byte cap', async () => {
+  await withGitRepo(async root => {
+    const { mkdir } = await import('node:fs/promises');
+    await mkdir(join(root, 'commits'));
+    const secret = 'ghp_' + 'R'.repeat(36); // synthetic fixture, never a real token
+    for (let i = 0; i < 103; i++) {
+      // Each commit adds about 50 KiB of regular short lines; 100 commits exceed 4 MiB.
+      const content = Array.from({ length: 700 }, (_, j) => `sample-${i}-${j}=${'x'.repeat(55)}\n`).join('');
+      await writeFile(join(root, 'commits', `sample-${String(i).padStart(3, '0')}.txt`), content);
+      git(root, 'add', 'commits');
+      git(root, 'commit', '-qm', `synthetic ${i}`);
+    }
+    await writeFile(join(root, 'token.txt'), `GITHUB_TOKEN=${secret}\n`);
+    git(root, 'add', 'token.txt');
+    git(root, 'commit', '-qm', 'synthetic most recent token');
+    const limited = await scanGit(root, true, { depth: 100, maxDiffSizeMiB: 4 });
+    assert.equal(limited.stats.historyChecked, true);
+    assert.ok(limited.stats.commitsInspected > 0 && limited.stats.commitsInspected < 100,
+      `preserved ${limited.stats.commitsInspected} completed commits`);
+    assert.ok(limited.stats.warnings.some(x => x.includes('diff byte budget')));
+    assert.ok(limited.findings.some(x => x.rule === 'git_history_github_token'));
+    assert.ok(!JSON.stringify(limited).includes(secret));
+    const expanded = await scanGit(root, true, { depth: 100, maxDiffSizeMiB: 16 });
+    assert.equal(expanded.stats.commitsInspected, 100);
+    assert.ok(expanded.stats.warnings.some(x => x.includes('depth limit')));
+    assert.ok(!expanded.stats.warnings.some(x => x.includes('diff byte budget')));
+  });
+});
+
+test('oversized single history line is skipped without hiding subsequent secret', async () => {
+  await withGitRepo(async root => {
+    const secret = 'ghp_' + 'S'.repeat(36);
+    await writeFile(join(root, 'sample.txt'), 'x'.repeat(9000) + `\nGITHUB_TOKEN=${secret}\n`);
+    git(root, 'add', 'sample.txt');
+    git(root, 'commit', '-qm', 'synthetic oversized line');
+    const result = await scanGit(root, true, { depth: 2 });
+    assert.equal(result.stats.commitsInspected, 1);
+    assert.equal(result.stats.complete, false);
+    assert.ok(result.stats.warnings.some(x => x.includes('Long lines')));
+    assert.ok(result.findings.some(x => x.rule === 'git_history_github_token'));
+    assert.ok(!JSON.stringify(result).includes(secret));
+  });
+});
