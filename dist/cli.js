@@ -13,8 +13,9 @@ const command = args[0];
 const ownDirectory = dirname(fileURLToPath(import.meta.url));
 const serverPath = join(ownDirectory, 'server.js');
 const configScript = join(ownDirectory, '..', 'scripts', 'config.mjs');
+const clientSetupScript = join(ownDirectory, '..', 'scripts', 'client-setup.mjs');
 const EXPECTED_TOOLS = [
-    'check_git_exposure', 'check_repo_readiness', 'generate_report',
+    'check_git_exposure', 'check_repo_readiness', 'generate_report', 'get_findings_page',
     'scan_git_history', 'scan_private_refs', 'scan_secrets',
 ];
 function help() {
@@ -23,8 +24,10 @@ function help() {
         '',
         'Usage:',
         '  reposafe scan --root ABSOLUTE_PATH [--json|--sarif] [--no-history] [--no-git]',
-        '       [--history-depth 1..500] [--since YYYY-MM-DD] [--max-diff-size MiB:1..16] [--current-branch]',
+        '       [--all-findings] [--history-depth 1..5000] [--since YYYY-MM-DD] [--max-diff-size MiB:1..16] [--current-branch]',
         '  reposafe doctor --root ABSOLUTE_PATH [--json]',
+        '  reposafe connect --root ABSOLUTE_PATH --client cursor|claude|vscode|codex [--dry-run]',
+        '  reposafe disconnect --client cursor|claude|vscode|codex [--dry-run]',
         '  reposafe init --root ABSOLUTE_PATH --client cursor|claude|vscode|codex [--dry-run] [--json]',
         '  npm run demo',
         '',
@@ -113,7 +116,7 @@ async function main() {
     }
     if (command === 'scan') {
         if (!validateFlags(['scan', '--root', '--json', '--sarif', '--no-history', '--no-git',
-            '--history-depth', '--since', '--max-diff-size', '--current-branch']) ||
+            '--history-depth', '--since', '--max-diff-size', '--current-branch', '--all-findings']) ||
             (args.includes('--json') && args.includes('--sarif')))
             throw new Error('Invalid scan arguments.');
         const historyFlags = ['--history-depth', '--since', '--max-diff-size', '--current-branch'];
@@ -138,7 +141,7 @@ async function main() {
             throw new Error('Invalid --since date.');
         }
         const historyOptions = {
-            depth: boundedInteger('--history-depth', 500),
+            depth: boundedInteger('--history-depth', 5000),
             maxDiffSizeMiB: boundedInteger('--max-diff-size', 16),
             since,
             currentBranchOnly: args.includes('--current-branch'),
@@ -152,8 +155,34 @@ async function main() {
         else if (args.includes('--sarif'))
             console.log(JSON.stringify(reportToSarif(report), null, 2));
         else
-            console.log(formatHumanReport(report));
+            console.log(formatHumanReport(report, args.includes('--all-findings') ? Infinity : 50));
         process.exitCode = report.verdict === 'review_required' ? 1 : 0;
+        return;
+    }
+    if (command === 'connect' || command === 'disconnect') {
+        const client = option('--client');
+        const root = option('--root');
+        const connect = command === 'connect';
+        const flags = connect ? ['--root', '--client', '--dry-run', '--json'] :
+            ['--client', '--dry-run', '--json'];
+        if (!client || !['cursor', 'claude', 'vscode', 'codex'].includes(client) ||
+            (connect && !root) || (!connect && root !== undefined) ||
+            args.slice(1).some(x => x.startsWith('--') && !flags.includes(x)) ||
+            ['--client', '--root', '--dry-run', '--json'].some(x => args.filter(y => y === x).length > 1) ||
+            args.some((x, i) => i > 0 && !x.startsWith('--') &&
+                !((args[i - 1] === '--client') || (connect && args[i - 1] === '--root')))) {
+            throw new Error('Invalid client connection arguments.');
+        }
+        if (connect)
+            await doctor(root); // Real MCP handshake before modifying client configuration.
+        const output = execFileSync(process.execPath, [clientSetupScript,
+            connect ? 'connect' : 'disconnect', '--client', client,
+            ...(connect ? ['--root', root] : []),
+            ...(args.includes('--dry-run') ? ['--dry-run'] : []),
+            ...(args.includes('--json') ? ['--json'] : [])], {
+            encoding: 'utf8', timeout: 10000, windowsHide: true,
+        });
+        process.stdout.write(output);
         return;
     }
     if (command === 'doctor' || command === 'init') {
