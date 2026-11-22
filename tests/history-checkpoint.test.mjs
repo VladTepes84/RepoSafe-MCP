@@ -18,7 +18,7 @@ test('opt-in history cache is private, bounded, and rejects poisoned metadata', 
   try {
     const cache = await historyCheckpoint(key);
     assert.equal(await cache.load(), undefined);
-    const snapshot = { version: 1, key, commits: 2, batches: 1,
+    const snapshot = { version: 2, key, commits: 2, batches: 1,
       findings: [{ category: 'history', rule: 'git_history_test', severity: 'high',
         file: 'synthetic.txt', commit: '123456789abc', message: 'Possible synthetic credential.',
         action: 'Review and rotate synthetic credential.' }],
