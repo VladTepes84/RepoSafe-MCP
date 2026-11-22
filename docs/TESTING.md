@@ -34,6 +34,10 @@ REAL OFFLINE DEMO PASS (synthetic credentials only)
 - **Vendor-documented:** host supports local stdio MCP and documents file schema.
 - **Not tested:** GUI calls in Claude Desktop, Cursor, Codex, JetBrains etc. A successful official SDK handshake is not equivalent to all of those manual tests.
 
+## Script-free distribution regression (2026-11-22)
+
+The GitHub repository tracks compiled JavaScript and declarations in `dist/`. CI runs `npm run verify:runtime` after building to catch any drift from TypeScript sources. A real pinned GitHub archive is installed in an isolated prefix with `npm --ignore-scripts`, then `--help`, `doctor --json` and `init --json` verify executable availability, an actual SDK MCP handshake and six tools. This is run on Linux, Windows and macOS, including Node.js 24 on macOS. Direct runtime dependencies are pinned to the tested versions. The existing GitHub-source install smoke also uses `--ignore-scripts`. The npm registry remains unpublished, and actual Cursor/Claude GUI integration is still pending.
+
 ## Security regression tests worth adding next
 
 - Windows junction/reparse-point escape with an actual Windows machine.

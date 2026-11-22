@@ -12,16 +12,17 @@ RepoSafe is a privacy-first, read-only repository scanner available as a **local
 
 ## Quick start — without cloning or compiling
 
-To install the current **public GitHub source** into a dedicated local folder, without a system-wide installation or an npm registry publication:
+To install the **precompiled GitHub archive** in a dedicated user directory (no cloning, TypeScript compiler or npm lifecycle scripts needed):
 
 ```sh
-npm install --prefix "$HOME/.reposafe" --no-audit --no-fund "github:VladTepes84/RepoSafe-MCP#main"
-node "$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js" init --root "/ABSOLUTE/PATH/TO/PROJECT" --client cursor
+npm install --prefix "$HOME/.reposafe" --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
+node "$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js" doctor --root "/ABSOLUTE/PATH/TO/PROJECT"
+node "$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js" scan --root "/ABSOLUTE/PATH/TO/PROJECT"
 ```
 
-Requires Node.js 22+ and Git. Replace the example root with an existing directory you own. The first command installs dependencies and runs the package's prepare build script in the dedicated folder; it **does write to that installation folder and npm's cache**, but RepoSafe does not write inside the scanned repository. The second command validates a real local MCP connection and **prints** the configuration for manual merging into the client. Neither command registers a client or claims GUI verification.
+Requires Node.js 22+ and Git (Git is needed for repository/history checks). Replace the root with an existing project directory you are authorized to audit. The distributed JavaScript is **committed and checked against TypeScript builds in CI**; direct runtime dependencies are pinned to exact tested versions; `--ignore-scripts` prevents npm lifecycle scripts. Installing still writes to the dedicated prefix and npm cache, but scanning does not edit your project. To connect an AI client, run `init --root ABSOLUTE_PATH --client cursor|claude|vscode|codex`, then manually merge the generated MCP entry.
 
-**Supply-chain:** `#main` is convenient but *mutable*. For repeatable installs replace it with `#<reviewed-40-character-commit-SHA>`; do not run arbitrary GitHub code that you have not reviewed. A quick Windows PowerShell variant and first-run checklist are in [FIRST_RUN.md](docs/FIRST_RUN.md). A beta npm package has **not** been published to the npm registry.
+**Supply-chain:** `main` in the URL is *mutable*. For reproducible installations replace the final `main` with a reviewed 40-character Git commit SHA. Unlike npm's `github:` Git transport, the HTTPS archive avoids Git-dependency integrity-check warnings; it does **not** provide a cryptographic signature or independent artifact attestation. Do not install unreviewed source. See [FIRST_RUN.md](docs/FIRST_RUN.md), including Windows commands. **No npm registry package has been published.**
 
 ## Important: Cursor and Claude Desktop are NOT yet manually verified
 
@@ -77,6 +78,12 @@ Additional CLI: `node dist/cli.js scan --root ABSOLUTE_PATH [--json|--sarif] [--
 
 **No edits, auto-fixes, Git checkout, push, remote API calls or background processes.** The AI client cannot pass an arbitrary filesystem path to tools. All operations are restricted to the operator-defined absolute `REPOSAFE_ROOT` set when the server starts.
 
+### Script-free source distribution update (2026-11-22)
+
+- Include precompiled `dist/` JavaScript and declarations in Git commits, allowing pinned GitHub archive installs with `npm --ignore-scripts` and no consumer build hooks.
+- CI rebuilds and checks the committed runtime, then installs the pinned archive in an isolated prefix and performs actual CLI/MCP smoke tests (including macOS).
+- Keep `npm run build` for contributors. The package remains private on the npm registry; a CI passing does not establish real client GUI acceptance.
+
 ### v0.7 first-run improvements
 
 - **GitHub-source install without clone and manual TypeScript compilation**, using npm's Git-based installation into a dedicated prefix. A CI smoke tests the exact source commit and performs a real MCP handshake.
@@ -97,7 +104,7 @@ Additional CLI: `node dist/cli.js scan --root ABSOLUTE_PATH [--json|--sarif] [--
 
 - Human-friendly CLI report sorted by severity, with a recommended action for each finding; use `--json` for structured data.
 - Redacted **SARIF 2.1.0** via `scan --sarif`, including an explicit `incomplete_scan` result when coverage fails closed.
-- npm packaging is **prepared, not published**: `bin` exposes `reposafe` and `reposafe-mcp`, restricted `files` whitelist and `prepack` build; `private: true` remains. CI checks `npm pack --dry-run`.
+- npm packaging is **prepared, not published**: `bin` exposes `reposafe` and `reposafe-mcp`, restricted `files` whitelist and checked-in compiled runtime; `private: true` remains. CI checks `npm pack --dry-run`.
 - A local **composite GitHub Action** (`action.yml`) scans pull-request checkouts with read-only content permissions and writes SARIF to the runner's temporary folder. Automatic upload is **not** enabled. See [GitHub Action guide](docs/ACTIONS.md).
 
 **Remaining steps:** manual Cursor/Claude Desktop GUI validation and a separately approved npm registry publication. Source-only CI cannot prove either.

@@ -25,8 +25,8 @@ try {
   await writeFile(join(target,'LICENSE'),'MIT\n');
   await writeFile(join(target,'.gitignore'),'.env\n');
   const source='github:VladTepes84/RepoSafe-MCP#'+sha;
-  // npm packages the exact GitHub commit (runs its declared prepack build).
-  exec('npm',['install','--prefix',prefix,'--no-save','--no-audit','--no-fund',source],{
+  // Installs the exact precompiled GitHub source without lifecycle scripts.
+  exec('npm',['install','--prefix',prefix,'--ignore-scripts','--no-save','--no-audit','--no-fund',source],{
     env:{...process.env,npm_config_cache:join(dir,'cache')},
   });
   const installed=join(prefix,'node_modules','reposafe-mcp','dist','cli.js');

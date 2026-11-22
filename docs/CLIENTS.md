@@ -56,4 +56,4 @@ There is still no tool argument for a repository path; the operator-approved `RE
 
 The standalone `npm run config -- --client ... --root ... --json` can render a configuration without invoking a server; it correctly sets `verifiedProtocol: false`.
 
-See [FIRST_RUN.md](FIRST_RUN.md). Client-specific launch, approval prompts and UI details are still unverified, and user-supplied installation experiences should not be treated as security guarantees without reproducible evidence.
+Install using the precompiled GitHub archive and `--ignore-scripts` in [FIRST_RUN.md](FIRST_RUN.md) to avoid local lifecycle builds. Client-specific launch, approval prompts and UI details are still unverified, and user-supplied installation experiences should not be treated as security guarantees without reproducible evidence.

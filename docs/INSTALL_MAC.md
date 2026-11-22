@@ -12,7 +12,17 @@ git --version
 
 Install the official Node.js 22 LTS or newer release from https://nodejs.org/ if Node is missing. Git is normally installed with Xcode Command Line Tools (`xcode-select --install`) or another trusted provider. Do not paste arbitrary `curl | sh` install commands.
 
-## 2. Install the checked-out source and run all tests
+## 2. Recommended: install the precompiled archive (no build scripts)
+
+```zsh
+npm install --prefix "$HOME/.reposafe" --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
+node "$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js" doctor --root "/ABSOLUTE/PATH/TO/YOUR/PROJECT"
+node "$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js" scan --root "/ABSOLUTE/PATH/TO/YOUR/PROJECT"
+```
+
+Replace the project root with a specific existing repository directory. The archive includes precompiled `dist/` and does not require approving npm scripts. `main` is mutable: replace it with a reviewed 40-character commit SHA for a reproducible install. The first download and dependency installation need internet; scans stay local. See [FIRST_RUN](FIRST_RUN.md) for `init` and client configuration.
+
+## Alternative for contributors: clone source, build and run all tests
 
 ```zsh
 cd "$HOME"
@@ -23,7 +33,7 @@ npm run check
 npm run demo
 ```
 
-**While private**, clone requires GitHub authorization. A clean `npm run check` must exit 0; `npm run demo` must print `REAL OFFLINE DEMO PASS`. No actual credential is required.
+The repository is public; GitHub access and network connectivity are still required for cloning. A clean `npm run check` must exit 0; `npm run demo` must print `REAL OFFLINE DEMO PASS`. No actual credential is required.
 
 ## 3. Create a disposable test target (not a real project)
 
