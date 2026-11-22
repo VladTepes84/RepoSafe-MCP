@@ -73,7 +73,8 @@ function createServer() {
     }, async ({ offset, limit }) => {
         try {
             if (!lastReport)
-                lastReport = { report: await generateReport(root) };
+                return { isError: true, content: [{ type: 'text',
+                            text: 'No prior RepoSafe scan in this MCP session. Call generate_report before get_findings_page.' }] };
             return { content: [{ type: 'text',
                         text: JSON.stringify(selectReport(lastReport.report, lastReport.category, offset, limit), null, 2) }] };
         }

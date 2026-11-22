@@ -37,6 +37,11 @@ test('stdio MCP handshake lists seven tools and returns redacted report', { time
     assert.deepEqual(names, [
       'check_git_exposure', 'check_repo_readiness', 'generate_report', 'get_findings_page', 'scan_git_history', 'scan_private_refs', 'scan_secrets',
     ]);
+    // Pagination is a cached-read tool: it must not start a hidden full scan.
+    const beforeScan = await client.callTool({ name: 'get_findings_page', arguments: { offset: 0, limit: 10 } });
+    assert.equal(beforeScan.isError, true);
+    assert.match(beforeScan.content.find(x => x.type === 'text')?.text ?? '', /Call generate_report/);
+
     const res = await client.callTool({ name: 'generate_report', arguments: {} });
     assert.notEqual(res.isError, true);
     const output = JSON.stringify(res);
