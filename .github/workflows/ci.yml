@@ -64,13 +64,3 @@ jobs:
           set -euo pipefail
           npm sbom --sbom-format cyclonedx > "$RUNNER_TEMP/reposafe-sbom.json"
           node --input-type=module -e "import {readFileSync} from 'node:fs'; const d=JSON.parse(readFileSync(process.env.RUNNER_TEMP+'/reposafe-sbom.json','utf8')); if(d.bomFormat!=='CycloneDX') process.exit(1)"
-
-
-      # TEMPORARY PR-ONLY DIAGNOSTIC: export compiled, public RepoSafe runtime as
-      # bounded log chunks, so the exact generated files can be committed back
-      # through the restricted GitHub connector. Remove this step afterwards.
-      - name: Temporary compiled runtime export (Linux)
-        if: runner.os == 'Linux' && always()
-        shell: bash
-        run: |
-          node -e 'const fs=require("node:fs");const cp=require("node:child_process");const paths=cp.execFileSync("git",["diff","--name-only","--","dist/"],{encoding:"utf8"}).trim().split(/\r?\n/).filter(Boolean);for(const p of paths){if(!/^dist\/[\w.-]+$/.test(p))throw Error("Unexpected path");const b=fs.readFileSync(p).toString("base64");console.log("RS_EXPORT_START:"+p);for(let i=0;i<b.length;i+=900)console.log("RS_EXPORT_CHUNK:"+p+":"+b.slice(i,i+900));console.log("RS_EXPORT_END:"+p);}'
