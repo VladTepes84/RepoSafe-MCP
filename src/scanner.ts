@@ -372,18 +372,30 @@ export async function scanRepository(approvedRoot: string, options: { skipBaseli
     stats.complete = false;
     if (!stats.warnings.includes(reason)) stats.warnings.push(reason);
   }
+  // Maintain bounded severity buckets only after overflow; this keeps the common
+  // omitted-finding path O(1) without relaxing the cap or discarding high alerts.
+  // A structural replacement can shift indexes and therefore invalidates the buckets.
+  let retentionBuckets: number[][] | undefined;
+  const rank = (severity: Finding['severity']): number =>
+    ({ critical: 0, high: 1, medium: 2, low: 3 })[severity];
   function addFinding(finding: Finding): void {
     const candidate = { ...finding, file: safeRelativePath(finding.file) };
     if (findings.length >= MAX_FINDINGS) {
       markPartial('Finding retention limit reached; lower-priority findings may be omitted.');
       stats.findingsOmitted = (stats.findingsOmitted ?? 0) + 1;
-      const rank = (severity: Finding['severity']): number =>
-        ({ critical: 0, high: 1, medium: 2, low: 3 })[severity];
-      let weakest = 0;
-      for (let i = 1; i < findings.length; i++) {
-        if (rank(findings[i].severity) > rank(findings[weakest].severity)) weakest = i;
+      if (!retentionBuckets) {
+        retentionBuckets = [[], [], [], []];
+        for (let i = 0; i < findings.length; i++) {
+          retentionBuckets[rank(findings[i].severity)].push(i);
+        }
       }
-      if (rank(candidate.severity) < rank(findings[weakest].severity)) findings[weakest] = candidate;
+      let weakestRank = 3;
+      while (weakestRank >= 0 && retentionBuckets[weakestRank].length === 0) weakestRank--;
+      if (rank(candidate.severity) < weakestRank) {
+        const index = retentionBuckets[weakestRank].pop()!;
+        findings[index] = candidate;
+        retentionBuckets[rank(candidate.severity)].push(index);
+      }
       return; // Continue scanning other files even when report retention is full.
     }
     findings.push(candidate);
@@ -475,7 +487,7 @@ export async function scanRepository(approvedRoot: string, options: { skipBaseli
             // Prefer the specialized structural match to a generic same-line warning.
             const genericIndex = findings.findIndex(x => x.file === safeRelativePath(rel) &&
               x.line === f.line && x.rule === 'generic_secret_assignment');
-            if (genericIndex !== -1) findings.splice(genericIndex, 1);
+            if (genericIndex !== -1) { findings.splice(genericIndex, 1); retentionBuckets = undefined; }
             addFinding(f);
           }
         }
