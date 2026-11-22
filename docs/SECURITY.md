@@ -68,7 +68,7 @@ If you believe RepoSafe leaks a secret or crosses a filesystem boundary, private
 
 ## v0.6 history controls and structured formats
 
-- Requested history windows are validated and **capped** before Git runs. No arbitrary Git command, revision string or new filesystem root is accepted. Even an increased limit cannot exceed 500 commits or 16 MiB of patch output.
+- At the v0.6 baseline, requested history windows were capped at 500 commits and 16 MiB of patch output for the invocation. No arbitrary Git command, revision string or new filesystem root was accepted. **Draft PR #10 changes these limits** as detailed below; do not apply the historical baseline to the development branch.
 - Contextual Terraform and Kubernetes detection examines already-bounded text within the approved repository. No template execution, YAML deserialization, shell, filesystem write or network operation is added.
 - Base64 values are decoded **in memory only for heuristic detection**, not returned to an AI client, GitHub Action or SARIF. Encoding is not encryption and does not make secrets safe to commit.
 - Windows junction/reparse-point races remain an unproven boundary; the existing canonical-path/handle checks are mitigations, not an OS sandbox. For hostile repositories use a nonprivileged VM/container with read-only mounts and disabled network access.
@@ -80,3 +80,13 @@ If you believe RepoSafe leaks a secret or crosses a filesystem boundary, private
 - `npm install --prefix DIR` creates files only in the selected installation prefix and npm's cache (subject to npm behavior), whereas RepoSafe scans the **separate** approved `REPOSAFE_ROOT` without modifying it.
 - The `init` command never writes client configuration; `--json` does not imply automatic registration. Do not let an untrusted script merge or overwrite existing MCP servers.
 - An actual MCP SDK handshake is not an end-to-end GUI acceptance test. No client user permissions or approvals have been independently exercised.
+
+
+## Draft PR #10 — expanded local MCP and bounded scanning (not yet merged)
+
+- Requested history depth is capped at **5,000 commits**, processed in sequential batches of at most **100 commits**. Each Git batch has its own **1–16 MiB** patch budget and 12-second subprocess timeout; the entire history traversal has a **120-second** budget. The scanner retains completed commits on partial batches but does **not** persist checkpoints across process exits. An oversized single commit or another exceeded budget results in incomplete coverage, never a clean certification.
+- Working-tree traversal is bounded to 10,000 files, 64 MiB scanned in total, 4 MiB per file and 5,000 retained findings. Truncated or skipped content must be surfaced in coverage warnings; missing findings never imply absence of secrets.
+- The CLI intentionally remains minimal. `get_findings_page` exposes bounded pages from the most recent report **in memory** of the running local MCP server; it does not upload findings or persist a report to disk. An AI client may transmit the redacted metadata it receives under its own privacy policy.
+- Explicit `connect` and `disconnect` operations **do write user-level MCP configuration** for the named client. These are different from read-only `doctor`, `init`, and repository scanning. Preview changes with `--dry-run`. The implementation writes only the RepoSafe entry and refuses unsafe symlinked/invalid configurations, but a durable configuration backup and cross-process modification-race protection are **not yet verified**.
+- Automated MCP SDK tests are **not** acceptance tests for Codex Desktop, Cursor, VS Code, or Claude Desktop GUIs. Do not bypass OS warnings or grant broader AI-client permissions to compensate for integration failures.
+- The script-free GitHub archive described in the README installs from `main` unless a reviewed PR commit SHA is specified. Features in this section are development-branch only until merged; no npm registry publication or signed artifact is claimed.
