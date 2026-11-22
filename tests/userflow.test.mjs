@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { formatHumanReport } from '../dist/format.js';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -82,5 +83,38 @@ test('init --json remains machine-readable with explicit --dry-run', {timeout:26
     const result=JSON.parse(r.stdout);
     assert.equal(result.writesFiles,false);
     assert.equal(result.verifiedProtocol,true);
+  });
+});
+
+test('minimal human report never requires colors and discloses known omissions', () => {
+  const report = {
+    schemaVersion: '2', scanner: 'reposafe-mcp', verdict: 'review_required',
+    findings: [{ category: 'secrets', severity: 'critical', rule: 'synthetic_token',
+      file: 'sample.txt', line: 1, message: 'Synthetic pattern.', action: 'Review synthetic fixture.' }],
+    stats: { complete: false, filesScanned: 1, filesSkipped: 0,
+      directoriesVisited: 1, bytesScanned: 40, findingsOmitted: 3,
+      warnings: ['Synthetic coverage limit reached.'] },
+    limitations: [],
+  };
+  const plain = formatHumanReport(report);
+  assert.doesNotMatch(plain, /\u001b\\[[0-9;]*m/);
+  assert.match(plain, /Known omissions: 3/);
+  assert.match(plain, /INCOMPLETE/);
+  const colored = formatHumanReport(report, 50, true);
+  assert.match(colored, /\u001b\\[31m/);
+  assert.equal(colored.replace(/\u001b\\[[0-9;]*m/g, ''), plain);
+});
+
+test('CLI no-color and machine-readable scan modes never contain ANSI escapes', async () => {
+  await fixture(async root => {
+    const human = run('scan', '--root', root, '--no-git', '--no-color');
+    assert.equal(human.status, 0, human.stderr);
+    assert.doesNotMatch(human.stdout, /\u001b\\[[0-9;]*m/);
+    for (const mode of ['--json', '--sarif']) {
+      const result = run('scan', '--root', root, '--no-git', mode);
+      assert.equal(result.status, 0, result.stderr);
+      assert.doesNotMatch(result.stdout, /\u001b\\[[0-9;]*m/);
+      assert.doesNotThrow(() => JSON.parse(result.stdout));
+    }
   });
 });
