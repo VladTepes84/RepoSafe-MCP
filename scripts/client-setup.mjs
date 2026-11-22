@@ -15,7 +15,22 @@ export function updateCodexToml(existing, entry, remove) {
   // TOML sections are line-oriented; refuse ambiguous duplicate or quoted
   // RepoSafe tables rather than editing a config we cannot safely interpret.
   const markers = [...existing.matchAll(/^\[mcp_servers\.reposafe\][ \t]*(?:\r?\n|$)/gm)];
-  if (markers.length > 1 || /^\[(?:mcp_servers\."reposafe"|mcp_servers\.'reposafe')\]/m.test(existing)) {
+  // TOML allows quoted keys, whitespace, inline mappings and child tables.
+  // A line-only editor cannot safely merge those alternate representations.
+  // Refuse them rather than replacing the wrong section or leaving a shadow entry.
+  const possibleTables = [...existing.matchAll(/^[ \t]*\[\[?[ \t]*mcp_servers[ \t]*\.[ \t]*(?:reposafe(?=[.\]\s])|"reposafe"|'reposafe')[^\r\n]*/gm)];
+  const inlineMap = /^[ \t]*mcp_servers[ \t]*=/m.test(existing);
+  const parentHeaders = [...existing.matchAll(/^[ \t]*\[[ \t]*mcp_servers[ \t]*\][ \t]*(?:\r?\n|$)/gm)];
+  const ambiguousParentEntry = parentHeaders.some(header => {
+    const after = header.index + header[0].length;
+    const next = /^[ \t]*\[/gm;
+    next.lastIndex = after;
+    const found = next.exec(existing);
+    const section = existing.slice(after, found ? found.index : existing.length);
+    return /^[ \t]*(?:reposafe|"reposafe"|'reposafe')[ \t]*=/m.test(section);
+  });
+  if (markers.length > 1 || possibleTables.length !== markers.length ||
+      inlineMap || ambiguousParentEntry) {
     throw new Error('Ambiguous RepoSafe TOML sections; no changes made.');
   }
   if (!markers.length) {
