@@ -1,0 +1,247 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/VladTepes84/RepoSafe-MCP/blob/main/schemas/report-v2.schema.json",
+  "title": "RepoSafe CLI JSON report v2",
+  "description": "Metadata-only base report from reposafe scan --json. MCP responses may additionally include pagination, category and note.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "scanner",
+    "verdict",
+    "findings",
+    "stats",
+    "limitations"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "2"
+    },
+    "scanner": {
+      "const": "reposafe-mcp"
+    },
+    "verdict": {
+      "enum": [
+        "review_required",
+        "no_findings_in_scope"
+      ]
+    },
+    "findings": {
+      "type": "array",
+      "maxItems": 5000,
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
+    },
+    "stats": {
+      "$ref": "#/$defs/stats"
+    },
+    "git": {
+      "$ref": "#/$defs/git"
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "baseline": {
+      "$ref": "#/$defs/baseline"
+    }
+  },
+  "$defs": {
+    "nonnegative": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "category",
+        "rule",
+        "severity",
+        "file",
+        "message",
+        "action"
+      ],
+      "properties": {
+        "category": {
+          "enum": [
+            "secrets",
+            "privacy",
+            "readiness",
+            "history",
+            "git"
+          ]
+        },
+        "rule": {
+          "type": "string",
+          "minLength": 1
+        },
+        "severity": {
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "commit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{12}$"
+        },
+        "message": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string"
+        }
+      }
+    },
+    "stats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "filesScanned",
+        "directoriesVisited",
+        "bytesScanned",
+        "filesSkipped",
+        "complete",
+        "warnings"
+      ],
+      "properties": {
+        "filesScanned": {
+          "$ref": "#/$defs/nonnegative"
+        },
+        "directoriesVisited": {
+          "$ref": "#/$defs/nonnegative"
+        },
+        "bytesScanned": {
+          "$ref": "#/$defs/nonnegative"
+        },
+        "filesSkipped": {
+          "$ref": "#/$defs/nonnegative"
+        },
+        "findingsOmitted": {
+          "$ref": "#/$defs/nonnegative"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "git": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "historyChecked",
+        "commitsInspected",
+        "gitAvailable",
+        "complete",
+        "warnings"
+      ],
+      "properties": {
+        "historyChecked": {
+          "type": "boolean"
+        },
+        "commitsInspected": {
+          "$ref": "#/$defs/nonnegative"
+        },
+        "historyBatches": {
+          "$ref": "#/$defs/nonnegative"
+        },
+        "historyResumedFrom": {
+          "$ref": "#/$defs/nonnegative"
+        },
+        "historyCandidates": {
+          "$ref": "#/$defs/nonnegative"
+        },
+        "historyWindow": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "maxCommits",
+            "maxDiffSizeMiB",
+            "currentBranchOnly"
+          ],
+          "properties": {
+            "maxCommits": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5000
+            },
+            "maxDiffSizeMiB": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 16
+            },
+            "since": {
+              "type": "string",
+              "format": "date"
+            },
+            "currentBranchOnly": {
+              "type": "boolean"
+            }
+          }
+        },
+        "trackedExcludedFilesRequested": {
+          "$ref": "#/$defs/nonnegative"
+        },
+        "trackedExcludedFilesScanned": {
+          "$ref": "#/$defs/nonnegative"
+        },
+        "gitAvailable": {
+          "type": "boolean"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entries",
+        "suppressed",
+        "highSuppressed",
+        "expired"
+      ],
+      "properties": {
+        "entries": {
+          "$ref": "#/$defs/nonnegative"
+        },
+        "suppressed": {
+          "$ref": "#/$defs/nonnegative"
+        },
+        "highSuppressed": {
+          "$ref": "#/$defs/nonnegative"
+        },
+        "expired": {
+          "$ref": "#/$defs/nonnegative"
+        }
+      }
+    }
+  }
+}

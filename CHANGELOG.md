@@ -1,15 +1,15 @@
 # Changelog
 
-## Unreleased — security hardening of draft PR #10
+## Unreleased — security hardening merged in PR #10 (22 November 2026)
 
 - Separate persisted history warnings from fresh tracked-file checks to avoid stale incomplete verdicts across resumed scans; add regression with fixed uncommitted oversized file. Invalidate old v1 checkpoint schema; new v2 snapshots are only eligible for reuse for seven days, with manual cleanup of old files.
 - Reject ambiguous Codex TOML forms (quoted/child tables, inline mappings) without changing any client configuration.
 - Reject future-dated checkpoint metadata and group/world-writable parent state directories.
 - Remove inherited `GIT_*` environment overrides before Git subprocesses; add two-repository boundary regression.
 - Align managed VS Code Copilot config with `COPILOT_HOME` and Claude Desktop Linux config with `XDG_CONFIG_HOME`; verify alternate locations and deliberate fail-closed relative-path handling.
-- These changes remain **draft/unmerged** pending acceptance of real client integrations and macOS Codex binary investigation.
+- These changes are merged on `main`; real client GUI integrations and the separate macOS Codex binary warning remain unverified.
 
-## Unreleased — local MCP onboarding and scalable bounded scans (PR #10)
+## Unreleased — local MCP onboarding and scalable bounded scans (merged PR #10)
 
 - Optional `connect` / `disconnect` for Codex Desktop/CLI, Cursor, Claude Desktop and VS Code, with reversible RepoSafe-only client configuration; no AI client executables or macOS security policy are invoked.
 - Git history scanned in sequential 100-commit batches with per-batch byte/timeout limits, commit-boundary resumption, local history candidate counts, and 5,000 requested commit ceiling. CLI-only opt-in `--resume-history` now persists bounded, private redacted checkpoint metadata for restart-safe resumption, keyed by canonical root, Git ref tips and scan options (7-day reuse window). Default CLI and all MCP tools do not write scan state.
