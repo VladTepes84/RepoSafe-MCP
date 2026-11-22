@@ -1,5 +1,5 @@
 import type { Finding, ScanReport } from './types.js';
-export declare const MAX_FINDINGS = 100;
+export declare const MAX_FINDINGS = 5000;
 export declare function checkSecrets(line: string, file: string, lineNumber: number, category?: 'secrets' | 'history'): Finding[];
 /** Conservative multi-line checks for Terraform variable defaults and Kubernetes Secret
  * data values. Called only after bounded text files are loaded. No source contents escape.
