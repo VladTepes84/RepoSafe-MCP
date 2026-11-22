@@ -238,3 +238,25 @@ test('oversized single history line is skipped without hiding subsequent secret'
     assert.ok(!JSON.stringify(result).includes(secret));
   });
 });
+
+
+test('history batches cover more than 200 commits without a global diff cap', { timeout: 40_000 }, async () => {
+  await withGitRepo(async root => {
+    await writeFile(join(root, 'README.md'), '# Batch test\n');
+    git(root, 'add', 'README.md');
+    git(root, 'commit', '-qm', 'initial');
+    const synthetic = 'ghp_' + 'N'.repeat(36);
+    for (let i = 0; i < 210; i++) {
+      await writeFile(join(root, 'history.txt'), i === 30 ? 'GITHUB_TOKEN=' + synthetic + '\n' : 'safe=' + i + '\n');
+      git(root, 'add', 'history.txt');
+      git(root, 'commit', '-qm', 'synthetic batch ' + i);
+    }
+    const result = await scanGit(root, true, { depth: 1000, maxDiffSizeMiB: 1 });
+    assert.equal(result.stats.commitsInspected, 211);
+    assert.equal(result.stats.historyCandidates, 211);
+    assert.equal(result.stats.historyBatches, 3);
+    assert.equal(result.stats.complete, true, result.stats.warnings.join('; '));
+    assert.ok(result.findings.some(f => f.rule === 'git_history_github_token'));
+    assert.ok(!JSON.stringify(result).includes(synthetic));
+  });
+});
