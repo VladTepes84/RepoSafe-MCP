@@ -3,7 +3,7 @@
 
 RepoSafe runs as a **local STDIO MCP server**, not as a hosted plugin or GUI app. The CLI and AI-connected MCP tools share the same offline scanner. Installation of the archive and npm dependencies requires internet once; scans operate on local files. An AI host may send redacted finding metadata to its model provider under that host's privacy policy.
 
-**Actual GUI integration: NOT YET VERIFIED.** Automated tests verify SDK handshake, tool discovery and safe config handling; these are not equivalent to manual client acceptance.
+**Actual GUI integration has NOT passed.** On 2026-11-22 a Codex Desktop conversation did not expose RepoSafe tools; no RepoSafe MCP calls occurred in that session, despite passing local Mac `doctor` and SDK tests. The reason has not been diagnosed. This work is deferred. Other client GUIs remain unverified; protocol success is not client acceptance.
 
 ## 1. Install and check
 
@@ -52,7 +52,7 @@ Run `node "$RS" scan --root "/ABSOLUTE/PATH/TO/PROJECT" --resume-history` only w
     node "$RS" scan --root "/ABSOLUTE/PATH/TO/PROJECT" --json
     node "$RS" scan --root "/ABSOLUTE/PATH/TO/PROJECT" --sarif
 
-Human CLI output defaults to the first 50 highest-severity findings, without losing the rest of the internally retained report. --all-findings expands the view, and JSON/SARIF remain available. Git history is processed in bounded sequential batches of up to 100 commits each; max-diff-size 1–16 MiB applies **per batch**. The maximum requested history depth is 5,000 commits. A single commit exceeding the per-batch budget is not silently skipped: coverage is marked incomplete. All work remains offline.
+Human CLI output defaults to the first 50 highest-severity findings grouped by severity, with remediation. `--summary` prints counts/coverage only; `--compact` gives one-line findings; `--group-by file` changes the human grouping and sort order. `--all-findings` expands the view to all **retained** results; JSON/SARIF remain unchanged. See [CLI_REFERENCE.md](CLI_REFERENCE.md). Git history is processed in bounded sequential batches of up to 100 commits each; max-diff-size 1–16 MiB applies **per batch**. The maximum requested history depth is 5,000 commits. A single commit exceeding the per-batch budget is not silently skipped: coverage is marked incomplete. All work remains offline.
 
 ## Synthetic performance checks
 

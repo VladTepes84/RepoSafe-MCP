@@ -1,99 +1,88 @@
-# Windows 11 — PowerShell setup, no placeholder JSON
+# RepoSafe MCP — Windows 11 installation (PowerShell)
 
-Use **PowerShell**, not Command Prompt. Supported design: Windows + Node.js 22+ + Git for Windows + a local MCP client. The configuration generator discovers the actual absolute Node executable and escapes Windows `\\` characters properly.
+**Runtime:** Node.js 22+, npm, Git for Windows. The local scanner does not need an AI key, cloud service, administrator installation or PowerShell execution-policy changes. Use PowerShell; when `npm.ps1` is restricted, call **`npm.cmd`**.
 
-## 1. Prerequisites
+## 1. Verify available tools
 
-```powershell
+~~~powershell
 node --version
 npm --version
 git --version
-```
+~~~
 
-If missing, install Node.js 22+ from https://nodejs.org/ and Git for Windows from https://git-scm.com/downloads/win, then reopen PowerShell. Do **not** disable PowerShell execution policies to make RepoSafe work. On some managed machines running `npm` may invoke a blocked `npm.ps1`; use `npm.cmd` in the commands below instead.
+If Node/Git are missing, obtain them from [nodejs.org](https://nodejs.org/) and [git-scm.com](https://git-scm.com/downloads/win), then reopen PowerShell. Do not disable Defender or relax script execution policies to install RepoSafe.
 
-## 2. Recommended: install a precompiled archive with no npm scripts
+## 2. Install a precompiled GitHub source archive
 
-```powershell
+~~~powershell
 npm.cmd install --prefix "$HOME\.reposafe" --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
-node "$HOME\.reposafe\node_modules\reposafe-mcp\dist\cli.js" doctor --root "C:\Users\YourUser\Projects\YourProject"
-node "$HOME\.reposafe\node_modules\reposafe-mcp\dist\cli.js" scan --root "C:\Users\YourUser\Projects\YourProject"
-```
+$RS = "$HOME\.reposafe\node_modules\reposafe-mcp\dist\cli.js"
+node $RS --help
+~~~
 
-Replace the project root with an existing repository you are authorized to audit. Precompiled `dist/` means no local TypeScript compilation or npm lifecycle approval. `main` is mutable; replace it with a reviewed full commit SHA for reproducible installation. More details: [FIRST_RUN](FIRST_RUN.md).
+The project ships compiled `dist/` JavaScript. `--ignore-scripts` prevents lifecycle scripts. The installed directory and npm cache are modified; the scanned project is not. GitHub's `main` archive is **mutable**. Replace its final segment with a reviewed full 40-character commit SHA for reproducible installation; this is not signed provenance or an npm-registry release.
 
-## Alternative for contributors: clone source and run tests
+## 3. Audit one authorized directory
 
-```powershell
-Set-Location $HOME
+~~~powershell
+$REPO = "C:\ABSOLUTE\PATH\TO\REPOSITORY"
+node $RS doctor --root $REPO
+node $RS scan --root $REPO
+node $RS scan --root $REPO --summary
+node $RS scan --root $REPO --compact --group-by file
+~~~
+
+Do not select an entire drive, `$HOME` or a system directory. `doctor` verifies **seven** local MCP tool names and a STDIO handshake, **without scanning** or verifying any AI client's UI. Scan results identify severity, relative file, optional commit, coverage and recommended action. Exit `0` = no findings in bounded examined scope, `1` = review or incomplete, `2` = error.
+
+## 4. Clone the source for development and test runs
+
+~~~powershell
 git clone https://github.com/VladTepes84/RepoSafe-MCP.git
-Set-Location "$HOME\RepoSafe-MCP"
-npm.cmd ci
+Set-Location RepoSafe-MCP
+npm.cmd ci --ignore-scripts
 npm.cmd run check
-npm.cmd run demo
-```
+npm.cmd run verify:runtime
+npm.cmd run benchmark
+npm.cmd run audit:deps
+~~~
 
-RepoSafe is public; cloning still requires GitHub connectivity. The complete check exits 0 on success; the demo prints `REAL OFFLINE DEMO PASS`.
+The test suite uses synthetic credentials and local disposable Git repositories. `npm audit` contacts npm for known advisories; the scanner does not upload source. No credential should be pasted in issues or tests.
 
-## 3. Create a safe, disposable target
+## 5. Optional local MCP client configuration
 
-```powershell
-$Target = Join-Path $HOME 'Projects\reposafe-sample'
-New-Item -ItemType Directory -Force -Path $Target | Out-Null
-Set-Content -Path (Join-Path $Target 'README.md') -Value '# Synthetic test project'
-Set-Content -Path (Join-Path $Target 'LICENSE') -Value 'MIT'
-Set-Content -Path (Join-Path $Target '.gitignore') -Value @('.env', '.env.*')
-node "$HOME\.reposafe\node_modules\reposafe-mcp\dist\cli.js" scan --root "$Target" --no-git --json
-```
+~~~powershell
+node $RS init --root $REPO --client cursor --json
+node $RS connect --root $REPO --client cursor --dry-run
+~~~
 
-This current-tree-only report will contain no findings for the synthetic sample. Remove `--no-git` when testing a real Git repository; a target without a `.git` directory cannot produce a complete Git history check.
+Only after inspecting the dry-run:
 
-## 4. Generate exact client settings
+~~~powershell
+node $RS connect --root $REPO --client cursor
+~~~
 
-For the **precompiled archive** installation from step 2, use `node "$HOME\.reposafe\node_modules\reposafe-mcp\dist\cli.js" init --root "$Target" --client cursor` (or a supported client) to preview its config without changing client files.
+Supported generated configuration targets: `cursor`, `claude`, `vscode`, `codex`. JSON paths/backslashes and actual Node command are produced for this computer by the generator; do **not** manually guess JSON/TOML shapes. Preserve all other MCP entries. Restart the application and insist on real tool invocation receipts.
 
-For **source contributors only**, run any one or more of these (from `$HOME\RepoSafe-MCP`):
+**GUI status:** cross-platform SDK protocol tests succeed, but an actual Codex Desktop conversation on Mac **did not expose RepoSafe tools** on 2026-11-22. This is **not** a verified Windows client result or a diagnosis. Running the CLI alone is fully independent of any GUI client.
 
-```powershell
-npm.cmd run config -- --client cursor --root "$Target"
-npm.cmd run config -- --client claude --root "$Target"
-npm.cmd run config -- --client vscode --root "$Target"
-npm.cmd run config -- --client codex --root "$Target"
-```
+## 6. Reporting and boundaries
 
-The command prints the path of the configuration file **and the complete ready-to-paste JSON/TOML**. It also inserts the actual `node.exe` path (which may contain spaces). **Do not manually single-escape backslashes in JSON.** Copy the generated block; merge `reposafe` with existing MCP servers rather than replacing other settings.
+~~~powershell
+node $RS scan --root $REPO --history-depth 500 --max-diff-size 8
+node $RS scan --root $REPO --json > "C:\SAFE\OUTSIDE\REPORTS\report.json"
+node $RS scan --root $REPO --sarif > "C:\SAFE\OUTSIDE\REPORTS\report.sarif"
+~~~
 
-| Client | Where the generated entry belongs |
-| --- | --- |
-| Cursor | `$HOME\.cursor\mcp.json` |
-| Claude Desktop | `$env:APPDATA\Claude\claude_desktop_config.json` |
-| VS Code Copilot harness (2026) | `$HOME\.copilot\mcp-config.json` |
-| Codex / supported ChatGPT desktop | `$HOME\.codex\config.toml` |
+Create the output directory outside the repository before running redirection. JSON/SARIF contain redacted findings and coverage metadata. Supported current-history depth up to 5,000 commits, up to 16 MiB per history batch, up to 5,000 retained findings. `--resume-history` optionally saves private local progress metadata; see [Security](SECURITY.md).
 
-Restart the client and find `reposafe` in its MCP panel or tool list. Ask: **“Use RepoSafe `generate_report` on the approved folder and explain the findings without copying source values.”** Do not grant the client automatic permission to run unrelated shell tools just to use RepoSafe.
+## 7. Disconnect and uninstall
 
-## Troubleshooting
+~~~powershell
+node $RS disconnect --client cursor --dry-run
+node $RS disconnect --client cursor
+npm.cmd uninstall --prefix "$HOME\.reposafe" reposafe-mcp --ignore-scripts --no-audit --no-fund
+~~~
 
-- `node` not found: reinstall Node.js then open a new PowerShell; confirm `Get-Command node`.
-- `npm.ps1 cannot be loaded`: use `npm.cmd` rather than lowering execution-policy protections.
-- Invalid JSON: use the generator output without manually replacing escaped `\\` characters; `ConvertFrom-Json` can validate a JSON configuration.
-- No tools: restart the desktop client; check config filename and presence of `dist\server.js`; rerun `npm.cmd run build`.
-- Git tools fail: `git --version`, `git -C "$Target" status`; for non-Git folders use `--no-git` in CLI and understand that history has not been checked.
-- Cursor organization network controls may prevent local stdio servers on Windows if sandboxing is enforced; ask your administrator rather than disabling protections.
+Only disconnect a client you actually configured. Source clones, checkpoints, backup configs and test fixtures are separate, **not automatically removed**. See [Uninstall / rollback](UNINSTALL.md). Do not remove Node.js, Git or unrelated client settings.
 
-Official references: https://prod.cursor.com/help/customization/mcp , https://modelcontextprotocol.io/docs/develop/connect-local-servers , https://code.visualstudio.com/docs/agents/reference/mcp-configuration , https://learn.chatgpt.com/docs/extend/mcp .
-## v0.4: validated local MCP self-check (does not change client files)
-
-Run the following from the cloned RepoSafe-MCP directory after `npm ci` and `npm run build`. Replace `ABSOLUTE_PROJECT_PATH` with an existing local repository directory.
-
-```text
-node dist/cli.js doctor --root "ABSOLUTE_PROJECT_PATH"
-node dist/cli.js init --root "ABSOLUTE_PROJECT_PATH" --client cursor
-node dist/cli.js init --root "ABSOLUTE_PROJECT_PATH" --client claude
-```
-
-`doctor` must return `RepoSafe doctor PASS` and seven tools. `init` prints the exact configuration target and JSON for the current computer. **Copy/merge it manually; neither command edits client config.** A real Cursor or Claude Desktop GUI session has NOT yet been verified on this platform. See [QUICKSTART](QUICKSTART.md).
-
-## Managed local client configuration
-
-See [LOCAL_MCP.md](LOCAL_MCP.md) for `connect`/`disconnect` with user-level configuration and [UNINSTALL.md](UNINSTALL.md) for clean removal without PowerShell policy changes.
+Further: [Quick start](QUICKSTART.md) · [CLI reference](CLI_REFERENCE.md) · [Security](SECURITY.md) · [Client status](CLIENTS.md).
