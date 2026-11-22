@@ -21,7 +21,7 @@ test('doctor starts the real local MCP server and discovers all seven tools', {t
     assert.equal(r.status,0,r.stderr);
     const report=JSON.parse(r.stdout);
     assert.equal(report.status,'pass');
-    assert.equal(report.tools.length,6);
+    assert.equal(report.tools.length,7);
     assert.ok(report.tools.includes('generate_report'));
     assert.equal(report.approvedRoot,true);
   });
@@ -68,7 +68,7 @@ test('machine-readable init performs real MCP handshake for all supported client
       assert.equal(result.verifiedGUI,false);
       assert.equal(result.writesFiles,false);
       assert.equal(result.client,client);
-      assert.equal(result.discoveredTools.length,6);
+      assert.equal(result.discoveredTools.length,7);
       assert.ok(result.targetFile);
       assert.ok(result.content.includes('REPOSAFE_ROOT'));
       assert.ok(!r.stdout.includes('MCP handshake PASSED'), 'stdout must be pure JSON');
