@@ -2,13 +2,13 @@ import { constants } from 'node:fs';
 import { open, readdir, realpath, stat, lstat } from 'node:fs/promises';
 import { isAbsolute, join, parse, relative, sep } from 'node:path';
 import { applyBaseline } from './baseline.js';
-const MAX_FILES = 1000;
-const MAX_DIRECTORIES = 2000;
-const MAX_BYTES = 10 * 1024 * 1024;
-const MAX_FILE_BYTES = 512 * 1024;
-const MAX_DEPTH = 10;
-export const MAX_FINDINGS = 100;
-const MAX_LINE_CHARS = 8192;
+const MAX_FILES = 10000;
+const MAX_DIRECTORIES = 20000;
+const MAX_BYTES = 64 * 1024 * 1024;
+const MAX_FILE_BYTES = 4 * 1024 * 1024;
+const MAX_DEPTH = 20;
+export const MAX_FINDINGS = 5000;
+const MAX_LINE_CHARS = 65536;
 const IGNORED_DIRS = new Set([
     '.git', 'node_modules', 'coverage', '.next',
     '.venv', 'venv', '__pycache__', '.turbo', '.cache',
@@ -372,12 +372,21 @@ export async function scanRepository(approvedRoot, options = {}) {
             stats.warnings.push(reason);
     }
     function addFinding(finding) {
+        const candidate = { ...finding, file: safeRelativePath(finding.file) };
         if (findings.length >= MAX_FINDINGS) {
-            markPartial('Finding limit reached.');
-            stopped = true;
-            return;
+            markPartial('Finding retention limit reached; lower-priority findings may be omitted.');
+            stats.findingsOmitted = (stats.findingsOmitted ?? 0) + 1;
+            const rank = (severity) => ({ critical: 0, high: 1, medium: 2, low: 3 })[severity];
+            let weakest = 0;
+            for (let i = 1; i < findings.length; i++) {
+                if (rank(findings[i].severity) > rank(findings[weakest].severity))
+                    weakest = i;
+            }
+            if (rank(candidate.severity) < rank(findings[weakest].severity))
+                findings[weakest] = candidate;
+            return; // Continue scanning other files even when report retention is full.
         }
-        findings.push({ ...finding, file: safeRelativePath(finding.file) });
+        findings.push(candidate);
     }
     while (toVisit.length && !stopped) {
         if (stats.directoriesVisited >= MAX_DIRECTORIES) {
