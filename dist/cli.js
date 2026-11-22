@@ -158,8 +158,7 @@ async function main() {
         else if (args.includes('--sarif'))
             console.log(JSON.stringify(reportToSarif(report), null, 2));
         else
-            console.log(formatHumanReport(report, args.includes('--all-findings') ? Infinity : 50,
-                Boolean(process.stdout.isTTY && process.env.NO_COLOR === undefined && !args.includes('--no-color'))));
+            console.log(formatHumanReport(report, args.includes('--all-findings') ? Infinity : 50, Boolean(process.stdout.isTTY && process.env.NO_COLOR === undefined && !args.includes('--no-color'))));
         process.exitCode = report.verdict === 'review_required' ? 1 : 0;
         return;
     }
