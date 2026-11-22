@@ -1,10 +1,13 @@
 const order = ['critical', 'high', 'medium', 'low'];
-export function formatHumanReport(report, maxDisplayed = 50) {
+const severityColors = { critical: 31, high: 33, medium: 36, low: 2 };
+export function formatHumanReport(report, maxDisplayed = 50, useColor = false) {
+    const paint = (value, code) => useColor ? `\u001b[${code}m${value}\u001b[0m` : value;
     const count = Object.fromEntries(order.map(s => [s, report.findings.filter(f => f.severity === s).length]));
     const output = [
-        'RepoSafe MCP — ' + (report.verdict === 'review_required' ? 'REVIEW REQUIRED' : 'NO FINDINGS IN SCANNED SCOPE'),
+        'RepoSafe MCP — ' + (report.verdict === 'review_required' ? paint('REVIEW REQUIRED', 31) : paint('NO FINDINGS IN SCANNED SCOPE', 32)),
         'Coverage: ' + (report.stats.complete ? 'complete within scanner limits' : 'INCOMPLETE; manual review required') +
-            ' | Files: ' + report.stats.filesScanned + ' | Findings: ' + report.findings.length,
+            ' | Files read: ' + report.stats.filesScanned + ' | Findings kept: ' + report.findings.length +
+            ((report.stats.findingsOmitted ?? 0) > 0 ? ' | Known omissions: ' + report.stats.findingsOmitted : ''),
         'Severity: ' + order.map(s => s + '=' + count[s]).join('  '),
     ];
     if (report.git?.historyWindow) {
@@ -19,11 +22,11 @@ export function formatHumanReport(report, maxDisplayed = 50) {
         output.push('Baseline: ' + report.baseline.suppressed + ' suppressed (' +
             report.baseline.highSuppressed + ' high/critical), ' + report.baseline.expired + ' expired.');
     if (report.findings.length) {
-        output.push('', 'FINDINGS & ACTIONS');
+        output.push('', paint('FINDINGS & ACTIONS', 1));
         const sorted = [...report.findings].sort((a, b) => order.indexOf(a.severity) - order.indexOf(b.severity) ||
             a.file.localeCompare(b.file) || (a.line ?? 0) - (b.line ?? 0));
         for (const [index, item] of sorted.slice(0, maxDisplayed).entries()) {
-            output.push((index + 1) + '. [' + item.severity.toUpperCase() + '] ' + item.rule +
+            output.push((index + 1) + '. [' + paint(item.severity.toUpperCase(), severityColors[item.severity]) + '] ' + item.rule +
                 ' — ' + item.file + (item.line ? ':' + item.line : '') +
                 (item.commit ? ' (commit ' + item.commit + ')' : ''));
             output.push('   Reason: ' + item.message, '   Action: ' + item.action);
@@ -40,7 +43,7 @@ export function formatHumanReport(report, maxDisplayed = 50) {
         }
     }
     if (report.stats.warnings.length) {
-        output.push('', 'COVERAGE WARNINGS');
+        output.push('', paint('COVERAGE WARNINGS', 33));
         for (const note of new Set(report.stats.warnings))
             output.push('- ' + note);
     }
