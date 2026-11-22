@@ -60,7 +60,11 @@ for (const [name, files, commits] of scenarios) {
     }
     results.push({ scenario: name, files, commits: commits + 1, elapsedMs,
       observedPeakRssMiB: Math.round(peak / (1024 * 1024)) });
-  } finally { await rm(root, { recursive: true, force: true }); }
+  } finally {
+    // Git for Windows may briefly retain a handle after the history child exits.
+    // Retry only removal of this owned synthetic temp fixture; never suppress a failure.
+    await rm(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+  }
 }
 console.log(JSON.stringify({ scanner: 'reposafe-mcp', mode: full ? 'full' : 'smoke',
   platform: process.platform, node: process.version, measurements: results }, null, 2));
