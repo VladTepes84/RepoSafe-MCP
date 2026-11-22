@@ -35,7 +35,7 @@ On Windows PowerShell:
     node $RS connect --root "C:\Users\USER\Projects\PROJECT" --client codex --dry-run
     node $RS connect --root "C:\Users\USER\Projects\PROJECT" --client codex
 
-Other choices: --client cursor, --client vscode, --client claude. The installer writes **only** the named RepoSafe MCP entry in the user's client configuration, preserving other servers and unrelated settings. Codex Desktop and Codex CLI use the same local Codex TOML configuration. Crucially, connecting RepoSafe does **not** execute the codex binary or change macOS Gatekeeper settings.
+Other choices: --client cursor, --client vscode, --client claude. For VS Code's modern Copilot harness, `COPILOT_HOME` overrides the default `~/.copilot` location. Claude Desktop on Linux uses `XDG_CONFIG_HOME/Claude` or `~/.config/Claude`. Always inspect the `--dry-run` target before connecting. The installer writes **only** the named RepoSafe MCP entry in the user's client configuration, preserving other servers and unrelated settings. Codex Desktop and Codex CLI use the same local Codex TOML configuration. Crucially, connecting RepoSafe does **not** execute the codex binary or change macOS Gatekeeper settings.
 
 Restart/reload the relevant IDE. Ask it to list the seven RepoSafe tools, call generate_report, and then retrieve later findings via get_findings_page with offset and limit. MCP sends a bounded first page (up to 50 results), with later pages up to 100; data is cached in the running local server process and not stored on disk.
 
