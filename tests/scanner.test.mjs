@@ -222,3 +222,16 @@ test('overlength lines report incomplete rather than hiding a clean scan', async
     assert.equal(report.verdict, 'review_required');
   });
 });
+
+test('finding overflow still scans later files and retains higher-severity alerts', { timeout: 15000 }, async () => {
+  await withRepo(async dir => {
+    await writeFile(join(dir, 'many.txt'), Array(5100).fill('PASSWORD=some_real_value_12345').join('\n'));
+    const token = 'sk-proj-' + 'U'.repeat(38);
+    await writeFile(join(dir, 'z-high.ts'), 'OPENAI_API_KEY=' + token + '\n');
+    const report = await scanRepository(dir);
+    assert.equal(report.stats.complete, false);
+    assert.ok(report.stats.findingsOmitted > 0);
+    assert.ok(report.findings.some(x => x.severity === 'high' && x.rule === 'openai_key'));
+    assert.ok(!JSON.stringify(report).includes(token));
+  });
+});
