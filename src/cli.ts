@@ -17,7 +17,7 @@ const serverPath = join(ownDirectory, 'server.js');
 const configScript = join(ownDirectory, '..', 'scripts', 'config.mjs');
 const clientSetupScript = join(ownDirectory, '..', 'scripts', 'client-setup.mjs');
 const EXPECTED_TOOLS = [
-  'check_git_exposure', 'check_repo_readiness', 'generate_report',
+  'check_git_exposure', 'check_repo_readiness', 'generate_report', 'get_findings_page',
   'scan_git_history', 'scan_private_refs', 'scan_secrets',
 ];
 function help(): void {
@@ -26,7 +26,7 @@ function help(): void {
     '',
     'Usage:',
     '  reposafe scan --root ABSOLUTE_PATH [--json|--sarif] [--no-history] [--no-git]',
-    '       [--history-depth 1..5000] [--since YYYY-MM-DD] [--max-diff-size MiB:1..16] [--current-branch]',
+    '       [--all-findings] [--history-depth 1..5000] [--since YYYY-MM-DD] [--max-diff-size MiB:1..16] [--current-branch]',
     '  reposafe doctor --root ABSOLUTE_PATH [--json]',
     '  reposafe connect --root ABSOLUTE_PATH --client cursor|claude|vscode|codex [--dry-run]',
     '  reposafe disconnect --client cursor|claude|vscode|codex [--dry-run]',
@@ -106,7 +106,7 @@ async function main(): Promise<void> {
   if (!command || command === '--help' || command === '-h') { help(); return; }
   if (command === 'scan') {
     if (!validateFlags(['scan', '--root', '--json', '--sarif', '--no-history', '--no-git',
-          '--history-depth', '--since', '--max-diff-size', '--current-branch']) ||
+          '--history-depth', '--since', '--max-diff-size', '--current-branch', '--all-findings']) ||
         (args.includes('--json') && args.includes('--sarif'))) throw new Error('Invalid scan arguments.');
     const historyFlags = ['--history-depth', '--since', '--max-diff-size', '--current-branch'];
     if ((args.includes('--no-git') || args.includes('--no-history')) &&
@@ -137,7 +137,7 @@ async function main(): Promise<void> {
       : await generateReport(root, { includeHistory: !args.includes('--no-history'), historyOptions });
     if (args.includes('--json')) console.log(JSON.stringify(report, null, 2));
     else if (args.includes('--sarif')) console.log(JSON.stringify(reportToSarif(report), null, 2));
-    else console.log(formatHumanReport(report));
+    else console.log(formatHumanReport(report, args.includes('--all-findings') ? Infinity : 50));
     process.exitCode = report.verdict === 'review_required' ? 1 : 0;
     return;
   }
