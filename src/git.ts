@@ -302,7 +302,8 @@ export async function scanGit(root: string, history = true, limits: HistoryScanO
           saved.findings.length + findings.length <= MAX_GIT_FINDINGS) {
         stats.commitsInspected = saved.commits;
         stats.historyBatches = saved.batches;
-        stats.complete = saved.complete;
+        // Do not erase an incomplete verdict from the fresh working-tree/Git checks.
+        stats.complete = stats.complete && saved.complete;
         stats.warnings.push(...saved.warnings.filter(x => !stats.warnings.includes(x)));
         findings.push(...saved.findings);
         stats.historyResumedFrom = saved.commits;
@@ -367,7 +368,8 @@ export async function scanGit(root: string, history = true, limits: HistoryScanO
     stats.historyBatches++;
     if (outcome === 'complete' && commitOpen) completeCommit();
     stats.commitsInspected += completedInBatch;
-    if (cache && cacheKey && completedInBatch > 0) {
+    if (cache && cacheKey && completedInBatch > 0 &&
+        (outcome === 'complete' || outcome === 'byte_limit') && !limitReached) {
       try {
         await cache.save({
           version: 1, key: cacheKey, commits: stats.commitsInspected,
