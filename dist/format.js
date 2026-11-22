@@ -18,6 +18,10 @@ export function formatHumanReport(report, maxDisplayed = 50, useColor = false) {
             (w.since ? ', since ' + w.since : '') +
             (w.currentBranchOnly ? ', current branch only' : ', all local refs') + ').');
     }
+    if (report.git?.historyResumedFrom !== undefined) {
+        output.push('Local history checkpoint: reused ' + report.git.historyResumedFrom +
+            ' previously inspected commits (explicit opt-in).');
+    }
     if (report.baseline)
         output.push('Baseline: ' + report.baseline.suppressed + ' suppressed (' +
             report.baseline.highSuppressed + ' high/critical), ' + report.baseline.expired + ' expired.');
