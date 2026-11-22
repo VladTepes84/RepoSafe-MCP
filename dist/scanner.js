@@ -331,7 +331,7 @@ export function checkPrivacy(line, file, lineNumber) {
 export function isLikelyTestFile(file) {
     const normalized = file.replaceAll('\\', '/');
     return /(?:^|\/)(?:__tests__|tests?|fixtures?|mocks?)(?:\/|$)/i.test(normalized) ||
-        /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(normalized);
+        /\.(?:test|spec)\.[cm]?[jt]sx?$/i.test(normalized);
 }
 export function safeRelativePath(raw) {
     // Test the full sanitized path before shortening its display form: a secret spanning
