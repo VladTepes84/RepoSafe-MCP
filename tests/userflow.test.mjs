@@ -15,7 +15,7 @@ async function fixture(fn) {
     return await fn(root);
   } finally {await rm(root,{recursive:true,force:true});}
 }
-test('doctor starts the real local MCP server and discovers all six tools', {timeout:26000}, async()=>{
+test('doctor starts the real local MCP server and discovers all seven tools', {timeout:26000}, async()=>{
   await fixture(async root=>{
     const r=run('doctor','--root',root,'--json');
     assert.equal(r.status,0,r.stderr);
