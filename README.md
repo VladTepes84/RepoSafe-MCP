@@ -26,6 +26,8 @@ Requires Node.js 22+ and Git (Git is needed for repository/history checks). Repl
 
 ## Local MCP connection and scaled CLI scans (development branch)
 
+**Draft PR #10 only:** the `connect`/`disconnect`, 5,000-commit history, and `get_findings_page` functionality below are not included in `main` until the PR is merged. The quick-start GitHub archive URL above installs `main`, so it cannot be used to exercise these draft features. To test the draft, use a separately reviewed PR-branch commit SHA, not the mutable `main` archive; keep existing installations separate.
+
 - RepoSafe remains **CLI + STDIO MCP only**. No desktop GUI, cloud hosting, tunnel, telemetry or AI API key is required for scanning. An AI provider may receive the **redacted report** if its client calls MCP.
 - **Connect** to Codex Desktop/CLI, Cursor, VS Code or Claude Desktop using `reposafe connect --root ABS_PATH --client codex` (or another supported client). This writes only the RepoSafe entry; it does not run the Codex executable. For preview use `--dry-run`; to undo use `reposafe disconnect --client codex`.
 - Git history processes **bounded 100-commit batches**, preserving completed commits and retrying incomplete batch boundaries. The 1–16 MiB patch budget is now **per batch**, with a 5,000-commit maximum requested depth. A single oversized commit still fails closed.
@@ -84,6 +86,7 @@ JSON report: severity, relative file, rule, action, coverage
 | `check_git_exposure` | Identify tracked sensitive filenames and ineffective `.env` ignore rules |
 | `scan_git_history` | Stream bounded Git diffs (100 commits / 4 MiB by default) with capped memory, preserving completed commits and metadata-only findings when a budget stops the scan |
 | `generate_report` | Consolidate all findings, scope, coverage and warnings |
+| `get_findings_page` | Retrieve up to 100 additional retained findings per call from the running MCP server's last report (draft PR #10) |
 
 Additional CLI: `node dist/cli.js scan --root ABSOLUTE_PATH [--json|--sarif] [--no-history] [--no-git]`. The default view is a severity-sorted actionable human report.
 
@@ -103,7 +106,7 @@ Additional CLI: `node dist/cli.js scan --root ABSOLUTE_PATH [--json|--sarif] [--
 
 ### v0.6 bounded Git history and configuration-format coverage
 
-- Operator-selectable, **strictly bounded** Git history windows: `--history-depth 1..500`, `--since YYYY-MM-DD`, `--max-diff-size 1..16` (MiB), and `--current-branch`. Defaults remain 100 commits and 4 MiB. MCP history/report tools accept the equivalent optional numeric/date/boolean arguments. No tool can change `REPOSAFE_ROOT`.
+- **In v0.6 (historical baseline):** operator-selectable Git history windows `--history-depth 1..500`, `--since YYYY-MM-DD`, `--max-diff-size 1..16` (MiB), and `--current-branch`. Defaults remain 100 commits and 4 MiB. MCP history/report tools accept the equivalent optional numeric/date/boolean arguments. No tool can change `REPOSAFE_ROOT`.
 - More precise detection for **Spring/application properties**, Terraform hardcoded sensitive variable defaults, and Kubernetes `kind: Secret` **Base64-encoded credentials**. Base64 is encoding, not encryption.
 - `reposafe init --dry-run` explicitly documents the existing read-only behavior. Better diagnostics identify Git missing from PATH and unsupported Node versions.
 - Additional synthetic positive/benign fixtures, strict scan-limit validation, and explicit history-scope warnings. Findings still contain metadata only.
@@ -166,7 +169,7 @@ node dist/cli.js doctor --root "/absolute/path/to/project"
 node dist/cli.js init --root "/absolute/path/to/project" --client cursor
 ```
 
-`doctor` actually starts RepoSafe over stdio and discovers six MCP tools. `init` also prints the target client configuration but **does not overwrite** any user files or claim the GUI application itself was tested. The authorized directory must be a specific existing absolute path.
+`doctor` actually starts RepoSafe over stdio and discovers six tools on `main`, or seven on the PR #10 development branch. `init` also prints the target client configuration but **does not overwrite** any user files or claim the GUI application itself was tested. The authorized directory must be a specific existing absolute path.
 
 ### Generate a real MCP configuration for your computer
 
