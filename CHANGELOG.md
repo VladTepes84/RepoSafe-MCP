@@ -4,6 +4,8 @@ Changes describe the committed source and automated test evidence, **not a secur
 
 ## [Unreleased] — 2026-11-22 (script-free distribution update)
 
+- Stream Git history with bounded memory rather than buffering complete multi-MiB patches. Preserve fully inspected commit counts and partial findings on byte/timeout limits, with specific redacted diagnostics and synthetic 100-commit regressions. No scan budget is silently relaxed.
+
 - Check in generated `dist/` JavaScript and declarations alongside TypeScript sources. Remove npm `prepare` lifecycle hook so installing RepoSafe need not run TypeScript on the user machine.
 - Recommend direct HTTPS GitHub archives plus `npm --ignore-scripts` to avoid the Git-dependency integrity warning and `allow-scripts` approval warning seen with npm Git installs. The archive is pinned to a commit SHA for CI; documentation's `main` example is mutable and explicitly flagged.
 - Pin direct runtime dependency versions, and check modified **and untracked** generated files. CI rebuilds and checks that `dist/` matches sources. Add pinned-archive fresh-install smoke tests for Linux/Windows/macOS (including Node.js 24 on macOS) and keep the existing GitHub-source/packed-package acceptance checks.
