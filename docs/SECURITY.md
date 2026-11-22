@@ -15,7 +15,7 @@
 | --- | --- | --- |
 | Explicit scope | Absolute configured root, directory validation, no tool path args | Not an OS access-control mechanism |
 | Link avoidance | Skip symlinks and hard links, canonical path checks, `O_NOFOLLOW` where supported | Races with a malicious concurrent local process cannot be excluded |
-| Read and output budgets | 10,000 files / 20,000 dirs / depth 20 / 4 MiB per file / 64 MiB total / 5,000 retained findings / line length 65,536 | Files and lines above budgets are **not fully analyzed**; coverage is flagged incomplete |
+| Read and output budgets | 10,000 files / 20,000 dirs / depth 20 / 4 MiB per file / 64 MiB total / 5,000 retained findings / line length 65,536 | Oversized files are skipped; overlength text lines receive bounded overlapping heuristic checks only, not complete structural parsing. Coverage remains flagged incomplete |
 | Redaction | Never serialize matching source text; sanitize sensitive-looking file names | Heuristic matching can miss secrets concealed in filenames or unsupported formats |
 | Git safety | Local Git metadata via `execFile` and history via streaming `spawn`, literal args and no shell; inherited `GIT_*` overrides stripped, fsmonitor/external diffs/lazy fetch disabled; up to 5,000 requested commits, batches of at most 100, 1–16 MiB per batch, 12s subprocess timeout and 120s overall history budget | Git still parses local metadata/config; it is not a malicious-repo sandbox and does not inspect unreferenced objects or remote secrets |
 | Ignore rules | `git check-ignore --no-index` and `git ls-files --cached` | Git tool required; inherited/global rules may affect ignore semantics |
