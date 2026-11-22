@@ -82,6 +82,12 @@ If you believe RepoSafe leaks a secret or crosses a filesystem boundary, private
 - An actual MCP SDK handshake is not an end-to-end GUI acceptance test. No client user permissions or approvals have been independently exercised.
 
 
+## Isolation hardening (22 Nov 2026)
+
+- Git subprocesses strip **all inherited `GIT_*` environment variables**, including `GIT_DIR`, `GIT_WORK_TREE`, alternate object directories, index overrides and trace settings; RepoSafe then sets explicit safe Git controls. The scanner also checks that the Git working-tree root matches the user-approved root. Synthetic tests exercise an attempted redirect to an unrelated repository.
+- Optional history checkpoints now store **history-specific** warnings and completion state only. Working-tree, tracked-file and Git configuration checks run again on every invocation and cannot inherit stale warnings from cached history. Future-dated or insecure checkpoint metadata is rejected; a group/world-writable `~/.reposafe` parent is refused for opt-in checkpoint storage.
+- Codex TOML editing refuses ambiguous nested/quoted/inline RepoSafe definitions rather than silently introducing duplicate or partially managed MCP entries. This is deliberately conservative: users with advanced TOML layouts can configure the server manually.
+
 ## Private checkpoint and MCP configuration writes (draft PR #10)
 
 - The default CLI and all MCP scanner tools remain read-only with respect to the inspected repository. The **opt-in** CLI `--resume-history` is different: it creates a private 7-day cache of **already-redacted finding metadata and commit progress** under `~/.reposafe/checkpoints/`. It never stores raw Git patches, matched values or the absolute repository path inside the checkpoint JSON. The hashed identity includes root, ref tips and scan policy. This is **local metadata, not encryption**; use ordinary scans without `--resume-history` for fresh verification. Invalid, expired, insecure, inaccessible or changed checkpoints are never trusted as clean coverage.
