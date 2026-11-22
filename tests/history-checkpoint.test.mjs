@@ -68,7 +68,9 @@ test('explicit Git resume reuses completed commits, and changed refs invalidate 
     const repeat = await scanGit(root, true, limits);
     assert.equal(repeat.stats.historyResumedFrom, 3);
     assert.equal(repeat.stats.commitsInspected, 3);
-    assert.deepEqual(repeat.findings, initial.findings);
+    // Persisted JSON omits optional undefined fields; compare serialized metadata.
+    assert.deepEqual(JSON.parse(JSON.stringify(repeat.findings)),
+      JSON.parse(JSON.stringify(initial.findings)));
     assert.ok(!JSON.stringify(repeat).includes(fake));
 
     await writeFile(join(root, 'other.txt'), 'new content\n');
