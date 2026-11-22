@@ -15,7 +15,7 @@ Only use synthetic fixtures in public issues. No token values or source snippets
 | Unknown bearer credential | `high_entropy_bearer` | Long `Bearer` values with Shannon entropy >=3.5 | Low-entropy secrets, placeholders and unknown encodings are deliberately not flagged |
 | Generic assignments | `generic_secret_assignment` | Credential-like key names and non-example values | Only the first generic assignment per line is checked |
 
-**Directories:** `dist/`, `build/`, and `vendor/` are scanned as text. Standard dependency/cache directories like `node_modules/` are omitted for resource safety. If Git tracks excluded-directory files, the Git-aware report fails closed and requires separate review. Binary formats, huge files and lines can be skipped with a coverage warning.
+**Directories:** `dist/`, `build/`, and `vendor/` are scanned as text. Standard dependency/cache directories like `node_modules/` are omitted for resource safety. If Git tracks excluded-directory files, the Git-aware report fails closed and requires separate review. Binary formats and oversized files may be skipped with a coverage warning. Overlength text lines receive bounded overlapping heuristic checks, but full-line and structured scanning is still incomplete and reported as such.
 
 **History:** added diff lines are examined within a bounded window (default: 100 recent commits and 4 MiB; operator caps: 5,000 commits and 16 MiB). Findings include a 12-character introducing commit prefix, not a matched value. Rewriting history alone does not revoke credentials.
 
