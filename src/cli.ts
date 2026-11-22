@@ -26,7 +26,7 @@ function help(): void {
     '',
     'Usage:',
     '  reposafe scan --root ABSOLUTE_PATH [--json|--sarif] [--no-history] [--no-git]',
-    '       [--all-findings] [--no-color] [--history-depth 1..5000] [--since YYYY-MM-DD] [--max-diff-size MiB:1..16] [--current-branch]',
+    '       [--all-findings] [--no-color] [--resume-history] [--history-depth 1..5000] [--since YYYY-MM-DD] [--max-diff-size MiB:1..16] [--current-branch]',
     '  reposafe doctor --root ABSOLUTE_PATH [--json]',
     '  reposafe connect --root ABSOLUTE_PATH --client cursor|claude|vscode|codex [--dry-run]',
     '  reposafe disconnect --client cursor|claude|vscode|codex [--dry-run]',
@@ -106,9 +106,9 @@ async function main(): Promise<void> {
   if (!command || command === '--help' || command === '-h') { help(); return; }
   if (command === 'scan') {
     if (!validateFlags(['scan', '--root', '--json', '--sarif', '--no-history', '--no-git',
-          '--history-depth', '--since', '--max-diff-size', '--current-branch', '--all-findings', '--no-color']) ||
+          '--history-depth', '--since', '--max-diff-size', '--current-branch', '--all-findings', '--no-color', '--resume-history']) ||
         (args.includes('--json') && args.includes('--sarif'))) throw new Error('Invalid scan arguments.');
-    const historyFlags = ['--history-depth', '--since', '--max-diff-size', '--current-branch'];
+    const historyFlags = ['--history-depth', '--since', '--max-diff-size', '--current-branch', '--resume-history'];
     if ((args.includes('--no-git') || args.includes('--no-history')) &&
         historyFlags.some(flag => args.includes(flag))) throw new Error('History options conflict with a disabled history scan.');
     function boundedInteger(flag: string, max: number): number | undefined {
@@ -130,6 +130,7 @@ async function main(): Promise<void> {
       maxDiffSizeMiB: boundedInteger('--max-diff-size', 16),
       since,
       currentBranchOnly: args.includes('--current-branch'),
+      resume: args.includes('--resume-history'),
     };
     const root = await validateRoot(option('--root') ?? '');
     if (process.stderr.isTTY && !args.includes('--json') && !args.includes('--sarif')) {
