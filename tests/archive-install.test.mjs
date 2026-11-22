@@ -62,7 +62,7 @@ try {
   assert.equal(doctorProcess.status, 0, 'Installed archive doctor failed');
   const doctor = JSON.parse(doctorProcess.stdout);
   assert.equal(doctor.status, 'pass');
-  assert.equal(doctor.tools.length, 6);
+  assert.equal(doctor.tools.length, 7);
   const initProcess = spawnSync(process.execPath, [
     cli, 'init', '--root', target, '--client', 'cursor', '--json',
   ], { encoding: 'utf8', timeout: 180000, maxBuffer: 4 * 1024 * 1024 });
@@ -85,7 +85,7 @@ try {
   const init = JSON.parse(initProcess.stdout);
   assert.equal(init.verifiedProtocol, true);
   assert.equal(init.verifiedGUI, false);
-  assert.equal(init.discoveredTools.length, 6);
+  assert.equal(init.discoveredTools.length, 7);
   assert.equal(init.writesFiles, false);
   console.log('PINNED ARCHIVE INSTALL WITHOUT LIFECYCLE SCRIPTS + REAL MCP PASS');
 } finally {
