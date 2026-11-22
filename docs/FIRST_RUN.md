@@ -84,6 +84,8 @@ For automation append `--json`; the result distinguishes `verifiedProtocol: true
 
 The engine runs locally without sending source files to a RepoSafe cloud. A connected AI client may apply its own cloud/privacy policies to the **report** it receives; choose CLI-only mode if necessary.
 
-## Optional managed MCP connection
+## Optional managed MCP connection — draft PR #10 only
+
+**Not available from the `main` archive installed in step 1.** To use managed `connect`/`disconnect`, first install a reviewed full commit SHA from draft PR #10 in a separate prefix. On the `main` baseline, use `init` and manually merge only the RepoSafe entry instead.
 
 After doctor succeeds, use `reposafe connect --root ABSOLUTE_PATH --client codex` or `cursor|claude|vscode` to update only the RepoSafe user-level MCP entry. `--dry-run` previews, `disconnect --client ...` reverses the change, and `init` remains a read-only configuration preview. See [LOCAL_MCP](LOCAL_MCP.md) and [UNINSTALL](UNINSTALL.md).
