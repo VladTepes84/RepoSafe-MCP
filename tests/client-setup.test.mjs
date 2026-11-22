@@ -128,3 +128,21 @@ test('existing empty config can be updated and safely backed up', async () => {
     assert.equal(await readFile(result.backupFile, 'utf8'), '');
   } finally { await rm(home, { recursive: true, force: true }); }
 });
+
+test('Codex configuration refuses ambiguous nested, quoted and inline RepoSafe entries', () => {
+  const managed = '[mcp_servers.reposafe]\\ncommand = "/node"\\nargs = ["/server"]\\n';
+  const alternate = [
+    '[mcp_servers.reposafe.env]\\nTOKEN = "placeholder"\\n',
+    managed + '[mcp_servers.reposafe.env]\\nTOKEN = "placeholder"\\n',
+    '[[mcp_servers.reposafe]]\\ncommand = "other"\\n',
+    '[mcp_servers."reposafe"]\\ncommand = "other"\\n',
+    "[mcp_servers.'reposafe']\\ncommand = 'other'\\n",
+    '[mcp_servers . reposafe]\\ncommand = "other"\\n',
+    '[mcp_servers]\\nreposafe = { command = "other" }\\n',
+    'mcp_servers = { reposafe = { command = "other" } }\\n',
+  ];
+  for (const original of alternate) {
+    assert.throws(() => updateCodexToml(original, managed, false), /Ambiguous/, original);
+    assert.throws(() => updateCodexToml(original, managed, true), /Ambiguous/, original);
+  }
+});
