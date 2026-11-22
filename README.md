@@ -71,7 +71,7 @@ JSON report: severity, relative file, rule, action, coverage
 | `scan_private_refs` | Detect internal hostnames, local user paths and GitHub links requiring verification |
 | `check_repo_readiness` | Check README, license, `.gitignore` and real Git ignore behavior |
 | `check_git_exposure` | Identify tracked sensitive filenames and ineffective `.env` ignore rules |
-| `scan_git_history` | Scan up to 100 local commits / 4 MiB of diffs for possible lingering credentials; show a safe 12-character introducing commit ID |
+| `scan_git_history` | Stream bounded Git diffs (100 commits / 4 MiB by default) with capped memory, preserving completed commits and metadata-only findings when a budget stops the scan |
 | `generate_report` | Consolidate all findings, scope, coverage and warnings |
 
 Additional CLI: `node dist/cli.js scan --root ABSOLUTE_PATH [--json|--sarif] [--no-history] [--no-git]`. The default view is a severity-sorted actionable human report.
