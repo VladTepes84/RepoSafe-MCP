@@ -3,6 +3,7 @@
 // overwrites unrelated MCP entries. connect/disconnect affect only "reposafe".
 import { mkdir, readFile, rename, lstat, unlink, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { homedir } from 'node:os';
 import { makeClientConfig } from './config.mjs';
 
@@ -108,6 +109,6 @@ async function main() {
     '\nClient: ' + client + '\nConfig: ' + result.configFile +
     '\nClient GUI test: NOT VERIFIED; restart client and call generate_report.');
 }
-if (process.argv[1] && import.meta.url === new URL('file://' + process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch(() => { console.error('RepoSafe client configuration refused; review client config and paths.'); process.exitCode = 2; });
 }
