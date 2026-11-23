@@ -1,5 +1,9 @@
 ## CLI-first closure decision (23 November 2026)
 
+PR #34 (progress/Next Actions) was merged on `main` at `7182f5bf1598671ca731876dbd91ec9bf3c86eff`. PR #35 added bounded public GitHub URL snapshot scanning and private-prefix follow-ups, with [4/4 CI](https://github.com/VladTepes84/RepoSafe-MCP/actions/runs/45194189183) and a real Mac snapshot scan. Final candidate changes (including README filename recognition) and post-merge `main` must be verified at their exact commits before claiming integrated readiness. A genuine Mac test of the latest private-prefix follow-up commands, an independent external audit and a signed public distribution are **not** yet verified.
+
+## Previous CLI-first release gate (historical)
+
 The stable CLI release candidate requires one-command local usage from the Git repository root, a legible all-rule dashboard, focused HIGH/CRITICAL review and private JSON/SARIF compatibility. This is a **new PR-level acceptance gate**; verify packaging, macOS user acceptance and exact merged SHA before claiming it passed. Codex and IDE graphical integrations remain future features; a passing MCP SDK handshake must not be advertised as GUI support.
 
 The independent audit is not claimed: user-led validation is explicitly **internal**, and real-world detector precision/recall cannot be inferred from seeded synthetic cases alone. The original scanner limitations (history budget, skipped/overlength files, incomplete verdict) remain release documentation requirements.

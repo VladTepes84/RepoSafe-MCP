@@ -129,9 +129,11 @@ This example is illustrative, **not** a promised identical output for every vers
 
 ## MCP clients: status and limitations
 
-Local setup, optional and **not required** for standalone scanning:
+Local setup, optional and **not required** for standalone scanning. If you installed in the documented private prefix, set `RS` and the approved `REPO` first:
 
 ~~~sh
+RS="$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js"
+REPO="/ABSOLUTE/PATH/TO/GIT-REPOSITORY"
 node "$RS" init --root "$REPO" --client codex --json     # preview only; no settings changed
 node "$RS" connect --root "$REPO" --client codex --dry-run
 node "$RS" connect --root "$REPO" --client codex         # explicit user-level config write

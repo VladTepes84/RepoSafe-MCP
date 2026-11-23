@@ -62,6 +62,8 @@ The test suite creates disposable synthetic Git repositories, not live keys. `np
 ## 4. Optional MCP clients, with explicit caveat
 
 ~~~sh
+RS="$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js"
+REPO="/ABSOLUTE/PATH/TO/GIT-REPOSITORY"
 node "$RS" init --root "$REPO" --client codex --json     # protocol check + preview, no config write
 node "$RS" connect --root "$REPO" --client codex --dry-run
 node "$RS" connect --root "$REPO" --client codex         # writes the RepoSafe entry

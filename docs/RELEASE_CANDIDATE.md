@@ -16,6 +16,10 @@ When PR #34 is separately accepted/merged, require fresh post-merge CI and a **n
 
 GitHub-hosted runner execution is not local to the user's laptop: sources are checked out from this public GitHub repository onto GitHub Actions; it is **not** a remote scanner service for private user repositories.
 
+## After integrating the CLI changes
+
+A merged `main` branch is **source availability**, not an npm publication, immutable tag or GitHub Release. Earlier [candidate run #45158828933](https://github.com/VladTepes84/RepoSafe-MCP/actions/runs/45158828933) was generated at an older commit and cannot validate later changes. For a separately authorized publication, run this workflow again on the exact final merged `main` SHA, inspect the package archive, CycloneDX SBOM and SHA256SUMS, and explicitly approve any tag/Release/npm action. This guide does not start or publish anything automatically.
+
 ## Quality gates before accepting any candidate
 
 - Complete, green matrix CI on the exact candidate commit and independently checked package manifest.
