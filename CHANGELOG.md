@@ -1,3 +1,10 @@
+## Unreleased — CLI first-run polish (PR pending)
+
+- Added a dedicated public bin/reposafe.mjs entrypoint: from an explicitly entered Git repository root, "reposafe scan" runs the same read-only engine without requiring manual --root arguments. Non-Git current directories fail closed; explicit absolute --root remains supported.
+- Terminal presentation now aggregates **all retained findings by severity/rule** and shows actionable HIGH/CRITICAL details via --high, a detailed view via --details, coverage limitations, and redacted metadata. No cloud scans, auto-fix or scanner detector changes.
+- Preserved pure JSON v2/SARIF 2.1.0, legacy dist/cli.js, seven MCP STDIO tools and exit statuses. New CLI packaging and cross-platform smoke/regression tests.
+- Installation can use a GitHub source archive with --ignore-scripts; npm-registry publication, a stable 1.0 tag and external security certification are **not claimed**.
+
 ## Unreleased — adversarial filesystem boundary regression (PR pending)
 
 - Added synthetic read-only tests for lexical traversal, Git metadata paths, symlink/junction escape, hardlinks to outside files, credential-bearing filenames and inherited GIT_COMMON_DIR overrides. Tests report any Windows privilege-based skips rather than asserting unconditional coverage.
