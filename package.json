@@ -52,6 +52,7 @@
   },
   "files": [
     "dist/",
+    "scripts/quality-benchmark.mjs",
     "scripts/config.mjs",
     "scripts/client-setup.mjs",
     "README.md",
