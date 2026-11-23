@@ -58,8 +58,8 @@ test('an adjudicated sample is distinct from a passing performance target', () =
   reviewed.adjudications[2].classification = 'true_positive';
   const result = evaluate(report(), reviewed);
   assert.equal(result.fullyReviewed, true);
-  assert.equal(result.precision, 2 / 3);
-  assert.equal(result.recall, 2 / 3);
+  assert.equal(result.precision, 0.6667);
+  assert.equal(result.recall, 0.6667);
   assert.equal(result.counts.fn, 1);
 });
 
