@@ -4,7 +4,7 @@ import { StringDecoder } from 'node:string_decoder';
 import { promisify } from 'node:util';
 import { devNull } from 'node:os';
 import { checkSecrets, isLikelyTestFile, safeRelativePath, MAX_FINDINGS, scanRepository, scanSelectedTrackedFiles } from './scanner.js';
-import type { Finding, GitStats, ScanReport } from './types.js';
+import type { Finding, GitStats, ScanReport, ScanProgress } from './types.js';
 import { applyBaseline } from './baseline.js';
 import { historyCheckpoint } from './history-checkpoint.js';
 
@@ -421,14 +421,16 @@ export async function scanGit(root: string, history = true, limits: HistoryScanO
   return { findings, stats };
 }
 
-export async function generateReport(root: string, options: { includeGit?: boolean; includeHistory?: boolean; historyOptions?: HistoryScanOptions } = {}): Promise<ScanReport> {
-  const report = await scanRepository(root, { skipBaseline: true });
+export async function generateReport(root: string, options: { includeGit?: boolean; includeHistory?: boolean; historyOptions?: HistoryScanOptions; onProgress?: (progress: ScanProgress) => void } = {}): Promise<ScanReport> {
+  const report = await scanRepository(root, { skipBaseline: true, onProgress: options.onProgress });
   if (options.includeGit === false) {
     report.limitations.push('Git metadata and history not requested.');
     return applyBaseline(report, root);
   }
+  options.onProgress?.({ phase: 'git', filesScanned: report.stats.filesScanned, directoriesVisited: report.stats.directoriesVisited });
   const g = await scanGit(root, options.includeHistory !== false, options.historyOptions);
   report.git = g.stats;
+  options.onProgress?.({ phase: 'finalizing', filesScanned: report.stats.filesScanned, directoriesVisited: report.stats.directoriesVisited });
   // Index membership describes local state only, not publication on a remote.
   // Re-check the exact approved Git root and withhold status if it is ambiguous.
   if (g.stats.gitAvailable) {
