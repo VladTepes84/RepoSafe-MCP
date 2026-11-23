@@ -17,6 +17,10 @@ The public CLI scans the current directory **only if it contains its own .git ma
 
 The original dist/cli.js remains supported for existing scripts and protocol integrations and still requires --root. The public CLI preserves JSON v2, SARIF 2.1.0 and the same scanner exit codes.
 
+**Next Actions:** after the dashboard, numbered suggestions show the priority findings (file:line, reason and action), a by-file view (first 50, with an explicit `--all-findings` option), and a coverage warning only when required. A grouped severity overview is not the same as individual findings: use `--high` or `--details` to inspect paths and line numbers. Suggested commands preserve `--no-history`/`--no-git` and supported Git history scope options. For explicitly supplied roots, commands display `--root ABSOLUTE_PATH` instead of a private absolute path; replace this placeholder with the same approved directory. **Each suggested command performs a new read-only scan**; there is no cached interactive report or automatic remediation.
+
+**Interactive progress:** While attached to a terminal, the CLI shows elapsed time, the current phase (file scan, Git checks, finalizing) and aggregate file/directory counts. There is no interactive choice menu, and suggested commands do not reuse an in-memory completed scan. These are observed counters, **not a completion percentage**. An interrupted or timed-out scan has no completed report. Progress events never contain paths, source content or matched secret values; JSON/SARIF stdout remains unchanged.
+
 Set `RS` to the **actual absolute** path to your installed `dist/cli.js`, and `REPO` to a **specific approved repository**, not the filesystem root.
 
 ~~~sh

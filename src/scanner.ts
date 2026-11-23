@@ -1,7 +1,7 @@
 import { constants } from 'node:fs';
 import { open, readdir, realpath, stat, lstat } from 'node:fs/promises';
 import { isAbsolute, join, parse, relative, sep } from 'node:path';
-import type { Finding, ScanReport, ScanStats } from './types.js';
+import type { Finding, ScanReport, ScanStats, ScanProgress } from './types.js';
 import { applyBaseline } from './baseline.js';
 
 const MAX_FILES = 10000;
@@ -387,7 +387,7 @@ export async function validateRoot(configuredPath: string): Promise<string> {
   return root;
 }
 
-export async function scanRepository(approvedRoot: string, options: { skipBaseline?: boolean } = {}): Promise<ScanReport> {
+export async function scanRepository(approvedRoot: string, options: { skipBaseline?: boolean; onProgress?: (progress: ScanProgress) => void } = {}): Promise<ScanReport> {
   const root = await validateRoot(approvedRoot);
   const stats: ScanStats = {
     filesScanned: 0, directoriesVisited: 0, bytesScanned: 0,
@@ -397,6 +397,17 @@ export async function scanRepository(approvedRoot: string, options: { skipBaseli
   const toVisit: Array<{ abs: string; depth: number }> = [{ abs: root, depth: 0 }];
   const rootFiles = new Set<string>();
   let stopped = false;
+  let lastProgressAt = 0;
+  function emitProgress(force = false): void {
+    if (!options.onProgress || (!force && Date.now() - lastProgressAt < 600)) return;
+    lastProgressAt = Date.now();
+    options.onProgress({
+      phase: 'files',
+      filesScanned: stats.filesScanned,
+      directoriesVisited: stats.directoriesVisited,
+    });
+  }
+  emitProgress(true);
 
   function markPartial(reason: string): void {
     stats.complete = false;
@@ -451,6 +462,7 @@ export async function scanRepository(approvedRoot: string, options: { skipBaseli
       }
       entries = await readdir(directory, { withFileTypes: true });
       stats.directoriesVisited++;
+      emitProgress();
     } catch {
       markPartial('A directory could not be read.');
       continue;
@@ -505,6 +517,7 @@ export async function scanRepository(approvedRoot: string, options: { skipBaseli
         const buffer = await handle.readFile();
         stats.filesScanned++;
         stats.bytesScanned += buffer.byteLength;
+        emitProgress();
         if (buffer.includes(0)) { stats.filesSkipped++; continue; }
         const lines = buffer.toString('utf8').split(/\r?\n/);
         for (let n = 0; n < lines.length; n++) {
@@ -535,6 +548,8 @@ export async function scanRepository(approvedRoot: string, options: { skipBaseli
       }
     }
   }
+
+  emitProgress(true);
 
   function readiness(rule: string, severity: 'low' | 'medium', message: string, action: string): void {
     addFinding({ category: 'readiness', rule, severity, file: '.', message, action });

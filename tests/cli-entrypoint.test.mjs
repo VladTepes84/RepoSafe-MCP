@@ -83,6 +83,47 @@ test('summary view hides all rule names, compact view abbreviates explanations',
   assert.match(details, /Action: Review token/);
 });
 
+test('Next Actions include numbered, scoped priority/file/coverage commands', () => {
+  const output = renderPrettyReport(sample, {
+    reviewCommand: 'reposafe scan --no-history',
+  });
+  assert.match(output, /1\. PRIORITY — Review 2 CRITICAL\/HIGH findings/);
+  assert.match(output, /reposafe scan --no-history --high/);
+  assert.match(output, /2\. BY FILE — Inspect 3 findings grouped by relative file path/);
+  assert.match(output, /reposafe scan --no-history --details --group-by file/);
+  assert.match(output, /3\. COVERAGE — Audit incomplete/);
+  assert.match(output, /not cached between runs/);
+  assert.doesNotMatch(output, /Tip: reposafe scan/);
+  const unavailable = renderPrettyReport({
+    ...sample, git: { ...sample.git, gitAvailable: false }
+  }, { reviewCommand: 'reposafe scan --root ABSOLUTE_PATH --no-git',
+    explicitRoot: true });
+  assert.match(unavailable, /Git status was not inspected/);
+  assert.match(unavailable, /replace ABSOLUTE_PATH/);
+  assert.ok(!unavailable.includes('/Users/'));
+  const nothing = renderPrettyReport({
+    ...sample, verdict: 'no_findings_in_scope',
+    findings: [], stats: { ...sample.stats, complete: true, warnings: [] },
+    git: { ...sample.git, complete: true, warnings: [] },
+  });
+  assert.match(nothing, /No recognized findings in the inspected scope/);
+  assert.doesNotMatch(nothing, /2\. BY FILE/);
+});
+
+test('CLI preserves no-history and explicit-root scope in Next Actions without exposing root', async () => {
+  await fixture(async root => {
+    // Ensure the priority view actually has a synthetic HIGH finding to display.
+    await writeFile(join(root, 'synthetic-credential.txt'),
+      'GITHUB_TOKEN=ghp_' + 'P'.repeat(36) + '\n');
+    const report = run(root, 'scan', '--root', root, '--no-history', '--high', '--no-color');
+    assert.equal(report.status, 1, report.stderr);
+    assert.match(report.stdout, /reposafe scan --root ABSOLUTE_PATH --no-history --high/);
+    assert.match(report.stdout, /reposafe scan --root ABSOLUTE_PATH --no-history --details --group-by file/);
+    assert.match(report.stdout, /replace ABSOLUTE_PATH/);
+    assert.ok(!report.stdout.includes(root));
+  }, true);
+});
+
 test('one command from a Git root scans working tree with read-only output', async () => {
   await fixture(async root => {
     const token = 'ghp_' + 'V'.repeat(36);
@@ -142,4 +183,46 @@ test('help contains a real two-command workflow without claiming npm registry pu
     assert.match(help.stdout, /--high/);
     assert.match(help.stdout, /--details/);
   });
+});
+
+test('internal progress emits real numeric file and Git stages without leaking paths or token values', async () => {
+  await fixture(async root => {
+    const dummy = 'ghp_' + 'Y'.repeat(36);
+    await writeFile(join(root, 'synthetic.txt'), 'GITHUB_TOKEN=' + dummy + '\n');
+    for (let i = 0; i < 60; i++) {
+      await writeFile(join(root, 'fixture-' + i + '.txt'), 'fixture entry ' + i + '\n');
+    }
+    const engine = resolve('dist/cli.js');
+    const result = spawnSync(process.execPath, [
+      engine, 'scan', '--root', root, '--no-history', '--json'
+    ], { encoding: 'utf8', timeout: 30_000, maxBuffer: 4 * 1024 * 1024,
+      env: { ...process.env, REPOSAFE_INTERNAL_PROGRESS: '1' } });
+    assert.equal(result.status, 1, result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.equal(report.schemaVersion, '2');
+    assert.equal(report.scanner, 'reposafe-mcp');
+    const lines = result.stderr.trim().split('\n');
+    assert.ok(lines.length >= 4, result.stderr);
+    const updates = lines.map(line => {
+      assert.ok(line.startsWith('REPOSAFE_PROGRESS '), 'Only aggregate progress is expected');
+      const event = JSON.parse(line.slice('REPOSAFE_PROGRESS '.length));
+      assert.deepEqual(Object.keys(event).sort(), ['directoriesVisited','filesScanned','phase']);
+      assert.ok(['files', 'git', 'finalizing'].includes(event.phase));
+      assert.ok(Number.isSafeInteger(event.filesScanned) && event.filesScanned >= 0);
+      assert.ok(Number.isSafeInteger(event.directoriesVisited) && event.directoriesVisited >= 0);
+      return event;
+    });
+    assert.equal(updates[0].phase, 'files');
+    assert.ok(updates.some(event => event.phase === 'files' && event.filesScanned >= 60));
+    assert.ok(updates.some(event => event.phase === 'git'));
+    assert.equal(updates.at(-1).phase, 'finalizing');
+    assert.ok(!result.stderr.includes(dummy));
+    assert.ok(!result.stderr.includes(root));
+    assert.ok(!result.stdout.includes(dummy));
+    const normal = run(root, 'scan', '--no-history', '--json');
+    assert.equal(normal.status, 1, normal.stderr);
+    assert.doesNotMatch(normal.stdout, /REPOSAFE_PROGRESS|\x1b\[/);
+    assert.doesNotMatch(normal.stderr, /REPOSAFE_PROGRESS/);
+    assert.equal(JSON.parse(normal.stdout).schemaVersion, '2');
+  }, true);
 });

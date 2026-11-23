@@ -2,6 +2,7 @@
 
 ## [1.0.0] — 2026-11-23 (release candidate; NOT published)
 
+- **Draft PR #34 (unmerged, 23 Nov 2026):** clearer numbered Next Actions (priority severity review, file-grouped details and incomplete coverage); preserved `--no-history`/selected scope in suggested commands; interactive aggregate progress/elapsed time and cancellation diagnostics. No scanner-rule or MCP changes. Code head `bfa03c839c725292248c758562dfdfafbed3b3e5` passed [4/4 CI](https://github.com/VladTepes84/RepoSafe-MCP/actions/runs/45164169801) and was manually accepted on macOS for a real authorized current-file scan. Git inspection in that local copy was incomplete; neither an independent audit nor public 1.0 Release is claimed.
 - First standalone **one-command local CLI**: enter an authorized Git repository root, run `reposafe scan`; review the terminal severity dashboard and all retained rules, or select `--high`, `--details`, `--summary`, JSON v2 or SARIF 2.1.0. No mandatory GUI, AI key, cloud service, telemetry, or source upload.
 - Retains the seven-tool local MCP STDIO server, bounded Git-history auditing, metadata-only redacted reports, fail-closed incomplete-coverage warnings, and optional private CLI checkpoint.
 - Internal Apple Silicon Mac acceptance: published-source beta command installed from an immutable SHA and a real authorized repository scan rendered the expected dashboard, priority details and coverage warnings. CI for PR #32 and post-merge source passed four OS/Node jobs. **This candidate version has not yet been independently accepted or tagged.**

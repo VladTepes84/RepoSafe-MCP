@@ -1,4 +1,4 @@
-import type { Finding, GitStats, ScanReport } from './types.js';
+import type { Finding, GitStats, ScanReport, ScanProgress } from './types.js';
 export interface HistoryScanOptions {
     depth?: number;
     since?: string;
@@ -16,4 +16,5 @@ export declare function generateReport(root: string, options?: {
     includeGit?: boolean;
     includeHistory?: boolean;
     historyOptions?: HistoryScanOptions;
+    onProgress?: (progress: ScanProgress) => void;
 }): Promise<ScanReport>;

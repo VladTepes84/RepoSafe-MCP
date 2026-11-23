@@ -47,6 +47,13 @@ export interface GitStats {
   warnings: string[];
 }
 
+/** Non-sensitive aggregate progress for the local CLI. Never filenames or source. */
+export interface ScanProgress {
+  phase: 'files' | 'git' | 'finalizing';
+  filesScanned: number;
+  directoriesVisited: number;
+}
+
 export interface ScanReport {
   schemaVersion: '2';
   scanner: 'reposafe-mcp';
