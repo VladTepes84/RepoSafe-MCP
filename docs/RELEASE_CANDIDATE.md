@@ -10,7 +10,11 @@ RepoSafe remains beta. The optional GitHub Actions workflow [release-candidate.y
 4. Produces a candidate manifest recording the GitHub commit and package filename plus `SHA256SUMS`.
 5. Uploads these outputs as a **temporary GitHub Actions artifact**, retained for seven days.
 
-The workflow is a proposed pipeline awaiting its first recorded manual run. GitHub-hosted runner execution is not local to the user's laptop: sources are checked out from this public GitHub repository onto GitHub Actions; it is **not** a remote scanner service for private user repositories.
+**Recorded run (23 November 2026):** [workflow #45158828933](https://github.com/VladTepes84/RepoSafe-MCP/actions/runs/45158828933) completed successfully on the former `main` commit `f6f6da794537ac5666a43f776d7d51432863c07b`. GitHub reported an unexpired temporary artifact named `reposafe-candidate-f6f6da794537ac5666a43f776d7d51432863c07b`. **The packaged bytes/SBOM/checksums were not independently inspected.** That artifact does **not** include draft PR #34's CLI improvements and cannot be treated as the final candidate.
+
+When PR #34 is separately accepted/merged, require fresh post-merge CI and a **new explicit manual workflow run** against the final exact commit. Inspect the newly generated package, CycloneDX SBOM, checksum manifest and provenance limitations before creating any tag or GitHub Release. The workflow by itself **never publishes**.
+
+GitHub-hosted runner execution is not local to the user's laptop: sources are checked out from this public GitHub repository onto GitHub Actions; it is **not** a remote scanner service for private user repositories.
 
 ## Quality gates before accepting any candidate
 

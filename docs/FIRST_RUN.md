@@ -49,10 +49,14 @@ reposafe scan
 
 ## Scan with one command
 
+A regular user needs only `reposafe scan` from an authorized Git root. RepoSafe displays progress, summarizes severity and coverage, and prints numbered **NEXT ACTIONS** when it finishes. These are follow-up commands, **not a prompt or menu**; choose one, copy it, and run it in the same directory. Each follow-up **re-scans** the repository. No report cache, auto-fix, cloud upload or interactive selection is implied.
+
 ~~~sh
 reposafe scan                 # dashboard + all findings grouped by rule
 reposafe scan --high          # priority findings with individual paths/actions
-reposafe scan --details       # detailed findings and guidance
+reposafe scan --details       # detailed findings and guidance (first 50)
+reposafe scan --details --group-by file  # show relative paths and lines by file
+reposafe scan --all-findings  # show all retained findings, without the 50-entry display cap
 reposafe scan --summary       # counts and coverage only
 reposafe scan --no-history    # faster current-state scan
 reposafe scan --json          # versioned machine-readable report
@@ -107,6 +111,9 @@ Put export files **outside** the target repository. Structured output reports re
 | `doctor` passes but IDE sees no tools | Diagnose client settings, transport, app availability and approvals separately; **do not claim GUI success** |
 | Too many or unexpected findings | Inspect severity, exact rule, ignore semantics and supported baseline exceptions; never blindly suppress High/Critical |
 | Incomplete coverage | Review skipped files, history depth/budget, warnings and local refs; rerun with intentional limits |
+| `Tracked: 0` / `Untracked: 0` with Git warning | Git status is **unknown** until Git inspection succeeds; do not infer that all files are untracked or that no files are published |
+| No visible output while scanning | The public terminal launcher displays an elapsed-time counter and current phase; if a scan is interrupted or times out, no complete audit has occurred |
+| `SCAN_TIMEOUT` / `SCAN_INTERRUPTED` | Review elapsed time and last phase/file count; do not treat it as a security finding or completed scan |
 
 For safe removal: [Uninstall / rollback](UNINSTALL.md). For full CLI options: [CLI reference](CLI_REFERENCE.md). For security limitations: [Security](SECURITY.md).
 

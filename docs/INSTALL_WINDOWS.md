@@ -34,6 +34,18 @@ node $RS scan --root $REPO --compact --group-by file
 
 Do not select an entire drive, `$HOME` or a system directory. `doctor` verifies **seven** local MCP tool names and a STDIO handshake, **without scanning** or verifying any AI client's UI. Scan results identify severity, relative file, optional commit, coverage and recommended action. Exit `0` = no findings in bounded examined scope, `1` = review or incomplete, `2` = error.
 
+**Simpler daily workflow (public CLI):** when scanning from an authorized Git root, the user can rely on the numbered `NEXT ACTIONS` rather than memorize display flags:
+
+~~~powershell
+$env:PATH = "$HOME\.reposafe\node_modules\.bin;$env:PATH"
+Set-Location $REPO
+reposafe scan --no-history
+reposafe scan --no-history --high
+reposafe scan --no-history --details --group-by file
+~~~
+
+These are **separate read-only scans** (no cached menu). `--details` shows at most 50 by default; `--all-findings` shows all retained entries. If Git cannot be inspected, its tracked/untracked status remains unknown. No admin privileges or PowerShell policy changes are required.
+
 ## 4. Clone the source for development and test runs
 
 ~~~powershell

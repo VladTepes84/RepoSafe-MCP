@@ -39,6 +39,10 @@ reposafe scan
 
 This runs the same bounded, read-only scanner, now with a terminal dashboard: severity overview, **all findings grouped by rule**, tracked/untracked/test-like context, Git coverage, warnings and numbered next actions. The next actions give copyable review commands for prioritized findings and per-file details while preserving the scan scope; **the review commands rerun the scanner** and do not cache the report. No separate script, MCP configuration or manual JSON interpretation.
 
+**After a scan:** read `STATUS`, `SEVERITY OVERVIEW` and `COVERAGE WARNINGS`; then follow the numbered `NEXT ACTIONS`. A priority command shows the relative `file:line` and remediation; `--details --group-by file` shows the first 50 findings by file, with `--all-findings` available for all retained entries. Suggested commands preserve `--no-history` when used in the original scan. They do **not** rotate credentials, edit files or preserve scan results between runs. If Git metadata cannot be inspected, tracked/untracked zero counts are **unknown**, not proof that nothing is tracked.
+
+**Mac acceptance (23 Nov 2026):** an operator installed the immutable PR #34 source candidate and completed a local authorized current-file scan; the progress counter, findings and updated Next Actions worked as intended. Git coverage was incomplete in that test, so this is **CLI usability acceptance**, not a comprehensive repository security audit. [PR #34](https://github.com/VladTepes84/RepoSafe-MCP/pull/34) remains a **draft/unmerged candidate** until separately approved.
+
 **Interactive progress (fix candidate):** during a terminal scan, the CLI displays the elapsed time, current phase (files/Git/report) and aggregate counts of files/directories examined. Counters are not a completion percentage. On timeout/interruption it reports the last observed phase and count; this does **not** mean the repository was fully inspected or that a report was generated. Noninteractive JSON/SARIF remains pure machine-readable output.
 
 

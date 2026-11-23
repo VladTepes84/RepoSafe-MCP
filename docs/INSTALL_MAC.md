@@ -38,6 +38,19 @@ Use only an **existing repository you own or are authorized to inspect**; never 
 
 Expected human report sections: verdict, bounded coverage, severity counts, local Git history window, and optional severity- or file-grouped findings. Exit `0` = clean *within examined scope* (not certification), `1` = findings or incomplete coverage, `2` = error.
 
+**Simplest daily workflow (public CLI, not the legacy `$RS` engine):**
+
+~~~zsh
+export PATH="$HOME/.reposafe/node_modules/.bin:$PATH"
+cd /ABSOLUTE/PATH/TO/YOUR/GIT-REPOSITORY
+reposafe scan --no-history
+# Follow the numbered NEXT ACTIONS after the scan, for example:
+reposafe scan --no-history --high
+reposafe scan --no-history --details --group-by file
+~~~
+
+The CLI shows live aggregate file/directory counters and elapsed time. Follow-up commands scan again; they do not retrieve a cached report. `--no-history` omits history but still attempts current Git metadata. If the report says Git was unavailable, tracked/untracked counts are unknown and coverage is incomplete. Review [CLI reference](CLI_REFERENCE.md) for `--all-findings` and `--root` handling.
+
 ## 4. Development checkout, regression and performance
 
 For contributors who want to inspect source and tests (separate from prefix installation):
