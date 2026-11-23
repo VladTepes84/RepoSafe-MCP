@@ -125,7 +125,7 @@ Your terminal                  Optional AI client
          terminal / JSON / SARIF / MCP
 ~~~
 
-**The engine is not a remotely hosted service.** Running the CLI scanner requires no AI or network. It does not fix files, rotate credentials, execute code found inside the target repository, commit, push, fetch remote Git objects, or upload source. Installation and dependency audits require network access. Untrusted repository content is treated as data, never instructions.
+**The engine is not a remotely hosted service.** Local-directory CLI scans require no AI or network; the optional public GitHub URL snapshot mode explicitly requires GitHub HTTPS access to retrieve temporary source files. It does not fix files, rotate credentials, execute code found inside the target repository, commit, push, fetch remote Git objects, or upload source. Installation and dependency audits require network access. Untrusted repository content is treated as data, never instructions.
 
 ## Example of a finding
 
