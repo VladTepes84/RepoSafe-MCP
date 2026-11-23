@@ -143,3 +143,45 @@ test('help contains a real two-command workflow without claiming npm registry pu
     assert.match(help.stdout, /--details/);
   });
 });
+
+test('internal progress emits real numeric file and Git stages without leaking paths or token values', async () => {
+  await fixture(async root => {
+    const dummy = 'ghp_' + 'Y'.repeat(36);
+    await writeFile(join(root, 'synthetic.txt'), 'GITHUB_TOKEN=' + dummy + '\n');
+    for (let i = 0; i < 60; i++) {
+      await writeFile(join(root, 'fixture-' + i + '.txt'), 'fixture entry ' + i + '\n');
+    }
+    const engine = resolve('dist/cli.js');
+    const result = spawnSync(process.execPath, [
+      engine, 'scan', '--root', root, '--no-history', '--json'
+    ], { encoding: 'utf8', timeout: 30_000, maxBuffer: 4 * 1024 * 1024,
+      env: { ...process.env, REPOSAFE_INTERNAL_PROGRESS: '1' } });
+    assert.equal(result.status, 1, result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.equal(report.schemaVersion, '2');
+    assert.equal(report.scanner, 'reposafe-mcp');
+    const lines = result.stderr.trim().split('\n');
+    assert.ok(lines.length >= 4, result.stderr);
+    const updates = lines.map(line => {
+      assert.ok(line.startsWith('REPOSAFE_PROGRESS '), 'Only aggregate progress is expected');
+      const event = JSON.parse(line.slice('REPOSAFE_PROGRESS '.length));
+      assert.deepEqual(Object.keys(event).sort(), ['directoriesVisited','filesScanned','phase']);
+      assert.ok(['files', 'git', 'finalizing'].includes(event.phase));
+      assert.ok(Number.isSafeInteger(event.filesScanned) && event.filesScanned >= 0);
+      assert.ok(Number.isSafeInteger(event.directoriesVisited) && event.directoriesVisited >= 0);
+      return event;
+    });
+    assert.equal(updates[0].phase, 'files');
+    assert.ok(updates.some(event => event.phase === 'files' && event.filesScanned >= 60));
+    assert.ok(updates.some(event => event.phase === 'git'));
+    assert.equal(updates.at(-1).phase, 'finalizing');
+    assert.ok(!result.stderr.includes(dummy));
+    assert.ok(!result.stderr.includes(root));
+    assert.ok(!result.stdout.includes(dummy));
+    const normal = run(root, 'scan', '--no-history', '--json');
+    assert.equal(normal.status, 1, normal.stderr);
+    assert.doesNotMatch(normal.stdout, /REPOSAFE_PROGRESS|\x1b\[/);
+    assert.doesNotMatch(normal.stderr, /REPOSAFE_PROGRESS/);
+    assert.equal(JSON.parse(normal.stdout).schemaVersion, '2');
+  }, true);
+});
