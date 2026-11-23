@@ -1,76 +1,71 @@
 # RepoSafe MCP
 
-**Find what a Git repository could expose *before* you publish it.** RepoSafe is a **local-first, read-only** security auditor for repository files and reachable Git history. Run it as a standalone command-line tool or as a local **Model Context Protocol (MCP) STDIO server**. The scanner reports finding metadata and remediation guidance, **never matching credential values or source snippets**.
+**Audit local Git repositories and public GitHub code before publication.** RepoSafe identifies possible credentials, internal references, readiness gaps and (for local Git roots) bounded Git history. The scan runs locally and shows severity, file, reason and recommended action, **never matched secret values or source snippets**.
 
-**Status:** v1.0.0 release-candidate source (**not yet published as a GitHub Release or on npm**) · MIT license · Node.js **22+** · macOS, Linux, Windows. **No paid plan, AI key, hosted scanner, telemetry or mandatory GUI.** The source archive contains precompiled JavaScript. RepoSafe **does not certify** that a repository is safe to publish.
+**Node.js 22+**, npm, Git for local history checks · macOS / Linux / Windows · MIT · no account, paid plan, AI key or hosted scanner. **Source candidate v1.0.0**: not yet released to npm, not tagged or signed. Findings are aids to manual review, **not a safety certificate**.
 
-[![GitHub Sponsors](https://img.shields.io/badge/Support-optional%20GitHub%20Sponsors-EA4AAA?logo=githubsponsors)](https://github.com/sponsors/VladTepes84)
+## Install once
 
-## Start here
-
-| I want to… | Read |
-| --- | --- |
-| Install without compiling (macOS/Linux/Windows) | [First run](docs/FIRST_RUN.md) |
-| Understand every CLI command and display mode | [CLI reference](docs/CLI_REFERENCE.md) |
-| Audit a repository with a realistic example | [Quick start](docs/QUICKSTART.md) |
-| Configure or diagnose a local MCP client | [Local MCP setup](docs/LOCAL_MCP.md) · [Client status](docs/CLIENTS.md) |
-| Interpret findings, suppress known benign examples | [Detection rules](docs/DETECTION.md) · [Baseline policy](docs/BASELINE.md) · [Remediation](docs/REMEDIATION.md) |
-| Understand limits and privacy | [Security model](docs/SECURITY.md) · [Report contract](docs/REPORT_CONTRACT.md) |
-| Run tests or assess readiness for release | [Testing](docs/TESTING.md) · [Offline detection benchmark](docs/QUALITY_BENCHMARK.md) · [Readiness](docs/PRO_READINESS.md) |
-| Completely disconnect/uninstall without harming other software | [Uninstall / rollback](docs/UNINSTALL.md) |
-
-### Install once, scan with one command
-
-**Prerequisites:** Node.js 22+, npm and Git. No AI subscription, cloud scanner, API key or GUI is needed.
-
-On macOS/Linux, install the precompiled source archive with npm (no package lifecycle scripts):
+**macOS / Linux** — paste in Terminal (installs in your own home directory, no sudo):
 
 ~~~sh
-npm install -g --ignore-scripts --no-audit --no-fund \
+npm install --prefix "$HOME/.reposafe" --ignore-scripts --no-audit --no-fund \
   "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
+export PATH="$HOME/.reposafe/node_modules/.bin:$PATH"
+reposafe --help
 ~~~
 
-Then open the **root of a Git repository** you own or are authorized to audit:
-
-~~~sh
-cd /PATH/TO/YOUR/GIT-REPOSITORY
-reposafe scan
-~~~
-
-This runs the same bounded, read-only scanner, now with a terminal dashboard: severity overview, **all findings grouped by rule**, tracked/untracked/test-like context, Git coverage, warnings and numbered next actions. The next actions give copyable review commands for prioritized findings and per-file details while preserving the scan scope; **the review commands rerun the scanner** and do not cache the report. No separate script, MCP configuration or manual JSON interpretation.
-
-**After a scan:** read `STATUS`, `SEVERITY OVERVIEW` and `COVERAGE WARNINGS`; then follow the numbered `NEXT ACTIONS`. A priority command shows the relative `file:line` and remediation; `--details --group-by file` shows the first 50 findings by file, with `--all-findings` available for all retained entries. Suggested commands preserve `--no-history` when used in the original scan. They do **not** rotate credentials, edit files or preserve scan results between runs. If Git metadata cannot be inspected, tracked/untracked zero counts are **unknown**, not proof that nothing is tracked.
-
-**Mac acceptance (23 Nov 2026):** an operator installed the immutable PR #34 source candidate and completed a local authorized current-file scan; the progress counter, findings and updated Next Actions worked as intended. Git coverage was incomplete in that test, so this is **CLI usability acceptance**, not a comprehensive repository security audit. [PR #34](https://github.com/VladTepes84/RepoSafe-MCP/pull/34) remains a **draft/unmerged candidate** until separately approved.
-
-**Interactive progress (fix candidate):** during a terminal scan, the CLI displays the elapsed time, current phase (files/Git/report) and aggregate counts of files/directories examined. Counters are not a completion percentage. On timeout/interruption it reports the last observed phase and count; this does **not** mean the repository was fully inspected or that a report was generated. Noninteractive JSON/SARIF remains pure machine-readable output.
-
-
-~~~sh
-reposafe scan --high            # HIGH/CRITICAL findings with paths and actions
-reposafe scan --details         # detailed findings and remediation (first 50)
-reposafe scan --all-findings    # all retained findings, including files and lines
-reposafe scan --summary         # counts/coverage only
-reposafe scan --no-history      # skip Git history for a faster current-state review
-reposafe scan --json            # pure JSON v2 for automated workflows
-reposafe scan --sarif           # pure SARIF 2.1.0 for compatible consumers
-~~~
-
-**Security and installation limits:** The main archive ref is mutable. Before production use, replace main in the archive URL with the **reviewed 40-character commit SHA** or a vetted immutable release. A GitHub commit pin is not a signed distribution. GitHub/npm downloads require network; repository scans do not upload source. Global npm installation requires a *writable user-controlled npm prefix*. **Do not use sudo to work around permissions.** For a private per-user installation without global npm changes, see [First run](docs/FIRST_RUN.md).
-
-Windows PowerShell installation (when npm's global prefix is user-writable):
+**Windows 11** — paste in PowerShell (no administrator rights):
 
 ~~~powershell
-npm.cmd install -g --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
-Set-Location "C:\PATH\TO\YOUR\GIT-REPOSITORY"
+npm.cmd install --prefix "$HOME\.reposafe" --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
+$env:PATH = "$HOME\.reposafe\node_modules\.bin;$env:PATH"
+reposafe --help
+~~~
+
+The PATH setting applies **only to that terminal session**; see [First run](docs/FIRST_RUN.md) for alternatives. Do not use `sudo` or bypass macOS/Windows security controls. Installation needs GitHub/npm network access. The `main` source URL can change; for production pin a reviewed **40-character commit SHA**. A SHA is not a signed release.
+
+## Scan in one command
+
+**Local Git repository** (works offline after installation; the current directory must contain its own `.git` marker):
+
+~~~sh
+cd /ABSOLUTE/PATH/TO/YOUR/GIT-REPOSITORY
 reposafe scan
 ~~~
 
-The scan command without --root is allowed **only when your current directory itself contains a Git root marker** (a .git directory or worktree file). It never silently ascends to your home directory or another parent. From elsewhere, use an explicit approved --root ABSOLUTE_PATH, or cd to the Git root. No repository files are changed. If --resume-history is explicitly enabled, private scan metadata is saved outside the repository; otherwise scanning is read-only.
+**Public GitHub repository** — paste the URL; no manual `git clone` needed:
 
-The classic engine remains available via dist/cli.js for backward compatibility and the existing MCP protocol. GUI/IDE integrations (Codex, Cursor, VS Code, etc.) are **future** work, not required for standalone CLI use.
+~~~sh
+reposafe scan https://github.com/octocat/Hello-World
+~~~
 
-**Exit codes:** 0 = no findings within the scanned scope; 1 = review required or incomplete coverage; 2 = usage/runtime error. **Neither a clean report nor a successful CLI test certifies the repository as safe to publish.** A history depth limit, unreadable file, omitted findings or long-line warning must be reviewed.
+**Investigate findings** (the CLI prints copyable `NEXT ACTIONS` automatically):
+
+~~~sh
+reposafe scan --high                         # local CRITICAL/HIGH
+reposafe scan --details --group-by file      # local file and line details
+reposafe scan https://github.com/OWNER/REPO --details
+~~~
+
+Use `--all-findings` to display every *retained* finding rather than the default first 50. Each follow-up runs a **new read-only scan**, not a cached report. If installed at `$HOME/.reposafe`, Next Actions show copyable commands using that private executable even if PATH is not set.
+
+**Remote URL boundaries:** RepoSafe explicitly downloads a size-limited, commit-pinned public GitHub TAR snapshot via HTTPS, extracts only ordinary files into a private temporary folder, scans locally, then attempts cleanup. It does **not execute downloaded code**. Git history/index, submodules and Git LFS contents are **not checked**; remote coverage is always **INCOMPLETE**. Abrupt system termination may leave temporary files. Only public `https://github.com/OWNER/REPO` URLs are accepted, without tokens or arbitrary hosts. Remote JSON/SARIF and history flags are unsupported; local scans support JSON v2, SARIF 2.1.0 and bounded history.
+
+**Exit codes:** `0` no recognized findings within inspected scope, `1` findings **or incomplete coverage**, `2` usage/runtime error. Zero findings is **not** proof a repository is safe to publish. Local scanning reads only an approved root; specify `--root ABSOLUTE_PATH` to inspect a different authorized directory (`--no-git` for an explicitly approved non-Git directory).
+
+## Guides
+
+| Need | Reference |
+| --- | --- |
+| First use, installation and PATH | [First run](docs/FIRST_RUN.md) · [macOS](docs/INSTALL_MAC.md) · [Windows](docs/INSTALL_WINDOWS.md) |
+| CLI options and real examples | [CLI reference](docs/CLI_REFERENCE.md) · [Quickstart](docs/QUICKSTART.md) |
+| Findings and remediation | [Detection](docs/DETECTION.md) · [Remediation](docs/REMEDIATION.md) · [Baseline](docs/BASELINE.md) |
+| Local seven-tool MCP server | [MCP setup](docs/LOCAL_MCP.md) · [Client limitations](docs/CLIENTS.md) |
+| Threat model, coverage and testing | [Security](docs/SECURITY.md) · [Testing](docs/TESTING.md) · [Readiness](docs/PRO_READINESS.md) |
+| Cleanup, updates and rollback | [Uninstall](docs/UNINSTALL.md) · [Changelog](CHANGELOG.md) |
+
+**Disclaimer:** pattern matches are not proof credentials are valid. No independent security certification, representative real-world detection accuracy or general AI-client GUI compatibility is claimed. GitHub Sponsors is optional and does not unlock functionality.
 
 ## What RepoSafe checks
 
@@ -113,7 +108,7 @@ Your terminal                  Optional AI client
          terminal / JSON / SARIF / MCP
 ~~~
 
-**The engine is not a remotely hosted service.** Running the CLI scanner requires no AI or network. It does not fix files, rotate credentials, execute code found inside the target repository, commit, push, fetch remote Git objects, or upload source. Installation and dependency audits require network access. Untrusted repository content is treated as data, never instructions.
+**The engine is not a remotely hosted service.** Local-directory CLI scans require no AI or network; the optional public GitHub URL snapshot mode explicitly requires GitHub HTTPS access to retrieve temporary source files. It does not fix files, rotate credentials, execute code found inside the target repository, commit, push, fetch remote Git objects, or upload source. Installation and dependency audits require network access. Untrusted repository content is treated as data, never instructions.
 
 ## Example of a finding
 
@@ -134,9 +129,11 @@ This example is illustrative, **not** a promised identical output for every vers
 
 ## MCP clients: status and limitations
 
-Local setup, optional and **not required** for standalone scanning:
+Local setup, optional and **not required** for standalone scanning. If you installed in the documented private prefix, set `RS` and the approved `REPO` first:
 
 ~~~sh
+RS="$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js"
+REPO="/ABSOLUTE/PATH/TO/GIT-REPOSITORY"
 node "$RS" init --root "$REPO" --client codex --json     # preview only; no settings changed
 node "$RS" connect --root "$REPO" --client codex --dry-run
 node "$RS" connect --root "$REPO" --client codex         # explicit user-level config write

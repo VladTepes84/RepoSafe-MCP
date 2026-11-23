@@ -7,7 +7,7 @@ For the independent assessment checklist and evidence requirements see [SECURITY
 ## Trust boundaries
 
 1. **Operator / local OS**: sets absolute `REPOSAFE_ROOT`, which is checked at startup; filesystem root paths are rejected. Run as a least-privileged user. The AI tool schema has **no path argument**.
-2. **RepoSafe process**: reads files and limited Git metadata/history only. No HTTP requests, telemetry, listening port, remote Git access, shell interpreter, write tools or auto-fix operations.
+2. **RepoSafe local scanner/MCP process**: reads approved local files and limited Git metadata/history only. No HTTP requests, telemetry, listening port, remote Git access, shell interpreter, write tools or auto-fix operations. **A separate experimental CLI URL adapter** explicitly fetches a bounded *public GitHub snapshot* over HTTPS to a private system temporary directory before invoking that same local scanner. Its outbound requests are limited to the GitHub API and Codeload hosts; no source upload, hosted scanning or remote Git process is added.
 3. **Untrusted repository content**: is treated as data. Findings consist of fixed rule names, descriptions, actions, severity, sanitized *relative file names* and line numbers; no matching values or snippets. Nothing in README, source code or commit text is treated as an instruction.
 4. **AI client/host**: receives findings, not source contents from RepoSafe. The same AI client may have entirely different file-read, shell or network tools; RepoSafe **cannot restrict those other tools**.
 
@@ -24,12 +24,23 @@ For the independent assessment checklist and evidence requirements see [SECURITY
 | Honest status | `review_required` on positive findings or incomplete scans | No-finding verdict is **not** a permission to publish |
 | Installation | Node 22+, official MCP SDK v2, CI tests | npm integrity-checked lockfile and production dependency audit reduce risk but do not eliminate supply-chain/host compromise |
 
+## Explicit public GitHub snapshot transport (opt-in CLI mode)
+
+- **Explicit network access:** `reposafe scan https://github.com/OWNER/REPO` contacts `api.github.com` for repository/default-branch commit metadata and `codeload.github.com` for a SHA-pinned tar.gz snapshot. Strict URL/host validation and **no redirects** prevent selecting arbitrary endpoints through CLI input. No authentication tokens are used; GitHub/rate-limit availability is external.
+- **Bounded extraction:** compressed payload ≤32 MiB; decompressed tar stream ≤96 MiB; ≤64 MiB materialized regular-file content, each ≤4 MiB; ≤10,000 files, path depth ≤20; malformed checksums, unsafe paths, symlinks, hardlinks, special files, unsupported archive features and missing trailer fail closed. No `tar` shell command or arbitrary Git checkout hooks/filters execute. Supported tar metadata includes a bounded PAX path override.
+- **Temporary disk writes:** downloaded source is extracted to an OS temp directory created with restrictive permissions where supported; the archive is never persisted as a compressed file. A normal completed/error path removes the directory; abrupt SIGKILL, OS crashes and cleanup failures cannot be guaranteed to remove data. Disk and process-level isolation are OS-dependent; this is **not** a formally isolated sandbox.
+- **Coverage:** only the current source snapshot at a verified commit SHA is scanned. Missing Git index, reachable history, Git LFS objects, submodules and GitHub remote security settings force an **incomplete-coverage** report, never a clean certification. Files ignored by the scanner or unsupported encoding may still evade detection.
+- **Privacy:** the user chooses a public URL; GitHub sees normal API/archive fetches and the machine's IP, and the source bytes temporarily exist on the local disk. RepoSafe does not upload code or send findings and requires no cloud scanning service. Do not use this remote-snapshot mode for secret/private repositories or hostile inputs without an OS sandbox.
+- **Verification scope:** adversarial synthetic unit tests and platform CI are required; they cannot establish safety against all malicious archive/filesystem/OS edge cases. Actual operator acceptance on macOS and third-party security review remain distinct gates.
+
+**Remote snapshots and local audits are separate trust paths.** Local-directory scans remain offline after installation. The opt-in URL mode performs public GitHub HTTPS downloads only. Those files exist temporarily on the user's device, and cleanup cannot be guaranteed after a forced crash. Neither mode executes untrusted repository code, and neither uploads findings.
+
 ## Detailed threats
 
 - **A secret was already committed:** rotate/revoke it; the key may persist in history, forks, clones, CI logs or caches. Rewriting history alone is not revocation.
 - **Untrusted repository or local malware:** `.git` metadata is parsed by Git and files are read with current OS permissions. Work in an isolated low-privilege environment; do not run against hostile repositories or sensitive parent folders.
 - **Prompt injection:** repository text is not passed to the model in tool outputs, but a malicious filename could still be misleading. Treat returned file names as untrusted data, not instructions.
-- **Unexpected network access:** RepoSafe's code contains no outbound HTTP/fetch and Git commands do not fetch. However, npm installation, an AI client, or other extensions on the same machine can use the network; RepoSafe does not enforce a system firewall.
+- **Unexpected network access:** The legacy scanner and local MCP server do not fetch or upload source. The separate experimental public URL adapter **does** make explicitly requested GitHub HTTPS API/Codeload downloads; no arbitrary host/redirect support is provided. npm installation, an AI client or other extensions can also use the network; RepoSafe does not enforce a system firewall.
 - **TOCTOU / Windows file reparse points:** the Node filesystem API cannot provide a portable, formally race-free openat-style capability on all platforms. Path canonicalization and symlink skipping are mitigations, not a hardened sandbox.
 - **Large repos / excessive diffs:** scanning is bounded and reports incompleteness; do not rely on a clean verdict where coverage is incomplete.
 - **Secrets in ignored/binary/encoded files:** dependency/cache trees and binary data can be skipped or unrecognized; tracked excluded paths trigger an incomplete-review outcome. `dist/`, `build/`, and `vendor/` are scanned. Use established scanners and manual review.

@@ -12,44 +12,40 @@ git --version
 
 Node.js 22+ is required. If missing, use a trusted Node.js distribution from [nodejs.org](https://nodejs.org/). Git can be supplied by Apple's developer command-line tools or another trusted source. RepoSafe does **not** require `curl | sh`, Rosetta, administrator privileges, disabling Gatekeeper, or installing a new Node version when an existing 22+ runtime works.
 
-## 2. Recommended local installation
+## 2. Install without administrator privileges
 
 ~~~zsh
 npm install --prefix "$HOME/.reposafe" --ignore-scripts --no-audit --no-fund \
   "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
-
-RS="$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js"
-node "$RS" --help
-~~~
-
-The source archive includes precompiled JavaScript. `--ignore-scripts` disables npm lifecycle scripts; package downloads still use GitHub/npm over HTTPS. The prefix is user-owned and separate from target repositories. **Pinning:** replace `main` at the end of the URL with a reviewed **40-character commit SHA** to avoid a mutable install. No signed release or npm-registry publication is implied.
-
-## 3. Scope and scan
-
-~~~zsh
-REPO="/ABSOLUTE/PATH/TO/REPOSITORY"
-node "$RS" doctor --root "$REPO"
-node "$RS" scan --root "$REPO"
-node "$RS" scan --root "$REPO" --summary
-node "$RS" scan --root "$REPO" --compact --group-by file
-~~~
-
-Use only an **existing repository you own or are authorized to inspect**; never scan your whole home folder or system root. `doctor` checks the real STDIO MCP handshake and discovers **seven tools**, but **does not run a scan** or prove Codex Desktop can see them.
-
-Expected human report sections: verdict, bounded coverage, severity counts, local Git history window, and optional severity- or file-grouped findings. Exit `0` = clean *within examined scope* (not certification), `1` = findings or incomplete coverage, `2` = error.
-
-**Simplest daily workflow (public CLI, not the legacy `$RS` engine):**
-
-~~~zsh
 export PATH="$HOME/.reposafe/node_modules/.bin:$PATH"
-cd /ABSOLUTE/PATH/TO/YOUR/GIT-REPOSITORY
-reposafe scan --no-history
-# Follow the numbered NEXT ACTIONS after the scan, for example:
-reposafe scan --no-history --high
-reposafe scan --no-history --details --group-by file
+reposafe --help
 ~~~
 
-The CLI shows live aggregate file/directory counters and elapsed time. Follow-up commands scan again; they do not retrieve a cached report. `--no-history` omits history but still attempts current Git metadata. If the report says Git was unavailable, tracked/untracked counts are unknown and coverage is incomplete. Review [CLI reference](CLI_REFERENCE.md) for `--all-findings` and `--root` handling.
+This is a user-owned npm prefix, not a global system installation. The PATH change is temporary for this shell. Without it, invoke `"$HOME/.reposafe/node_modules/.bin/reposafe"`. Do not use sudo, Rosetta or disable Gatekeeper. Network access to GitHub/npm is needed to install; the `main` archive is mutable. For repeatable use, pin the reviewed full 40-character SHA. No npm registry release or signature is claimed.
+
+## 3. One command for each scan type
+
+~~~zsh
+# Existing authorized Git repository
+cd /ABSOLUTE/PATH/TO/YOUR/GIT-REPOSITORY
+reposafe scan
+reposafe scan --details --group-by file
+
+# Public GitHub repository; can run outside a Git working tree
+reposafe scan https://github.com/octocat/Hello-World
+~~~
+
+The public URL mode explicitly downloads a bounded source snapshot to a local temporary directory, scans regular files, and removes it on normal completion. It does not run downloaded code or upload source to RepoSafe. Git history/index, Git LFS and submodules are **not inspected**, so remote coverage always shows INCOMPLETE. On abrupt termination a temp folder might remain. The CLI prints copyable NEXT ACTIONS, including the private-prefix launcher when installed in `$HOME/.reposafe`. Exit 0 = no recognized findings in inspected scope; 1 = findings or incomplete coverage; 2 = error.
+
+**Optional MCP/legacy CLI entrypoint** for the advanced examples below:
+
+~~~zsh
+RS="$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js"
+REPO="/ABSOLUTE/PATH/TO/YOUR/GIT-REPOSITORY"
+node "$RS" doctor --root "$REPO"
+~~~
+
+`doctor` verifies a real local MCP SDK STDIO handshake and seven tool names, not actual integration in an IDE GUI.
 
 ## 4. Development checkout, regression and performance
 

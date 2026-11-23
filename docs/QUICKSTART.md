@@ -1,40 +1,49 @@
-# RepoSafe MCP — quick start (CLI first)
+# RepoSafe — quick start
 
-RepoSafe scans **local, authorized Git repositories** without uploading code or requiring an AI client, account, or API key. Requirements: Node.js 22+, npm, Git. Seven existing MCP STDIO tools are optional and remain unchanged.
+Node.js 22+ and npm are required; Git is needed for local history. Use only repositories you own or are authorized to audit.
 
-## 1. Install from reviewed GitHub source
-
-Install into a user-controlled npm prefix. The global route below requires that npm's global prefix be user-writable; **never use sudo**:
+## 1. Install (private user directory)
 
 ~~~sh
-npm install -g --ignore-scripts --no-audit --no-fund \
+# macOS/Linux
+npm install --prefix "$HOME/.reposafe" --ignore-scripts --no-audit --no-fund \
   "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
+export PATH="$HOME/.reposafe/node_modules/.bin:$PATH"
 ~~~
 
-The archive ref main is mutable: replace it with the *reviewed 40-character commit SHA* for reproducibility. The npm registry package has **not** been published. If global installation is unavailable, the dedicated per-user prefix procedure is documented in [First run](FIRST_RUN.md).
+For Windows PowerShell:
 
-## 2. Open the Git repository and run one command
+~~~powershell
+npm.cmd install --prefix "$HOME\.reposafe" --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
+$env:PATH = "$HOME\.reposafe\node_modules\.bin;$env:PATH"
+~~~
+
+`main` is mutable. Pin a reviewed 40-character SHA for production use. No administrator, AI account or npm registry publication required.
+
+## 2. Scan
 
 ~~~sh
-cd /ABSOLUTE/PATH/TO/YOUR/GIT-REPOSITORY
-reposafe scan                 # dashboard and all findings grouped by severity/rule
-reposafe scan --high          # high-priority details and actions
-reposafe scan --details       # individual locations and remediation
-reposafe scan --details --group-by file   # inspect relative file paths/lines
-reposafe scan --all-findings   # show all retained results, not just 50
-reposafe scan --summary       # counts/coverage only
-reposafe scan --no-history    # faster current-state evaluation
-reposafe scan --json          # automation without ANSI or extra text
-reposafe scan --sarif         # machine-readable SARIF 2.1.0
+# Local Git root: analyze current files and bounded local Git history
+cd /ABSOLUTE/PATH/TO/GIT-REPOSITORY
+reposafe scan
+
+# Public GitHub URL: no manual clone required
+reposafe scan https://github.com/octocat/Hello-World
 ~~~
 
-The default current-directory scan **requires a .git marker in that exact directory**. It does not ascend into a parent directory. For a different authorized scope, pass --root ABSOLUTE_PATH; to scan an explicitly approved non-Git folder, add --no-git. The CLI never edits the target, rotates credentials or certifies publishing safety. Exit 0 = no findings in selected scope; 1 = findings or incomplete coverage; 2 = usage/runtime error. Check history windows, file limits, omissions and all coverage warnings.
+The remote mode downloads a bounded public snapshot into temporary local storage; it does not execute code or upload findings. It **cannot check Git history/index, submodules or LFS** and always marks coverage incomplete. A forced process termination may leave temporary files. Private repositories and arbitrary URLs are unsupported.
 
-### How to use the numbered Next Actions
+## 3. Follow the Next Actions
 
-After the first scan, review `STATUS`, the severity overview and any `COVERAGE WARNINGS`. The **PRIORITY** action prints CRITICAL/HIGH findings with relative paths, lines, reasons and recommended steps. **BY FILE** groups the first 50 findings by file; add `--all-findings` to list every retained finding. **COVERAGE** explains remaining limitations, including unavailable Git metadata. The generated commands preserve `--no-history` or other supported scan-scope options. Running one is a **new local read-only scan**, not a selection from cached results.
+~~~sh
+reposafe scan --high                    # local priority findings
+reposafe scan --details --group-by file # local file/line details
+reposafe scan https://github.com/OWNER/REPO --details
+~~~
 
-A pattern match is **not proof of a valid exposed credential**. Review test fixtures separately from real secrets; rotate or revoke only where warranted. If Git inspection fails, `Tracked: 0` and `Untracked: 0` do **not** mean no files are tracked. No automatic security certification is provided.
+Each suggested command scans again. `--all-findings` shows all retained results (up to the scanner's limit). Local-only `--json` and `--sarif` output are intended for automation. Exit 0 means no recognized finding in inspected scope; 1 means findings/incomplete coverage; 2 means an error. **Never infer that a zero-finding scan is safe to publish.**
+
+Guides: [First run](FIRST_RUN.md), [CLI reference](CLI_REFERENCE.md), [Security](SECURITY.md), [Uninstall](UNINSTALL.md).
 
 ## 3. Reproduce the security regression locally (developers)
 
@@ -53,6 +62,8 @@ The test suite creates disposable synthetic Git repositories, not live keys. `np
 ## 4. Optional MCP clients, with explicit caveat
 
 ~~~sh
+RS="$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js"
+REPO="/ABSOLUTE/PATH/TO/GIT-REPOSITORY"
 node "$RS" init --root "$REPO" --client codex --json     # protocol check + preview, no config write
 node "$RS" connect --root "$REPO" --client codex --dry-run
 node "$RS" connect --root "$REPO" --client codex         # writes the RepoSafe entry

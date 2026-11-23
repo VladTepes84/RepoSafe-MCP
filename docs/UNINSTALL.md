@@ -13,6 +13,9 @@ RepoSafe uses three **different** storage locations, depending on the action:
 | `*.reposafe-backup-UUID` next to client config | When a managed config operation updates an existing file | Keep until rollback is no longer needed; inspect before deletion |
 | Disposable synthetic test folders/results | Only if created by the user/test procedure | Inspect and remove only exactly identified directories |
 
+
+**Public GitHub URL mode:** RepoSafe normally deletes temporary extracted snapshots after each scan. Forced termination or cleanup failure can leave a private folder in the OS temporary directory with a `reposafe-remote-` prefix. Inspect the **exact** path and ownership before removing any leftover. Never run wildcard recursive deletion commands.
+
 ## 1. Disconnect only clients you actually connected
 
 **Important:** `init` and `connect --dry-run` do **not** change a configuration. If you never used `connect` or manually installed an MCP entry, there's nothing to disconnect.

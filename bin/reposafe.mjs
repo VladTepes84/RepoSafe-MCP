@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 // Public CLI entrypoint. The scanner engine and MCP server remain unchanged.
 // Only an operator-supplied --root or the current Git repository root is scanned.
-import { lstat, realpath } from 'node:fs/promises';
+import { lstat, realpath, rm } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
+import { homedir } from 'node:os';
 import { StringDecoder } from 'node:string_decoder';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { renderPrettyReport } from './report-view.mjs';
+import { reviewLauncher } from './review-command.mjs';
+import { createGithubSnapshot, parseGithubUrl } from './github-snapshot.mjs';
 
 const engine = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'cli.js');
 const argv = process.argv.slice(2);
@@ -20,9 +23,10 @@ function help() {
     '',
     'QUICK START',
     '  cd your-git-repository',
-    '  reposafe scan              Show severity dashboard and grouped findings',
+    '  reposafe scan                          Scan the current Git repository',
+    '  reposafe scan https://github.com/OWNER/REPO   Scan a public GitHub snapshot locally',
     '  reposafe scan --high       Review CRITICAL/HIGH findings and actions',
-    '  reposafe scan --details    Show individual findings, paths and remediation',
+    '  reposafe scan --details               Show file/line details and remediation',
     '',
     'SCAN OPTIONS',
     '  --summary                  Counts and warnings only',
@@ -36,6 +40,9 @@ function help() {
     '  --current-branch           Limit scan to current branch',
     '  --since YYYY-MM-DD         Restrict Git history by date',
     '  --root ABSOLUTE_PATH      Explicit approved path, including non-Git folders',
+    '  Public URL scan: current files only, bounded download and temporary extraction.',
+    '  Remote history/LFS/submodules and remote JSON/SARIF are not supported.',
+    '  A remote snapshot is always marked INCOMPLETE for Git coverage.',
     '  --json | --sarif           Pure machine-readable reports (unchanged)',
     '  --no-color                Disable terminal styling',
     '',
@@ -120,6 +127,55 @@ function execute(params, collect = false, onProgress) {
 }
 
 async function scan() {
+  const rawUrl = argv[1] && !argv[1].startsWith('--') ? argv[1] : null;
+  let remote = null;
+  if (rawUrl) {
+    try { parseGithubUrl(rawUrl); } catch { return fail('REMOTE_URL_INVALID: only public https://github.com/OWNER/REPO is supported.'); }
+    const conflicting = ['--root', '--no-git', '--no-history', '--history-depth',
+      '--max-diff-size', '--current-branch', '--since', '--resume-history',
+      '--json', '--sarif'];
+    if (argv.some(arg => conflicting.includes(arg))) {
+      return fail('REMOTE_OPTIONS_UNSUPPORTED: public URL scans are current-file-only and human-readable.');
+    }
+    // Validate all remote display flags before issuing any network request.
+    const allowed = new Set(['--high', '--details', '--summary', '--compact',
+      '--all-findings', '--no-color']);
+    for (let index = 2; index < argv.length; index++) {
+      if (argv[index] === '--group-by') {
+        if (!['file', 'severity'].includes(argv[++index])) {
+          return fail('REMOTE_OPTIONS_UNSUPPORTED: invalid grouping.');
+        }
+      } else if (!allowed.has(argv[index])) {
+        return fail('REMOTE_OPTIONS_UNSUPPORTED: unknown flag for public URL scan.');
+      }
+    }
+    const display = new Set(argv.slice(2));
+    if (display.has('--summary') && ['--high', '--details', '--compact', '--all-findings']
+      .some(flag => display.has(flag))) {
+      return fail('REMOTE_OPTIONS_UNSUPPORTED: incompatible display options.');
+    }
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    process.once('SIGINT', abort);
+    try {
+      remote = await createGithubSnapshot(rawUrl, controller.signal);
+    } catch (error) {
+      return fail(error?.message?.startsWith('REMOTE_') ? error.message : 'REMOTE_DOWNLOAD_FAILED');
+    } finally {
+      process.removeListener('SIGINT', abort);
+    }
+  }
+  try {
+    await scanPrepared(remote);
+  } finally {
+    if (remote) {
+      try { await rm(remote.root, { recursive: true, force: true, maxRetries: 3 }); }
+      catch { fail('REMOTE_CLEANUP_FAILED: inspect the private system temporary directory.'); }
+    }
+  }
+}
+
+async function scanPrepared(remote) {
   const flags = new Set(argv.slice(1));
   const isJson = flags.has('--json');
   const isSarif = flags.has('--sarif');
@@ -138,8 +194,8 @@ async function scan() {
     return fail('INVALID_OPTIONS: use --help for valid scan options.');
   }
   const rootIndex = argv.indexOf('--root');
-  const params = argv.slice(0);
-  if (rootIndex < 0) {
+  const params = remote ? ['scan', ...argv.slice(2), '--root', remote.root, '--no-git'] : argv.slice(0);
+  if (!remote && rootIndex < 0) {
     // Deliberately require a Git root marker in the *current* directory.
     // Never silently ascend to a parent/home folder or scan arbitrary cwd.
     const cwd = await realpath(process.cwd());
@@ -159,8 +215,9 @@ async function scan() {
   }
   // Recommend scope-preserving read-only follow-ups, never emit an absolute private path.
   // Historical checkpoint resume is intentionally not copied into suggested commands.
-  const reviewArgs = ['reposafe', 'scan'];
-  if (rootIndex >= 0) reviewArgs.push('--root', 'ABSOLUTE_PATH');
+  const reviewArgs = [reviewLauncher(fileURLToPath(import.meta.url), homedir()), 'scan'];
+  if (remote) reviewArgs.push(remote.url);
+  else if (rootIndex >= 0) reviewArgs.push('--root', 'ABSOLUTE_PATH');
   for (const flag of ['--no-git', '--no-history', '--current-branch']) {
     if (flags.has(flag)) reviewArgs.push(flag);
   }
@@ -174,7 +231,8 @@ async function scan() {
   }
   const rendererOptions = {
     color, high, details, summary, compact, allFindings, groupBy,
-    reviewCommand: reviewArgs.join(' '), explicitRoot: rootIndex >= 0,
+    reviewCommand: reviewArgs.join(' '), explicitRoot: !remote && rootIndex >= 0,
+    remoteSource: remote ? { url: remote.url, sha: remote.sha } : null,
   };
   const engineParams = [];
   for (let index = 0; index < params.length; index++) {
@@ -224,6 +282,14 @@ async function scan() {
   let report;
   try { report = JSON.parse(result.stdout); }
   catch { return fail('INVALID_REPORT: scanner returned an unreadable result.'); }
+  if (remote) {
+    // A source archive cannot establish any local Git index/history coverage.
+    // Never advertise a clean or fully covered repository from this transport.
+    report.stats.complete = false;
+    report.stats.warnings.push(
+      'Remote GitHub snapshot only: Git index/history, LFS objects and submodules were NOT inspected.');
+    report.verdict = 'review_required';
+  }
   try {
     process.stdout.write(renderPrettyReport(report, rendererOptions) + '\n');
     process.exitCode = result.status;

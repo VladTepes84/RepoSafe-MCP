@@ -2,6 +2,20 @@
 
 **Scope:** local, read-only repository auditing. Runtime: Node.js 22+ and Git for history checks. This page documents the **1.0.0 source release candidate** (not yet published) and the one-command public CLI. The CLI scanner never uploads repository content.
 
+## Public GitHub URL: one argument
+
+~~~sh
+reposafe scan https://github.com/OWNER/REPO
+reposafe scan https://github.com/OWNER/REPO --details
+reposafe scan https://github.com/OWNER/REPO --details --group-by file
+~~~
+
+Only **public** `https://github.com/OWNER/REPO` repositories are accepted. No arbitrary host, URL credentials, query/fragment or redirects. RepoSafe requests public repository metadata and a default-branch commit from `api.github.com`, then a SHA-pinned tar.gz from `codeload.github.com`, extracts only regular files in a private system temp directory and scans them locally. It never runs Git hooks or package scripts.
+
+**Download limits:** 32 MiB compressed, 96 MiB uncompressed TAR, 64 MiB extracted content, 4 MiB per file, 10,000 files, depth 20 and 45 seconds to fetch. Invalid paths, links, unsupported TAR entries or limits fail closed. Normal completion removes the temporary directory; a crash/forced termination can leave files.
+
+**Remote coverage is always INCOMPLETE:** index membership, history, LFS and submodule contents are not inspected. A remote scan returns exit 1 even with no recognized credential. Remote `--json` / `--sarif`, Git history options, `--root` and `--no-git` are unsupported by design. Local `reposafe scan` retains its existing JSON v2, SARIF 2.1.0 and Git history behavior. Source downloads require HTTPS; scanning does not upload source or findings.
+
 ## Recommended public CLI (one command)
 
 After installation, enter the Git repository root and run:
@@ -16,6 +30,10 @@ reposafe scan --details
 The public CLI scans the current directory **only if it contains its own .git marker**; it never searches parent directories. An explicit approved absolute --root is still supported. Its terminal dashboard groups **all retained findings by rule** with severity counts, Git/test context, coverage, warnings and next actions. The --high view prints HIGH/CRITICAL details, --details prints file locations and remediation, and --summary shows counts only.
 
 The original dist/cli.js remains supported for existing scripts and protocol integrations and still requires --root. The public CLI preserves JSON v2, SARIF 2.1.0 and the same scanner exit codes.
+
+**Private per-user npm installation:** When RepoSafe is installed at `$HOME/.reposafe`, the numbered Next Actions render copyable `"$HOME/.reposafe/node_modules/.bin/reposafe" scan ...` commands on macOS/Linux (and the corresponding PowerShell command on Windows). No global PATH modification is required. Other installations retain the short `reposafe` form when already configured on PATH.
+
+**Private-prefix follow-ups:** An installation inside `$HOME/.reposafe` prints directly executable NEXT ACTIONS using `"$HOME/.reposafe/node_modules/.bin/reposafe"` (macOS/Linux) or PowerShell `& "$HOME\.reposafe\node_modules\.bin\reposafe.cmd"`. These work without configuring the user's PATH permanently.
 
 **Next Actions:** after the dashboard, numbered suggestions show the priority findings (file:line, reason and action), a by-file view (first 50, with an explicit `--all-findings` option), and a coverage warning only when required. A grouped severity overview is not the same as individual findings: use `--high` or `--details` to inspect paths and line numbers. Suggested commands preserve `--no-history`/`--no-git` and supported Git history scope options. For explicitly supplied roots, commands display `--root ABSOLUTE_PATH` instead of a private absolute path; replace this placeholder with the same approved directory. **Each suggested command performs a new read-only scan**; there is no cached interactive report or automatic remediation.
 
