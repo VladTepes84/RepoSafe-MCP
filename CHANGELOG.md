@@ -1,5 +1,7 @@
 # Changelog
 
+- **Next Actions usability (PR #35):** A real Mac operator confirmed that the remote scan works but follow-up `reposafe` commands fail when installed in the documented private npm prefix without updating `PATH`. The launcher now prints copyable private-prefix-aware commands without exposing absolute user paths; unit coverage added for macOS, Linux and Windows. No scanner logic changed.
+
 ## Unreleased — experimental public URL snapshot (separate PR, NOT released)
 
 - Proposed `reposafe scan https://github.com/OWNER/REPO` with a strictly validated public GitHub URL, bounded SHA-pinned tar.gz download, verified regular-file-only temporary extraction, local scan and cleanup.

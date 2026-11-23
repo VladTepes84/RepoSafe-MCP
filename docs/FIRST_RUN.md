@@ -36,7 +36,7 @@ cd /ABSOLUTE/PATH/TO/GIT-REPOSITORY
 reposafe scan
 ~~~
 
-The PATH export applies only to this shell session unless you independently choose to configure your shell. No system administrator permissions are needed if your home directory is writable.
+The PATH export applies only to this shell session unless you independently choose to configure your shell. No system administrator permissions are needed if your home directory is writable. **For the documented private installation** (`$HOME/.reposafe`), newer Next Actions automatically show the same `$HOME/.reposafe/node_modules/.bin/reposafe` launcher. Thus copying a suggested command works even if `reposafe` is not added to PATH.
 
 Windows PowerShell:
 

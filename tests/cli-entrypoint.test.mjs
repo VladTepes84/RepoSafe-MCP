@@ -91,7 +91,7 @@ test('private-prefix Next Actions reuse the executable without exposing the home
   assert.equal(mac, '"$HOME/.reposafe/node_modules/.bin/reposafe"');
   assert.equal(reviewLauncher(script, home, 'linux'), mac);
   const windows = reviewLauncher(script, home, 'win32');
-  assert.equal(windows, '& "$HOME\\\\.reposafe\\\\node_modules\\\\.bin\\\\reposafe.cmd"');
+  assert.equal(windows, ['& "$HOME', '.reposafe', 'node_modules', '.bin', 'reposafe.cmd"'].join('\\'));
   assert.ok(!mac.includes(home) && !windows.includes(home));
   assert.equal(reviewLauncher(join(home, 'unrelated', 'bin', 'reposafe.mjs'), home), 'reposafe');
   const output = renderPrettyReport(sample, {
