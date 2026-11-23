@@ -39,6 +39,9 @@ reposafe scan
 
 This runs the same bounded, read-only scanner, now with a terminal dashboard: severity overview, **all findings grouped by rule**, tracked/untracked/test-like context, Git coverage, warnings and next actions. No separate script, MCP configuration or manual JSON interpretation.
 
+**Interactive progress (fix candidate):** during a terminal scan, the CLI displays the elapsed time, current phase (files/Git/report) and aggregate counts of files/directories examined. Counters are not a completion percentage. On timeout/interruption it reports the last observed phase and count; this does **not** mean the repository was fully inspected or that a report was generated. Noninteractive JSON/SARIF remains pure machine-readable output.
+
+
 ~~~sh
 reposafe scan --high            # HIGH/CRITICAL findings with paths and actions
 reposafe scan --details         # detailed findings and remediation (first 50)
