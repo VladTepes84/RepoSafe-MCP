@@ -16,7 +16,7 @@
 | Configure or diagnose a local MCP client | [Local MCP setup](docs/LOCAL_MCP.md) · [Client status](docs/CLIENTS.md) |
 | Interpret findings, suppress known benign examples | [Detection rules](docs/DETECTION.md) · [Baseline policy](docs/BASELINE.md) · [Remediation](docs/REMEDIATION.md) |
 | Understand limits and privacy | [Security model](docs/SECURITY.md) · [Report contract](docs/REPORT_CONTRACT.md) |
-| Run tests or assess readiness for release | [Testing](docs/TESTING.md) · [Readiness](docs/PRO_READINESS.md) |
+| Run tests or assess readiness for release | [Testing](docs/TESTING.md) · [Offline detection benchmark](docs/QUALITY_BENCHMARK.md) · [Readiness](docs/PRO_READINESS.md) |
 | Completely disconnect/uninstall without harming other software | [Uninstall / rollback](docs/UNINSTALL.md) |
 
 ### Install precompiled source (macOS / Linux)
