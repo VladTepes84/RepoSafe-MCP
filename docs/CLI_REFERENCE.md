@@ -17,6 +17,8 @@ The public CLI scans the current directory **only if it contains its own .git ma
 
 The original dist/cli.js remains supported for existing scripts and protocol integrations and still requires --root. The public CLI preserves JSON v2, SARIF 2.1.0 and the same scanner exit codes.
 
+**Interactive progress:** While attached to a terminal, the CLI shows elapsed time, the current phase (file scan, Git checks, finalizing) and aggregate file/directory counts. These are observed counters, **not a completion percentage**. An interrupted or timed-out scan has no completed report. Progress events never contain paths, source content or matched secret values; JSON/SARIF stdout remains unchanged.
+
 Set `RS` to the **actual absolute** path to your installed `dist/cli.js`, and `REPO` to a **specific approved repository**, not the filesystem root.
 
 ~~~sh
