@@ -19,6 +19,8 @@ Only use synthetic fixtures in public issues. No token values or source snippets
 
 **History:** added diff lines are examined within a bounded window (default: 100 recent commits and 4 MiB; operator caps: 5,000 commits and 16 MiB). Findings include a 12-character introducing commit prefix, not a matched value. Rewriting history alone does not revoke credentials.
 
+**Synthetic detector matrix:** `tests/precision.test.mjs` now checks one intentionally constructed positive per line-oriented secret rule, documented benign and near-miss examples, unrelated-rule alerts, duplicate findings and metadata-only output. It emits only per-rule counts. These fixtures are useful for regression detection but are **not** a representative sample, a calibrated precision/recall measurement, a validation of live credentials or a substitute for authorized real-world testing.
+
 **Validation:** run `npm ci`, `npm run check`, `npm run audit:deps` and inspect cross-platform CI results. Use independent security scanners (for example, Gitleaks and TruffleHog) and human review for higher assurance. Successful CI does not verify Cursor or Claude Desktop graphical integrations.
 
 ## v0.4 additions (heuristics)
