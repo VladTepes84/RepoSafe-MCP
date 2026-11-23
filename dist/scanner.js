@@ -395,6 +395,18 @@ export async function scanRepository(approvedRoot, options = {}) {
     const toVisit = [{ abs: root, depth: 0 }];
     const rootFiles = new Set();
     let stopped = false;
+    let lastProgressAt = 0;
+    function emitProgress(force = false) {
+        if (!options.onProgress || (!force && Date.now() - lastProgressAt < 600))
+            return;
+        lastProgressAt = Date.now();
+        options.onProgress({
+            phase: 'files',
+            filesScanned: stats.filesScanned,
+            directoriesVisited: stats.directoriesVisited,
+        });
+    }
+    emitProgress(true);
     function markPartial(reason) {
         stats.complete = false;
         if (!stats.warnings.includes(reason))
@@ -448,6 +460,7 @@ export async function scanRepository(approvedRoot, options = {}) {
             }
             entries = await readdir(directory, { withFileTypes: true });
             stats.directoriesVisited++;
+            emitProgress();
         }
         catch {
             markPartial('A directory could not be read.');
@@ -525,6 +538,7 @@ export async function scanRepository(approvedRoot, options = {}) {
                 const buffer = await handle.readFile();
                 stats.filesScanned++;
                 stats.bytesScanned += buffer.byteLength;
+                emitProgress();
                 if (buffer.includes(0)) {
                     stats.filesSkipped++;
                     continue;
@@ -567,6 +581,7 @@ export async function scanRepository(approvedRoot, options = {}) {
             }
         }
     }
+    emitProgress(true);
     function readiness(rule, severity, message, action) {
         addFinding({ category: 'readiness', rule, severity, file: '.', message, action });
     }
