@@ -1,5 +1,7 @@
 # Security model and responsible use
 
+For the independent assessment checklist and evidence requirements see [SECURITY_REVIEW_SCOPE.md](SECURITY_REVIEW_SCOPE.md). No external security audit or certification is claimed.
+
 **Security objective:** help humans identify a bounded class of publication risks *without disclosing matched credentials through MCP outputs or modifying repositories*. RepoSafe is not a guaranteed sanitizer, antivirus, repository permission boundary or penetration testing tool.
 
 ## Trust boundaries
