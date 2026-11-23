@@ -1,3 +1,9 @@
+## CLI-first closure decision (23 November 2026)
+
+The stable CLI release candidate requires one-command local usage from the Git repository root, a legible all-rule dashboard, focused HIGH/CRITICAL review and private JSON/SARIF compatibility. This is a **new PR-level acceptance gate**; verify packaging, macOS user acceptance and exact merged SHA before claiming it passed. Codex and IDE graphical integrations remain future features; a passing MCP SDK handshake must not be advertised as GUI support.
+
+The independent audit is not claimed: user-led validation is explicitly **internal**, and real-world detector precision/recall cannot be inferred from seeded synthetic cases alone. The original scanner limitations (history budget, skipped/overlength files, incomplete verdict) remain release documentation requirements.
+
 # RepoSafe Professional Readiness — acceptance gates
 
 RepoSafe is a **local-only, read-only scanner** distributed as CLI and a local stdio MCP server. This document is an engineering acceptance plan, **not a claim of security certification**. Any evidence must link to a specific commit, CI run, client build and OS. Never mark a manual acceptance test as passed because an SDK handshake passed.
