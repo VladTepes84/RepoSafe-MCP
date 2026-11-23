@@ -31,6 +31,16 @@ function entry(path, type = '0', body = Buffer.alloc(0), declaredSize = body.len
   return Buffer.concat([h, body, padding]);
 }
 const archive = (...entries) => gzipSync(Buffer.concat([...entries, Buffer.alloc(1024)]));
+function paxRecord(key, value) {
+  // PAX record length includes the decimal prefix and trailing newline.
+  const payload = key + '=' + value + '\n';
+  let length = Buffer.byteLength(payload) + 2;
+  while (true) {
+    const actual = Buffer.byteLength(String(length) + ' ' + payload);
+    if (actual === length) return Buffer.from(String(length) + ' ' + payload);
+    length = actual;
+  }
+}
 async function temp(fn) {
   const root = await mkdtemp(join(tmpdir(), 'reposafe-remote-fixture-'));
   try { return await fn(root); }
@@ -78,6 +88,35 @@ test('safe snapshot tar extracts only regular bounded files and scanner reads th
     assert.match(scan.stdout, /demo.txt:1/);
     assert.doesNotMatch(scan.stdout + scan.stderr, new RegExp(dummy));
   });
+});
+
+test('GitHub-style global PAX metadata is consumed without creating a file', async () => {
+  await temp(async root => {
+    const comment = paxRecord('comment', 'commit 7fd1a60b01f91b314f59955a4e4d4e80d8edf11d');
+    const source = archive(
+      entry('pax_global_header', 'g', comment),
+      entry('Hello-World-7fd1a60/', '5'),
+      entry('Hello-World-7fd1a60/README', '0', Buffer.from('Hello World!\n')),
+    );
+    const result = await extract(root, source);
+    assert.equal(result.files, 1);
+    assert.equal(await readFile(join(root, 'README'), 'utf8'), 'Hello World!\n');
+    assert.deepEqual(await readdir(root), ['README']);
+  });
+});
+
+test('global PAX cannot override paths, sizes, links or unknown metadata', async () => {
+  for (const field of ['path', 'size', 'linkpath', 'GNU.sparse.map', 'unexpected']) {
+    await temp(async root => {
+      const value = field === 'size' ? '1' : 'outside';
+      const source = archive(
+        entry('pax_global_header', 'g', paxRecord(field, value)),
+        entry('Hello-World-abc/README', '0', Buffer.from('hello\n')),
+      );
+      await assert.rejects(extract(root, source), /REMOTE_ARCHIVE_UNSUPPORTED/, field);
+      assert.deepEqual(await readdir(root), []);
+    });
+  }
 });
 
 test('safe extractor rejects symlinks and hardlinks without writing destinations', async () => {
