@@ -3,10 +3,12 @@
 // Only an operator-supplied --root or the current Git repository root is scanned.
 import { lstat, realpath, rm } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
+import { homedir } from 'node:os';
 import { StringDecoder } from 'node:string_decoder';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { renderPrettyReport } from './report-view.mjs';
+import { reviewLauncher } from './review-command.mjs';
 import { createGithubSnapshot, parseGithubUrl } from './github-snapshot.mjs';
 
 const engine = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'cli.js');
@@ -213,7 +215,7 @@ async function scanPrepared(remote) {
   }
   // Recommend scope-preserving read-only follow-ups, never emit an absolute private path.
   // Historical checkpoint resume is intentionally not copied into suggested commands.
-  const reviewArgs = ['reposafe', 'scan'];
+  const reviewArgs = [reviewLauncher(fileURLToPath(import.meta.url), homedir()), 'scan'];
   if (remote) reviewArgs.push(remote.url);
   else if (rootIndex >= 0) reviewArgs.push('--root', 'ABSOLUTE_PATH');
   for (const flag of ['--no-git', '--no-history', '--current-branch']) {
