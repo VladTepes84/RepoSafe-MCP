@@ -1,82 +1,64 @@
-# RepoSafe MCP — first run (simple standalone CLI)
+# RepoSafe — first run
 
-RepoSafe works without Codex, an IDE, AI API keys, a hosted scanner or a dashboard. **Node.js 22+, npm and Git** are required. Choose only a Git repository you own or are authorized to audit.
+RepoSafe scans an authorized local Git repository or a public GitHub URL. Node.js **22+**, npm and Git are recommended. No AI account, administrator privileges, cloud scanner or build tool required.
 
-## Option A — Simple global command (macOS, Linux, Windows)
+## 1. Install in your own user directory
 
-With a user-writable global npm prefix, install the precompiled GitHub archive; npm lifecycle scripts are disabled:
-
-~~~sh
-npm install -g --ignore-scripts --no-audit --no-fund \
-  "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
-~~~
-
-Then open your Git repository **root**, not your home folder:
-
-~~~sh
-cd /ABSOLUTE/PATH/TO/GIT-REPOSITORY
-reposafe scan
-reposafe scan --high
-reposafe scan --details
-~~~
-
-On Windows PowerShell, use npm.cmd instead of npm, and Set-Location to enter the repository root.
-
-**Important:** main is a mutable source ref. Replace it with the reviewed immutable 40-character SHA before using the command for a production release. This is not a signed distribution. If a global npm installation fails due to permissions, use Option B; **do not use sudo**.
-
-## Option B — Dedicated per-user install (no global npm changes)
-
-macOS/Linux:
+**macOS/Linux:**
 
 ~~~sh
 npm install --prefix "$HOME/.reposafe" --ignore-scripts --no-audit --no-fund \
   "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
 export PATH="$HOME/.reposafe/node_modules/.bin:$PATH"
-cd /ABSOLUTE/PATH/TO/GIT-REPOSITORY
-reposafe scan
+reposafe --help
 ~~~
 
-The PATH export applies only to this shell session unless you independently choose to configure your shell. No system administrator permissions are needed if your home directory is writable. **For the documented private installation** (`$HOME/.reposafe`), newer Next Actions automatically show the same `$HOME/.reposafe/node_modules/.bin/reposafe` launcher. Thus copying a suggested command works even if `reposafe` is not added to PATH.
-
-Windows PowerShell:
+**Windows PowerShell:**
 
 ~~~powershell
 npm.cmd install --prefix "$HOME\.reposafe" --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
 $env:PATH = "$HOME\.reposafe\node_modules\.bin;$env:PATH"
-Set-Location "C:\ABSOLUTE\PATH\TO\GIT-REPOSITORY"
+reposafe --help
+~~~
+
+The PATH change lasts only for the open terminal. Without it, use `"$HOME/.reposafe/node_modules/.bin/reposafe"` on macOS/Linux or `& "$HOME\.reposafe\node_modules\.bin\reposafe.cmd"` on PowerShell. The numbered NEXT ACTIONS automatically use this private prefix for standard installs. Avoid `sudo` and OS policy changes. If you already have a **user-writable** global npm prefix, `npm install -g` is also supported. Installation downloads from GitHub/npm; the `main` source archive is mutable. Replace `main` with a vetted 40-character SHA for repeatable installs. No published npm package or signed release is implied.
+
+## 2. Scan
+
+**Local Git root**:
+
+~~~sh
+cd /ABSOLUTE/PATH/TO/GIT-REPOSITORY
 reposafe scan
 ~~~
 
-## Optional public GitHub URL snapshot (candidate; not yet released)
+**Public GitHub repository** (no manual clone):
 
 ~~~sh
 reposafe scan https://github.com/OWNER/REPO
-reposafe scan https://github.com/OWNER/REPO --high
-reposafe scan https://github.com/OWNER/REPO --details --group-by file
 ~~~
 
-This is **one argument**, not a manual clone. It downloads a bounded **source snapshot** into a temporary local directory and removes it after scanning. Only `https://github.com/OWNER/REPO` public repositories are supported, with no API tokens. No arbitrary HTTP URLs, private repos, ZIP extraction, Git clone, submodules, Git LFS or Git history. Remote snapshots always carry an **INCOMPLETE** Git-coverage warning, even with zero findings; their metadata and content arrive over HTTPS. The current candidate deliberately rejects remote `--json`, `--sarif` and Git/history options. The regular local `reposafe scan` path is unchanged.
+URL mode transfers a **bounded public source snapshot to local temporary storage**, scans it locally, then cleans it on normal completion. It does not execute code, but it requires HTTPS network access. Remote Git history/index, submodules and LFS objects are not examined, so its coverage is always **INCOMPLETE**. Private repos, arbitrary hosts and remote JSON/SARIF are unsupported.
 
-## Scan with one command
-
-A regular user needs only `reposafe scan` from an authorized Git root. RepoSafe displays progress, summarizes severity and coverage, and prints numbered **NEXT ACTIONS** when it finishes. These are follow-up commands, **not a prompt or menu**; choose one, copy it, and run it in the same directory. Each follow-up **re-scans** the repository. No report cache, auto-fix, cloud upload or interactive selection is implied.
+## 3. Inspect findings
 
 ~~~sh
-reposafe scan                 # dashboard + all findings grouped by rule
-reposafe scan --high          # priority findings with individual paths/actions
-reposafe scan --details       # detailed findings and guidance (first 50)
-reposafe scan --details --group-by file  # show relative paths and lines by file
-reposafe scan --all-findings  # show all retained findings, without the 50-entry display cap
-reposafe scan --summary       # counts and coverage only
-reposafe scan --no-history    # faster current-state scan
-reposafe scan --json          # versioned machine-readable report
-reposafe scan --sarif         # SARIF 2.1.0
-reposafe --help               # full list of options
+reposafe scan --high                       # local HIGH/CRITICAL findings
+reposafe scan --details --group-by file    # local detailed findings by file
+reposafe scan --all-findings               # all retained local findings
+reposafe scan https://github.com/OWNER/REPO --details
 ~~~
 
-For safety, the implicit root must itself contain a .git directory or worktree marker. RepoSafe never silently climbs into parent folders. You can explicitly approve another existing absolute directory using --root, even for a non-Git scan. Exit 0 means no findings within the inspected scope, exit 1 means manual review or incomplete coverage, and exit 2 means an error. **Zero findings does not certify publishability.**
+After the dashboard, copy the numbered `NEXT ACTIONS` for details. Each performs a fresh read-only scan. Local scans accept `--no-history` to skip history, `--root ABSOLUTE_PATH` for another explicitly authorized directory, and `--json` / `--sarif` for machines. Exit `0` means no findings within the scanned scope; `1` means findings or incomplete coverage; `2` indicates an error. No result certifies the repository's safety.
 
-The public launcher is installed at bin/reposafe.mjs; the original dist/cli.js remains available for backward compatibility. Scanner results contain redacted metadata only; --high and --details display relative file paths that may themselves be sensitive. Do not paste private findings into issues.
+**Optional advanced MCP commands below require these variables on macOS/Linux:**
+
+~~~sh
+RS="$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js"
+REPO="/ABSOLUTE/PATH/TO/YOUR/GIT-REPOSITORY"
+~~~
+
+On PowerShell use `$RS = "$HOME\.reposafe\node_modules\reposafe-mcp\dist\cli.js"` and `$REPO = "C:\ABSOLUTE\PATH\TO\REPOSITORY"`. The MCP server is optional, not needed to scan from the CLI.
 
 ## Optional AI client setup — after CLI acceptance
 
