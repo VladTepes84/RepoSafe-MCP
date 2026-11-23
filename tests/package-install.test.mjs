@@ -33,7 +33,7 @@ try {
   await mkdir(root);
   await writeFile(join(root,'README.md'),'# Synthetic\n');
   await writeFile(join(root,'LICENSE'),'MIT\n');
-  await writeFile(join(root,'.gitignore'),'.env\n');
+  await writeFile(join(root,'.gitignore'),'.env\n.env.*\n');
   exec('git',['-C',root,'init','-q']);
   exec('git',['-C',root,'add','.']);
   exec('git',['-C',root,'-c','user.name=Synthetic Fixture',
