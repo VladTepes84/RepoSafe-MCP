@@ -88,7 +88,7 @@ function octal(header, start, length) {
   if (!Number.isSafeInteger(number)) throw new Error('REMOTE_ARCHIVE_INVALID');
   return number;
 }
-function parsePax(data) {
+function parsePax(data, { global = false } = {}) {
   let at = 0;
   let path = null;
   while (at < data.length) {
@@ -101,10 +101,17 @@ function parsePax(data) {
     const equals = record.indexOf('=');
     if (equals < 1) throw new Error('REMOTE_ARCHIVE_INVALID');
     const key = record.slice(0, equals);
-    if (key === 'path') path = record.slice(equals + 1);
-    if (key === 'size' || key.startsWith('GNU.sparse') || key === 'linkpath') {
+    if (key === 'size' || key.startsWith('GNU.sparse') || key === 'linkpath' ||
+        (global && key === 'path')) {
       throw new Error('REMOTE_ARCHIVE_UNSUPPORTED');
     }
+    // A global PAX header applies to future entries. Only harmless metadata
+    // fields are accepted; never adopt a global path, size or link override.
+    if (global && !['comment', 'mtime', 'atime', 'ctime', 'uid', 'gid',
+      'uname', 'gname'].includes(key)) {
+      throw new Error('REMOTE_ARCHIVE_UNSUPPORTED');
+    }
+    if (key === 'path') path = record.slice(equals + 1);
     at += length;
   }
   return path;
@@ -162,8 +169,8 @@ export class SafeTarExtractor {
         if (supplied !== checksum) throw new Error('REMOTE_ARCHIVE_INVALID');
         const size = octal(header, 124, 12);
         const type = header[156] === 0 ? '0' : String.fromCharCode(header[156]);
-        if (!['0', '5', 'x', 'L'].includes(type)) throw new Error('REMOTE_ARCHIVE_UNSUPPORTED');
-        if (type === 'x' || type === 'L') {
+        if (!['0', '5', 'x', 'L', 'g'].includes(type)) throw new Error('REMOTE_ARCHIVE_UNSUPPORTED');
+        if (type === 'x' || type === 'L' || type === 'g') {
           if (size > MAX_PAX_BYTES) throw new Error('REMOTE_ARCHIVE_LIMIT');
         } else if (type === '0') {
           if (size > MAX_FILE_BYTES || this.total + size > MAX_FILES_BYTES ||
@@ -180,7 +187,11 @@ export class SafeTarExtractor {
       if (this.pending.length < padded) return;
       const data = this.pending.subarray(0, size);
       this.pending = this.pending.subarray(padded);
-      if (type === 'x') {
+      if (type === 'g') {
+        // GitHub Codeload archives may begin with a global PAX comment.
+        // Consume metadata only; never create files or inherit unsafe overrides.
+        parsePax(data, { global: true });
+      } else if (type === 'x') {
         this.nextPath = parsePax(data);
       } else if (type === 'L') {
         const nul = data.indexOf(0);
