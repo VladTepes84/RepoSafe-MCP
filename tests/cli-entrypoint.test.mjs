@@ -5,6 +5,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { renderPrettyReport } from '../bin/report-view.mjs';
+import { reviewLauncher } from '../bin/review-command.mjs';
 
 const executable = resolve('bin/reposafe.mjs');
 const run = (cwd, ...args) => spawnSync(process.execPath, [executable, ...args], {
@@ -81,6 +82,24 @@ test('summary view hides all rule names, compact view abbreviates explanations',
   const details = renderPrettyReport(sample, { details: true, groupBy: 'file' });
   assert.match(details, /FILE  config.txt/);
   assert.match(details, /Action: Review token/);
+});
+
+test('private-prefix Next Actions reuse the executable without exposing the home path', () => {
+  const home = join('synthetic home with spaces', 'private example');
+  const script = join(home, '.reposafe', 'node_modules', 'reposafe-mcp', 'bin', 'reposafe.mjs');
+  const mac = reviewLauncher(script, home, 'darwin');
+  assert.equal(mac, '"$HOME/.reposafe/node_modules/.bin/reposafe"');
+  assert.equal(reviewLauncher(script, home, 'linux'), mac);
+  const windows = reviewLauncher(script, home, 'win32');
+  assert.equal(windows, '& "$HOME\\\\.reposafe\\\\node_modules\\\\.bin\\\\reposafe.cmd"');
+  assert.ok(!mac.includes(home) && !windows.includes(home));
+  assert.equal(reviewLauncher(join(home, 'unrelated', 'bin', 'reposafe.mjs'), home), 'reposafe');
+  const output = renderPrettyReport(sample, {
+    reviewCommand: mac + ' scan https://github.com/octocat/Hello-World',
+    remoteSource: { url: 'https://github.com/octocat/Hello-World', sha: 'a'.repeat(40) },
+  });
+  assert.match(output, /"\$HOME\/\.reposafe\/node_modules\/\.bin\/reposafe" scan https:\/\/github\.com\/octocat\/Hello-World --high/);
+  assert.ok(!output.includes(home));
 });
 
 test('Next Actions include numbered, scoped priority/file/coverage commands', () => {
