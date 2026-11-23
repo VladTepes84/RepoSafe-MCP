@@ -1,3 +1,9 @@
+## Unreleased — offline field-quality scoring (PR pending)
+
+- Added optional, offline adjudication of redacted JSON v2 reports against privately held labels: per-rule TP/FP/FN, unknown and duplicate counts, precision/recall with null for empty denominators, and coverage/suppression checks.
+- No scanner behavior, network access, credential validation or cloud scanning added. The scorer never displays input filenames, source lines, token values or commit IDs.
+- Added synthetic CLI/privacy/error regressions and documented the authorized local validation protocol. **Real-world accuracy and independent audit remain unverified.** Codex/IDE integration is deferred to future work.
+
 ## Unreleased — bounded overlength-line heuristic checks (PR #27 merged 2026-11-22)
 
 - Overlength current-file and Git-tracked excluded-file lines receive overlapping, 65,536-character bounded pattern checks rather than being silently omitted from heuristic matching. Repeated rules on a single source line are deduplicated; matched values are never included in results.
