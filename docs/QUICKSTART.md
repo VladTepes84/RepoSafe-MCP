@@ -45,7 +45,7 @@ Each suggested command scans again. `--all-findings` shows all retained results 
 
 Guides: [First run](FIRST_RUN.md), [CLI reference](CLI_REFERENCE.md), [Security](SECURITY.md), [Uninstall](UNINSTALL.md).
 
-## 3. Reproduce the security regression locally (developers)
+## 4. Reproduce the security regression locally (developers)
 
 ~~~sh
 git clone https://github.com/VladTepes84/RepoSafe-MCP.git
@@ -59,7 +59,7 @@ npm run audit:deps
 
 The test suite creates disposable synthetic Git repositories, not live keys. `npm run check` includes typecheck, build, protocol tests, scanner/security tests and the offline demo. `npm audit` needs network access; the scanner does not.
 
-## 4. Optional MCP clients, with explicit caveat
+## 5. Optional MCP clients, with explicit caveat
 
 ~~~sh
 RS="$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js"
@@ -74,7 +74,7 @@ Also supported in the **configuration generator**: `cursor`, `claude` and `vscod
 
 **Current evidence:** RepoSafe passed SDK STDIO tests and local doctor on a Mac, but **was not exposed as a tool in an observed Codex Desktop conversation** on 2026-11-22. Do not mistake a successful `doctor` for a passed GUI test. See [MCP client acceptance](CLIENT_ACCEPTANCE.md). The CLI works without Codex.
 
-## 5. Interpret and clean up
+## 6. Interpret and clean up
 
 - **Critical/High:** investigate possible exposed live secrets, rotate/revoke credentials if necessary; Git rewriting does not revoke a token.
 - **Medium/Low:** inspect ignore rules, tracked files, private infrastructure references and publication readiness.
