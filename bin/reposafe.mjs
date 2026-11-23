@@ -157,7 +157,25 @@ async function scan() {
     if (result.status === 2) fail(result.reason);
     return;
   }
-  const rendererOptions = { color, high, details, summary, compact, allFindings, groupBy };
+  // Recommend scope-preserving read-only follow-ups, never emit an absolute private path.
+  // Historical checkpoint resume is intentionally not copied into suggested commands.
+  const reviewArgs = ['reposafe', 'scan'];
+  if (rootIndex >= 0) reviewArgs.push('--root', 'ABSOLUTE_PATH');
+  for (const flag of ['--no-git', '--no-history', '--current-branch']) {
+    if (flags.has(flag)) reviewArgs.push(flag);
+  }
+  for (const flag of ['--history-depth', '--max-diff-size', '--since']) {
+    const index = argv.indexOf(flag);
+    if (index < 0) continue;
+    const value = argv[index + 1] ?? '';
+    if ((flag === '--since' ? /^\d{4}-\d{2}-\d{2}$/ : /^[1-9]\d*$/).test(value)) {
+      reviewArgs.push(flag, value);
+    }
+  }
+  const rendererOptions = {
+    color, high, details, summary, compact, allFindings, groupBy,
+    reviewCommand: reviewArgs.join(' '), explicitRoot: rootIndex >= 0,
+  };
   const engineParams = [];
   for (let index = 0; index < params.length; index++) {
     if (['--high', '--details', '--summary', '--compact', '--all-findings', '--no-color'].includes(params[index])) continue;
