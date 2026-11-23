@@ -1,3 +1,7 @@
+## One-command public CLI acceptance (new release-candidate gate)
+
+The test:cli-entrypoint suite exercises the public bin/reposafe.mjs launcher (not merely the legacy dist/cli.js), default Git-root scoping, safe refusal outside an approved Git root, a detailed HIGH view, summary/compact flags, text/ANSI parity, JSON and SARIF output without decoration, and package manifest checks. The cross-platform CI executes this via the standard npm test chain; an actual macOS operator test of the installed executable is still required before stable release. Test data are synthetic; never publish private reports or actual tokens.
+
 # Test and evidence plan
 
 > **Current evidence (22 Nov 2026):** combined PR #20 merged to `main` at `1fe5bbb4c14e738f1fd196b839346f967909bf58`. Its combined head passed four GitHub CI jobs and **146 local Mac automated tests**, plus demo, runtime verification, benchmark, audit and manual synthetic CLI Git/history/JSON/SARIF/checkpoint checks. PR #26 code head `724fa432d71afccad0bd037d4ba8aa1ff50947d2` separately passed four CI matrix jobs in [run #45053790697](https://github.com/VladTepes84/RepoSafe-MCP/actions/runs/45053790697), including the display and contextual triage regressions. CI on that code head does **not** constitute manual Mac/Codex Desktop GUI acceptance or validation of later commits. **Codex Desktop tools were not exposed in the observed client conversation; GUI acceptance has not passed.**

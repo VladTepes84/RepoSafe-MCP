@@ -1,50 +1,68 @@
-# RepoSafe MCP — first run (precompiled installation)
+# RepoSafe MCP — first run (simple standalone CLI)
 
-**Audience:** security practitioners, developers and maintainers who want to audit a Git repository locally. **Prerequisites:** Node.js 22+, npm and Git; permission to inspect the target repository. No AI API key, hosted scanner, telemetry or privileged installer is required.
+RepoSafe works without Codex, an IDE, AI API keys, a hosted scanner or a dashboard. **Node.js 22+, npm and Git** are required. Choose only a Git repository you own or are authorized to audit.
 
-The **recommended** installation uses a precompiled source archive in a dedicated user directory and skips all npm lifecycle scripts. For the complete commands, see [Quick start](QUICKSTART.md) and [CLI reference](CLI_REFERENCE.md).
+## Option A — Simple global command (macOS, Linux, Windows)
 
-## Install
-
-macOS / Linux:
+With a user-writable global npm prefix, install the precompiled GitHub archive; npm lifecycle scripts are disabled:
 
 ~~~sh
-node --version
-git --version
+npm install -g --ignore-scripts --no-audit --no-fund \
+  "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
+~~~
+
+Then open your Git repository **root**, not your home folder:
+
+~~~sh
+cd /ABSOLUTE/PATH/TO/GIT-REPOSITORY
+reposafe scan
+reposafe scan --high
+reposafe scan --details
+~~~
+
+On Windows PowerShell, use npm.cmd instead of npm, and Set-Location to enter the repository root.
+
+**Important:** main is a mutable source ref. Replace it with the reviewed immutable 40-character SHA before using the command for a production release. This is not a signed distribution. If a global npm installation fails due to permissions, use Option B; **do not use sudo**.
+
+## Option B — Dedicated per-user install (no global npm changes)
+
+macOS/Linux:
+
+~~~sh
 npm install --prefix "$HOME/.reposafe" --ignore-scripts --no-audit --no-fund \
   "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
-RS="$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js"
-node "$RS" --help
+export PATH="$HOME/.reposafe/node_modules/.bin:$PATH"
+cd /ABSOLUTE/PATH/TO/GIT-REPOSITORY
+reposafe scan
 ~~~
+
+The PATH export applies only to this shell session unless you independently choose to configure your shell. No system administrator permissions are needed if your home directory is writable.
 
 Windows PowerShell:
 
 ~~~powershell
-node --version
-git --version
 npm.cmd install --prefix "$HOME\.reposafe" --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
-$RS = "$HOME\.reposafe\node_modules\reposafe-mcp\dist\cli.js"
-node $RS --help
+$env:PATH = "$HOME\.reposafe\node_modules\.bin;$env:PATH"
+Set-Location "C:\ABSOLUTE\PATH\TO\GIT-REPOSITORY"
+reposafe scan
 ~~~
 
-**Security and reproducibility:** `main` is a mutable Git branch. Replace the archive segment `main` with a reviewed **40-character commit SHA** for a reproducible source version. This is **not** a signed, independently attested binary. The installer downloads from GitHub/npm over HTTPS, writes to the specified prefix/npm cache, and never builds/executes npm lifecycle scripts (`--ignore-scripts`). The source includes committed compiled JavaScript under `dist/`, verified against TypeScript builds in CI. No package is published to the npm registry.
-
-## Approve a precise scope and verify
-
-Use an existing absolute directory that you own or may audit, **not your entire home or filesystem root**.
+## Scan with one command
 
 ~~~sh
-REPO="/ABSOLUTE/PATH/TO/YOUR/PROJECT"
-node "$RS" doctor --root "$REPO"
-node "$RS" scan --root "$REPO" --summary
-node "$RS" scan --root "$REPO" --compact --group-by file
+reposafe scan                 # dashboard + all findings grouped by rule
+reposafe scan --high          # priority findings with individual paths/actions
+reposafe scan --details       # detailed findings and guidance
+reposafe scan --summary       # counts and coverage only
+reposafe scan --no-history    # faster current-state scan
+reposafe scan --json          # versioned machine-readable report
+reposafe scan --sarif         # SARIF 2.1.0
+reposafe --help               # full list of options
 ~~~
 
-Windows: use a drive-qualified path and `node $RS`.
+For safety, the implicit root must itself contain a .git directory or worktree marker. RepoSafe never silently climbs into parent folders. You can explicitly approve another existing absolute directory using --root, even for a non-Git scan. Exit 0 means no findings within the inspected scope, exit 1 means manual review or incomplete coverage, and exit 2 means an error. **Zero findings does not certify publishability.**
 
-`doctor` connects to a real local MCP STDIO server and discovers **seven tools**. It **does not** scan a repository and **does not** verify the actual AI client's GUI. `scan` runs a real read-only audit and provides a verdict, severity counts, known omissions, coverage and optional finding details.
-
-**Exit codes:** `0` no unsuppressed findings within bounded scope; `1` review required or incomplete scan; `2` usage/runtime error. Even exit 0 is **not** proof that publication is safe.
+The public launcher is installed at bin/reposafe.mjs; the original dist/cli.js remains available for backward compatibility. Scanner results contain redacted metadata only; --high and --details display relative file paths that may themselves be sensitive. Do not paste private findings into issues.
 
 ## Optional AI client setup — after CLI acceptance
 

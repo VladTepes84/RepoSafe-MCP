@@ -1,6 +1,21 @@
 # RepoSafe MCP — CLI reference
 
-**Scope:** local, read-only repository auditing. Runtime: Node.js 22+ and Git for history checks. This page documents **v0.7 beta plus human-readable display options**. The CLI scanner never uploads repository content.
+**Scope:** local, read-only repository auditing. Runtime: Node.js 22+ and Git for history checks. This page documents **v0.7 beta plus the one-command public CLI**. The CLI scanner never uploads repository content.
+
+## Recommended public CLI (one command)
+
+After installation, enter the Git repository root and run:
+
+~~~sh
+cd /ABSOLUTE/PATH/TO/REPO
+reposafe scan
+reposafe scan --high
+reposafe scan --details
+~~~
+
+The public CLI scans the current directory **only if it contains its own .git marker**; it never searches parent directories. An explicit approved absolute --root is still supported. Its terminal dashboard groups **all retained findings by rule** with severity counts, Git/test context, coverage, warnings and next actions. The --high view prints HIGH/CRITICAL details, --details prints file locations and remediation, and --summary shows counts only.
+
+The original dist/cli.js remains supported for existing scripts and protocol integrations and still requires --root. The public CLI preserves JSON v2, SARIF 2.1.0 and the same scanner exit codes.
 
 Set `RS` to the **actual absolute** path to your installed `dist/cli.js`, and `REPO` to a **specific approved repository**, not the filesystem root.
 
@@ -31,7 +46,9 @@ Development checkout: run `npm ci --ignore-scripts && npm run build` first, then
 
 | Flag | Effect |
 | --- | --- |
-| `--root ABS_PATH` | **Required** canonical absolute directory; root-scoped access |
+| `--root ABS_PATH` | Explicit approved absolute directory; optional in public CLI when cwd itself is a Git root, required by the legacy engine |
+| `--high` (public CLI) | Only HIGH/CRITICAL grouped rules and individual priority findings; full counts remain visible |
+| `--details` (public CLI) | Detailed locations and remediation for up to 50 retained findings |
 | `--summary` | Counts, coverage and warnings; hide individual findings |
 | `--compact` | One line per finding, no reason/action expansion |
 | `--group-by severity` | Default: severity-first, then relative file, line and rule |

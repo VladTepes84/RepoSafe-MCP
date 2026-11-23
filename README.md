@@ -19,52 +19,51 @@
 | Run tests or assess readiness for release | [Testing](docs/TESTING.md) · [Offline detection benchmark](docs/QUALITY_BENCHMARK.md) · [Readiness](docs/PRO_READINESS.md) |
 | Completely disconnect/uninstall without harming other software | [Uninstall / rollback](docs/UNINSTALL.md) |
 
-### Install precompiled source (macOS / Linux)
+### Install once, scan with one command
 
-Prerequisites: `node --version` shows **22+**, `git --version` works, and npm is available. Choose a **specific, authorized repository**; never use your entire home folder or filesystem root as the scan target.
+**Prerequisites:** Node.js 22+, npm and Git. No AI subscription, cloud scanner, API key or GUI is needed.
+
+On macOS/Linux, install the precompiled source archive with npm (no package lifecycle scripts):
 
 ~~~sh
-npm install --prefix "$HOME/.reposafe" --ignore-scripts --no-audit --no-fund \
+npm install -g --ignore-scripts --no-audit --no-fund \
   "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
-
-RS="$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js"
-node "$RS" --help
-node "$RS" doctor --root "/ABSOLUTE/PATH/TO/YOUR/REPO"
-node "$RS" scan --root "/ABSOLUTE/PATH/TO/YOUR/REPO"
 ~~~
 
-The `main` archive URL is **mutable**. For a reproducible installation, substitute a **reviewed 40-character commit SHA** for `main`. A pinned SHA is not a signed release or supply-chain attestation. Downloads use HTTPS to GitHub and npm; `--ignore-scripts` prevents install lifecycle scripts. Installation writes to the chosen prefix and npm cache; scans don't edit the target repository.
+Then open the **root of a Git repository** you own or are authorized to audit:
 
-**Windows PowerShell:**
+~~~sh
+cd /PATH/TO/YOUR/GIT-REPOSITORY
+reposafe scan
+~~~
+
+This runs the same bounded, read-only scanner, now with a terminal dashboard: severity overview, **all findings grouped by rule**, tracked/untracked/test-like context, Git coverage, warnings and next actions. No separate script, MCP configuration or manual JSON interpretation.
+
+~~~sh
+reposafe scan --high            # HIGH/CRITICAL findings with paths and actions
+reposafe scan --details         # detailed findings and remediation (first 50)
+reposafe scan --all-findings    # all retained findings, including files and lines
+reposafe scan --summary         # counts/coverage only
+reposafe scan --no-history      # skip Git history for a faster current-state review
+reposafe scan --json            # pure JSON v2 for automated workflows
+reposafe scan --sarif           # pure SARIF 2.1.0 for compatible consumers
+~~~
+
+**Security and installation limits:** The main archive ref is mutable. Before production use, replace main in the archive URL with the **reviewed 40-character commit SHA** or a vetted immutable release. A GitHub commit pin is not a signed distribution. GitHub/npm downloads require network; repository scans do not upload source. Global npm installation requires a *writable user-controlled npm prefix*. **Do not use sudo to work around permissions.** For a private per-user installation without global npm changes, see [First run](docs/FIRST_RUN.md).
+
+Windows PowerShell installation (when npm's global prefix is user-writable):
 
 ~~~powershell
-npm.cmd install --prefix "$HOME\.reposafe" --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
-$RS = "$HOME\.reposafe\node_modules\reposafe-mcp\dist\cli.js"
-node $RS --help
-node $RS doctor --root "C:\ABSOLUTE\PATH\TO\REPO"
-node $RS scan --root "C:\ABSOLUTE\PATH\TO\REPO"
+npm.cmd install -g --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
+Set-Location "C:\PATH\TO\YOUR\GIT-REPOSITORY"
+reposafe scan
 ~~~
 
-Detailed OS instructions: [macOS](docs/INSTALL_MAC.md) · [Windows](docs/INSTALL_WINDOWS.md).
+The scan command without --root is allowed **only when your current directory itself contains a Git root marker** (a .git directory or worktree file). It never silently ascends to your home directory or another parent. From elsewhere, use an explicit approved --root ABSOLUTE_PATH, or cd to the Git root. No repository files are changed. If --resume-history is explicitly enabled, private scan metadata is saved outside the repository; otherwise scanning is read-only.
 
-### Quick command examples
+The classic engine remains available via dist/cli.js for backward compatibility and the existing MCP protocol. GUI/IDE integrations (Codex, Cursor, VS Code, etc.) are **future** work, not required for standalone CLI use.
 
-The examples below assume `RS` points to `dist/cli.js` and `REPO` is a **pre-approved absolute directory**.
-
-~~~sh
-node "$RS" scan --root "$REPO"                        # severity-grouped detailed report
-node "$RS" scan --root "$REPO" --summary              # coverage + counts only
-node "$RS" scan --root "$REPO" --compact              # one line per finding
-node "$RS" scan --root "$REPO" --group-by file        # findings grouped by relative file
-node "$RS" scan --root "$REPO" --all-findings         # show every retained finding
-node "$RS" scan --root "$REPO" --history-depth 500    # bounded local Git history
-node "$RS" scan --root "$REPO" --json > report.json   # automation: redirect OUTSIDE repo
-node "$RS" scan --root "$REPO" --sarif > report.sarif # SARIF 2.1.0
-~~~
-
-The human-readable CLI now organizes findings by severity (or by file), highlights the verdict and coverage, and offers concise and summary views. Colors are **TTY-only** and respect `NO_COLOR` and `--no-color`. JSON/SARIF never contain ANSI styling or progress messages. For the exact flags and combinations, see [CLI reference](docs/CLI_REFERENCE.md).
-
-**Exit codes:** `0` = no unsuppressed findings **within scanned limits**; `1` = review required **or incomplete scan**; `2` = usage/runtime failure. A zero exit code is not a security certification. A Git history depth/date/branch filter limits coverage deliberately.
+**Exit codes:** 0 = no findings within the scanned scope; 1 = review required or incomplete coverage; 2 = usage/runtime error. **Neither a clean report nor a successful CLI test certifies the repository as safe to publish.** A history depth limit, unreadable file, omitted findings or long-line warning must be reviewed.
 
 ## What RepoSafe checks
 

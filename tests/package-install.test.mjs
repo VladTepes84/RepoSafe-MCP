@@ -27,12 +27,20 @@ try {
     '--no-save','--no-audit','--no-fund']);
   const bin=join(prefix,'node_modules','.bin','reposafe');
   const usage=exec(bin,['--help']);
-  assert.ok(usage.includes('RepoSafe MCP'));
+  assert.ok(usage.includes('RepoSafe'));
+  assert.ok(usage.includes('reposafe scan'));
   const root=join(directory,'example');
   await mkdir(root);
   await writeFile(join(root,'README.md'),'# Synthetic\n');
   await writeFile(join(root,'LICENSE'),'MIT\n');
-  await writeFile(join(root,'.gitignore'),'.env\n');
+  await writeFile(join(root,'.gitignore'),'.env\n.env.*\n');
+  exec('git',['-C',root,'init','-q']);
+  exec('git',['-C',root,'add','.']);
+  exec('git',['-C',root,'-c','user.name=Synthetic Fixture',
+    '-c','user.email=fixture@example.invalid','commit','-qm','initial fixture']);
+  const terminal=exec(bin,['scan','--no-history'],{cwd:root});
+  assert.match(terminal,/SEVERITY OVERVIEW/);
+  assert.match(terminal,/NO FINDINGS IN SCANNED SCOPE/);
   const doctor=exec(bin,['doctor','--root',root,'--json']);
   const result=JSON.parse(doctor);
   assert.equal(result.status,'pass');
