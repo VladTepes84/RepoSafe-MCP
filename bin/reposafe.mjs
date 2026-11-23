@@ -55,14 +55,16 @@ function fail(message) {
   process.exitCode = 2;
 }
 
-function execute(params, collect = false) {
+function execute(params, collect = false, onProgress) {
   return new Promise(resolve => {
     const child = spawn(process.execPath, [engine, ...params], {
       stdio: ['ignore', collect ? 'pipe' : 'inherit', collect ? 'pipe' : 'inherit'],
       windowsHide: true,
+      env: collect ? { ...process.env, REPOSAFE_INTERNAL_PROGRESS: '1' } : process.env,
     });
     let stdout = '';
     let bytesReceived = 0;
+    let progressBuffer = '';
     const decoder = new StringDecoder('utf8');
     let oversized = false;
     let timedOut = false;
@@ -78,8 +80,25 @@ function execute(params, collect = false) {
           child.kill();
         } else stdout += decoder.write(data);
       });
-      // Drain untrusted diagnostics but never echo private absolute paths or source values.
-      child.stderr.on('data', () => {});
+      // Only accept internal aggregate counters; never echo child diagnostics or file paths.
+      child.stderr.on('data', data => {
+        progressBuffer += data.toString('utf8');
+        if (progressBuffer.length > 4096) progressBuffer = progressBuffer.slice(-4096);
+        let index;
+        while ((index = progressBuffer.indexOf('\n')) !== -1) {
+          const line = progressBuffer.slice(0, index);
+          progressBuffer = progressBuffer.slice(index + 1);
+          if (!line.startsWith('REPOSAFE_PROGRESS ')) continue;
+          try {
+            const event = JSON.parse(line.slice('REPOSAFE_PROGRESS '.length));
+            if (['files', 'git', 'finalizing'].includes(event.phase) &&
+                Number.isSafeInteger(event.filesScanned) && event.filesScanned >= 0 &&
+                Number.isSafeInteger(event.directoriesVisited) && event.directoriesVisited >= 0) {
+              onProgress?.(event);
+            }
+          } catch { /* Discard malformed untrusted diagnostics. */ }
+        }
+      });
     }
     child.on('error', () => {
       clearTimeout(timer);
@@ -146,9 +165,44 @@ async function scan() {
     engineParams.push(params[index]);
   }
   engineParams.push('--json');
-  if (process.stderr.isTTY) process.stderr.write('RepoSafe: scanning locally (read-only)...\n');
-  const result = await execute(engineParams, true);
-  if (![0, 1].includes(result.status)) return fail(result.reason);
+  const started = Date.now();
+  let latest = { phase: 'starting', filesScanned: 0, directoriesVisited: 0 };
+  let tick = 0;
+  const interactive = Boolean(process.stderr.isTTY && process.env.TERM !== 'dumb');
+  const clock = () => {
+    const elapsed = Math.floor((Date.now() - started) / 1000);
+    return String(Math.floor(elapsed / 60)).padStart(2, '0') +
+      ':' + String(elapsed % 60).padStart(2, '0');
+  };
+  const draw = () => {
+    if (!interactive) return;
+    const label = latest.phase === 'files' ? 'Scanning files' :
+      latest.phase === 'git' ? 'Checking local Git' :
+      latest.phase === 'finalizing' ? 'Preparing report' : 'Starting scanner';
+    const counters = latest.phase === 'starting' ? '' :
+      ' | ' + latest.filesScanned + ' files / ' + latest.directoriesVisited + ' dirs';
+    // No percentage or estimated end time: total eligible files are not known.
+    process.stderr.write('\r\x1b[2KRepoSafe ' + ['|', '/', '-', '\\'][tick++ % 4] +
+      ' ' + label + counters + ' | elapsed ' + clock());
+  };
+  const spinner = interactive ? setInterval(draw, 700) : undefined;
+  if (interactive) draw();
+  else process.stderr.write('RepoSafe: scanning locally (read-only)...\n');
+  let result;
+  try {
+    result = await execute(engineParams, true, update => {
+      latest = update;
+      draw();
+    });
+  } finally {
+    if (spinner) clearInterval(spinner);
+    if (interactive) process.stderr.write('\r\x1b[2K');
+  }
+  if (![0, 1].includes(result.status)) {
+    return fail(result.reason + ' (elapsed ' + clock() +
+      ', last stage ' + latest.phase + ', files ' + latest.filesScanned +
+      '). No completed report; repository unchanged.');
+  }
   let report;
   try { report = JSON.parse(result.stdout); }
   catch { return fail('INVALID_REPORT: scanner returned an unreadable result.'); }
