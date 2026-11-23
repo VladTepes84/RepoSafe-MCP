@@ -24,7 +24,7 @@ For the independent assessment checklist and evidence requirements see [SECURITY
 | Honest status | `review_required` on positive findings or incomplete scans | No-finding verdict is **not** a permission to publish |
 | Installation | Node 22+, official MCP SDK v2, CI tests | npm integrity-checked lockfile and production dependency audit reduce risk but do not eliminate supply-chain/host compromise |
 
-## Experimental public GitHub snapshot transport (separate draft)
+## Explicit public GitHub snapshot transport (opt-in CLI mode)
 
 - **Explicit network access:** `reposafe scan https://github.com/OWNER/REPO` contacts `api.github.com` for repository/default-branch commit metadata and `codeload.github.com` for a SHA-pinned tar.gz snapshot. Strict URL/host validation and **no redirects** prevent selecting arbitrary endpoints through CLI input. No authentication tokens are used; GitHub/rate-limit availability is external.
 - **Bounded extraction:** compressed payload ≤32 MiB; decompressed tar stream ≤96 MiB; ≤64 MiB materialized regular-file content, each ≤4 MiB; ≤10,000 files, path depth ≤20; malformed checksums, unsafe paths, symlinks, hardlinks, special files, unsupported archive features and missing trailer fail closed. No `tar` shell command or arbitrary Git checkout hooks/filters execute. Supported tar metadata includes a bounded PAX path override.
@@ -32,6 +32,8 @@ For the independent assessment checklist and evidence requirements see [SECURITY
 - **Coverage:** only the current source snapshot at a verified commit SHA is scanned. Missing Git index, reachable history, Git LFS objects, submodules and GitHub remote security settings force an **incomplete-coverage** report, never a clean certification. Files ignored by the scanner or unsupported encoding may still evade detection.
 - **Privacy:** the user chooses a public URL; GitHub sees normal API/archive fetches and the machine's IP, and the source bytes temporarily exist on the local disk. RepoSafe does not upload code or send findings and requires no cloud scanning service. Do not use this remote-snapshot mode for secret/private repositories or hostile inputs without an OS sandbox.
 - **Verification scope:** adversarial synthetic unit tests and platform CI are required; they cannot establish safety against all malicious archive/filesystem/OS edge cases. Actual operator acceptance on macOS and third-party security review remain distinct gates.
+
+**Remote snapshots and local audits are separate trust paths.** Local-directory scans remain offline after installation. The opt-in URL mode performs public GitHub HTTPS downloads only. Those files exist temporarily on the user's device, and cleanup cannot be guaranteed after a forced crash. Neither mode executes untrusted repository code, and neither uploads findings.
 
 ## Detailed threats
 

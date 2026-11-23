@@ -12,39 +12,39 @@ git --version
 
 If Node/Git are missing, obtain them from [nodejs.org](https://nodejs.org/) and [git-scm.com](https://git-scm.com/downloads/win), then reopen PowerShell. Do not disable Defender or relax script execution policies to install RepoSafe.
 
-## 2. Install a precompiled GitHub source archive
+## 2. Install in PowerShell (user directory)
 
 ~~~powershell
 npm.cmd install --prefix "$HOME\.reposafe" --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
-$RS = "$HOME\.reposafe\node_modules\reposafe-mcp\dist\cli.js"
-node $RS --help
+$env:PATH = "$HOME\.reposafe\node_modules\.bin;$env:PATH"
+reposafe --help
 ~~~
 
-The project ships compiled `dist/` JavaScript. `--ignore-scripts` prevents lifecycle scripts. The installed directory and npm cache are modified; the scanned project is not. GitHub's `main` archive is **mutable**. Replace its final segment with a reviewed full 40-character commit SHA for reproducible installation; this is not signed provenance or an npm-registry release.
+No administrator rights, Defender exceptions or PowerShell policy changes are needed. The PATH change is limited to the active terminal. Without it, use `& "$HOME\.reposafe\node_modules\.bin\reposafe.cmd"`. Pin a reviewed immutable 40-character SHA instead of mutable `main` when reproducibility matters; no signed GitHub Release or npm registry distribution is claimed.
 
-## 3. Audit one authorized directory
+## 3. Scan local code or a public GitHub URL
 
 ~~~powershell
+# Local Git root
+Set-Location "C:\ABSOLUTE\PATH\TO\GIT-REPOSITORY"
+reposafe scan
+reposafe scan --details --group-by file
+
+# Public GitHub repository (no manual clone required)
+reposafe scan https://github.com/octocat/Hello-World
+~~~
+
+RepoSafe creates a bounded, private temporary snapshot when explicitly given a public GitHub URL. It does **not** execute code or upload findings. The URL mode does **not** inspect Git history/index, LFS objects or submodules; its coverage is always incomplete. A forced process termination may leave temporary files. Exit 0 indicates no recognized finding in inspected scope, 1 indicates findings/incomplete coverage, 2 indicates errors. The terminal prints copyable NEXT ACTIONS for deeper review.
+
+**Advanced / optional MCP commands** below require:
+
+~~~powershell
+$RS = "$HOME\.reposafe\node_modules\reposafe-mcp\dist\cli.js"
 $REPO = "C:\ABSOLUTE\PATH\TO\REPOSITORY"
 node $RS doctor --root $REPO
-node $RS scan --root $REPO
-node $RS scan --root $REPO --summary
-node $RS scan --root $REPO --compact --group-by file
 ~~~
 
-Do not select an entire drive, `$HOME` or a system directory. `doctor` verifies **seven** local MCP tool names and a STDIO handshake, **without scanning** or verifying any AI client's UI. Scan results identify severity, relative file, optional commit, coverage and recommended action. Exit `0` = no findings in bounded examined scope, `1` = review or incomplete, `2` = error.
-
-**Simpler daily workflow (public CLI):** when scanning from an authorized Git root, the user can rely on the numbered `NEXT ACTIONS` rather than memorize display flags:
-
-~~~powershell
-$env:PATH = "$HOME\.reposafe\node_modules\.bin;$env:PATH"
-Set-Location $REPO
-reposafe scan --no-history
-reposafe scan --no-history --high
-reposafe scan --no-history --details --group-by file
-~~~
-
-These are **separate read-only scans** (no cached menu). `--details` shows at most 50 by default; `--all-findings` shows all retained entries. If Git cannot be inspected, its tracked/untracked status remains unknown. No admin privileges or PowerShell policy changes are required.
+This handshake verifies MCP protocol, not the actual AI-client user interface.
 
 ## 4. Clone the source for development and test runs
 
