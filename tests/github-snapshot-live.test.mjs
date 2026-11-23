@@ -24,6 +24,7 @@ test('a real GitHub Codeload PAX archive produces a Git-incomplete local report'
   assert.match(proc.stdout, /Coverage: INCOMPLETE/);
   assert.match(proc.stdout, /Git history not available/);
   assert.match(proc.stdout, /NEXT ACTIONS/);
+  assert.doesNotMatch(proc.stdout, /missing_readme/, 'root README without extension is valid');
   assert.doesNotMatch(proc.stdout + proc.stderr, /\x1b\[/);
   const after = (await readdir(tmpdir())).filter(x => x.startsWith('reposafe-remote-'));
   assert.deepEqual(after.filter(x => !before.has(x)), [], 'temporary extraction not cleaned up');

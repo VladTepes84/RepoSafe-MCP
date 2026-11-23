@@ -554,8 +554,8 @@ export async function scanRepository(approvedRoot: string, options: { skipBaseli
   function readiness(rule: string, severity: 'low' | 'medium', message: string, action: string): void {
     addFinding({ category: 'readiness', rule, severity, file: '.', message, action });
   }
-  if (!rootFiles.has('readme.md')) {
-    readiness('missing_readme', 'medium', 'README.md not found at repository root.', 'Document purpose, usage, installation, and limitations.');
+  if (![...rootFiles].some(name => /^readme(?:\.(?:md|markdown|rst|txt))?$/.test(name))) {
+    readiness('missing_readme', 'medium', 'No README file found at repository root.', 'Document purpose, usage, installation, and limitations.');
   }
   if (![...rootFiles].some(x => /^licen[cs]e(?:\..+)?$/.test(x))) {
     readiness('missing_license', 'medium', 'No LICENSE file found at repository root.', 'Choose and include an appropriate open-source license.');

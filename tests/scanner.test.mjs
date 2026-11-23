@@ -76,6 +76,25 @@ test('readiness checks when root documentation is missing', async () => {
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
 
+test('conventional README filenames satisfy readiness; backup files do not', async () => {
+  for (const filename of ['README', 'readme.md', 'ReadMe.markdown', 'README.rst', 'readme.TXT']) {
+    const dir = await mkdtemp(join(tmpdir(), 'reposafe-readme-'));
+    try {
+      await writeFile(join(dir, filename), '# Test documentation\n');
+      const report = await scanRepository(dir);
+      assert.ok(!report.findings.some(f => f.rule === 'missing_readme'), filename);
+      assert.ok(report.findings.some(f => f.rule === 'missing_license'));
+      assert.ok(report.findings.some(f => f.rule === 'missing_gitignore'));
+    } finally { await rm(dir, { recursive: true, force: true }); }
+  }
+  const dir = await mkdtemp(join(tmpdir(), 'reposafe-readme-'));
+  try {
+    await writeFile(join(dir, 'README.bak'), 'backup, not documentation\n');
+    const report = await scanRepository(dir);
+    assert.ok(report.findings.some(f => f.rule === 'missing_readme'));
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
 test('finds internal hosts and local paths without echoing file lines', async () => {
   await withRepo(async dir => {
     await writeFile(join(dir, 'doc.txt'),
