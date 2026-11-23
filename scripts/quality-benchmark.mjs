@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Offline adjudication of RepoSafe JSON v2 findings. Never scans a repository,
 // invokes a third-party binary, sends network requests, or prints input paths.
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -144,6 +144,7 @@ export function evaluate(report, labels) {
 function readJson(file) {
   let contents;
   try {
+    if (statSync(file).size > MAX_INPUT_BYTES) fail('INPUT_TOO_LARGE');
     const raw = readFileSync(file);
     if (raw.byteLength > MAX_INPUT_BYTES) fail('INPUT_TOO_LARGE');
     contents = JSON.parse(raw.toString('utf8'));
