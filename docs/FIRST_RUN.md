@@ -47,6 +47,16 @@ Set-Location "C:\ABSOLUTE\PATH\TO\GIT-REPOSITORY"
 reposafe scan
 ~~~
 
+## Optional public GitHub URL snapshot (candidate; not yet released)
+
+~~~sh
+reposafe scan https://github.com/OWNER/REPO
+reposafe scan https://github.com/OWNER/REPO --high
+reposafe scan https://github.com/OWNER/REPO --details --group-by file
+~~~
+
+This is **one argument**, not a manual clone. It downloads a bounded **source snapshot** into a temporary local directory and removes it after scanning. Only `https://github.com/OWNER/REPO` public repositories are supported, with no API tokens. No arbitrary HTTP URLs, private repos, ZIP extraction, Git clone, submodules, Git LFS or Git history. Remote snapshots always carry an **INCOMPLETE** Git-coverage warning, even with zero findings; their metadata and content arrive over HTTPS. The current candidate deliberately rejects remote `--json`, `--sarif` and Git/history options. The regular local `reposafe scan` path is unchanged.
+
 ## Scan with one command
 
 A regular user needs only `reposafe scan` from an authorized Git root. RepoSafe displays progress, summarizes severity and coverage, and prints numbered **NEXT ACTIONS** when it finishes. These are follow-up commands, **not a prompt or menu**; choose one, copy it, and run it in the same directory. Each follow-up **re-scans** the repository. No report cache, auto-fix, cloud upload or interactive selection is implied.

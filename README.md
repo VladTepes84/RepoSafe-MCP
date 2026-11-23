@@ -19,6 +19,18 @@
 | Run tests or assess readiness for release | [Testing](docs/TESTING.md) · [Offline detection benchmark](docs/QUALITY_BENCHMARK.md) · [Readiness](docs/PRO_READINESS.md) |
 | Completely disconnect/uninstall without harming other software | [Uninstall / rollback](docs/UNINSTALL.md) |
 
+### Controlled public GitHub URL scan — separate draft feature
+
+A separate **unmerged feature candidate** adds `reposafe scan https://github.com/OWNER/REPO` for **public** GitHub repositories. The CLI fetches a commit-pinned source snapshot over GitHub HTTPS, rejects redirects and unsupported hosts, applies compressed/uncompressed/file limits, extracts **regular files only** to a private temporary directory, scans locally, then removes the extraction after the process completes. It does **not** run Git hooks, checkout code, execute package scripts, send findings or retain an archive by default.
+
+~~~sh
+reposafe scan https://github.com/OWNER/REPO
+reposafe scan https://github.com/OWNER/REPO --high
+reposafe scan https://github.com/OWNER/REPO --details --group-by file
+~~~
+
+**Scope and risk:** This experimental URL mode reads **current source files only** and **always reports incomplete Git coverage**. It does not inspect history, local index status, submodule contents, LFS objects, private repositories or GitHub security settings. GitHub receives the normal public repository and archive HTTPS requests; downloaded source temporarily occupies local disk. Not a guarantee of isolation against malicious input or compromised hosts. Network failures, limits, malformed paths and unsupported tar entries fail closed; SIGKILL/crashes and OS-level cleanup failures can leave temporary data. The existing local scan and MCP contract are unchanged. **The URL mode requires review and manual acceptance before any release.**
+
 ### Install once, scan with one command
 
 **Prerequisites:** Node.js 22+, npm and Git. No AI subscription, cloud scanner, API key or GUI is needed.

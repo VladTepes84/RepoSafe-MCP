@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — experimental public URL snapshot (separate PR, NOT released)
+
+- Proposed `reposafe scan https://github.com/OWNER/REPO` with a strictly validated public GitHub URL, bounded SHA-pinned tar.gz download, verified regular-file-only temporary extraction, local scan and cleanup.
+- No clone, Git hooks, submodules, LFS transfer, arbitrary URL, external scanning, new package dependency or change to the existing seven MCP tools.
+- Snapshot findings remain **Git-incomplete** by design; machine-readable remote output and Git history are deferred. Parser tests, cross-platform CI and a real Mac acceptance are required before considering this suitable for public distribution.
+
 ## [1.0.0] — 2026-11-23 (release candidate; NOT published)
 
 - **Draft PR #34 (unmerged, 23 Nov 2026):** clearer numbered Next Actions (priority severity review, file-grouped details and incomplete coverage); preserved `--no-history`/selected scope in suggested commands; interactive aggregate progress/elapsed time and cancellation diagnostics. No scanner-rule or MCP changes. Code head `bfa03c839c725292248c758562dfdfafbed3b3e5` passed [4/4 CI](https://github.com/VladTepes84/RepoSafe-MCP/actions/runs/45164169801) and was manually accepted on macOS for a real authorized current-file scan. Git inspection in that local copy was incomplete; neither an independent audit nor public 1.0 Release is claimed.

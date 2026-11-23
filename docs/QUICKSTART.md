@@ -13,6 +13,15 @@ npm install -g --ignore-scripts --no-audit --no-fund \
 
 The archive ref main is mutable: replace it with the *reviewed 40-character commit SHA* for reproducibility. The npm registry package has **not** been published. If global installation is unavailable, the dedicated per-user prefix procedure is documented in [First run](FIRST_RUN.md).
 
+## Optional: scan a public GitHub URL (separate feature candidate)
+
+~~~sh
+reposafe scan https://github.com/OWNER/REPO
+reposafe scan https://github.com/OWNER/REPO --high
+~~~
+
+The URL is **not executed**. RepoSafe verifies it is a simple public GitHub repository URL, obtains a specific commit SHA, downloads a bounded tar.gz snapshot over HTTPS, extracts regular files into a private system temp directory, runs the existing current-file scanner and attempts to remove the snapshot. No `git clone`, scripts, submodules, hooks or shell expansion are used. Source code is downloaded to the operator's machine; scanning does not upload it. History, Git index, Git LFS and submodule content **are not checked**; coverage stays INCOMPLETE. Non-GitHub URLs, private repos, size/budget breaches and malformed archives fail without a scan. Remote machine-readable formats are intentionally deferred.
+
 ## 2. Open the Git repository and run one command
 
 ~~~sh

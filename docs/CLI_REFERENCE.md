@@ -2,6 +2,18 @@
 
 **Scope:** local, read-only repository auditing. Runtime: Node.js 22+ and Git for history checks. This page documents the **1.0.0 source release candidate** (not yet published) and the one-command public CLI. The CLI scanner never uploads repository content.
 
+## Experimental public URL input (separate unmerged candidate)
+
+~~~sh
+reposafe scan https://github.com/OWNER/REPO
+reposafe scan https://github.com/OWNER/REPO --high
+reposafe scan https://github.com/OWNER/REPO --details --group-by file
+~~~
+
+For the **separate feature PR only**, GitHub public repository URLs are accepted as an argument. The URL is validated before network access: GitHub.com HTTPS only, two path components, no userinfo/port/query/fragment/encoded paths. RepoSafe requests repository metadata and a specific default-branch commit via `api.github.com`, then retrieves a pinned tar.gz snapshot from `codeload.github.com` without following redirects. A private temporary directory contains **regular extracted files only**; filenames are validated to prevent traversal or link extraction. Maximum reported GitHub repository size: 64 MiB; compressed archive 32 MiB; uncompressed stream 96 MiB; extracted content 64 MiB total, maximum 4 MiB per file and 10,000 files; transfer deadline 45 seconds. Breaches and unsupported entries are errors, **never clean reports**.
+
+The current-file scanner remains unchanged. The report names the source URL and immutable commit, always marks coverage **INCOMPLETE**, and discloses that Git history, index status, Git LFS blobs and submodule contents are unavailable. `--json`, `--sarif`, `--root`, `--no-git`, `--no-history` and Git history options are intentionally **unsupported with URL input** in this candidate. Local `reposafe scan` and MCP commands retain their existing semantics. Downloaded source is deleted after normal completion or handled failure; abrupt process termination or cleanup failure can leave files in the OS temp directory. No absolute guarantee of safety is implied.
+
 ## Recommended public CLI (one command)
 
 After installation, enter the Git repository root and run:
