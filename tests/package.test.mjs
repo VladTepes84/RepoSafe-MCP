@@ -20,7 +20,8 @@ test('npm pack dry-run includes executable bins and only required runtime files'
   assert.equal(info.name, 'reposafe-mcp');
   const files = new Set(info.files.map(f => f.path));
   for (const name of ['package.json','README.md','LICENSE','dist/cli.js','dist/server.js',
-    'dist/sarif.js','dist/format.js','dist/baseline.js','scripts/config.mjs']) {
+    'dist/sarif.js','dist/format.js','dist/baseline.js','scripts/config.mjs',
+    'scripts/quality-benchmark.mjs']) {
     assert.ok(files.has(name), 'Missing runtime file: ' + name);
   }
   assert.ok([...files].every(f => !f.startsWith('tests/') && !f.startsWith('src/') && !f.startsWith('.github/')),
