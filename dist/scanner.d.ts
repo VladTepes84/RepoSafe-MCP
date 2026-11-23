@@ -1,4 +1,4 @@
-import type { Finding, ScanReport } from './types.js';
+import type { Finding, ScanReport, ScanProgress } from './types.js';
 export declare const MAX_FINDINGS = 5000;
 export declare function checkSecrets(line: string, file: string, lineNumber: number, category?: 'secrets' | 'history'): Finding[];
 /** Conservative multi-line checks for Terraform variable defaults and Kubernetes Secret
@@ -13,6 +13,7 @@ export declare function safeRelativePath(raw: string): string;
 export declare function validateRoot(configuredPath: string): Promise<string>;
 export declare function scanRepository(approvedRoot: string, options?: {
     skipBaseline?: boolean;
+    onProgress?: (progress: ScanProgress) => void;
 }): Promise<ScanReport>;
 /** Inspect ONLY exact tracked paths in normally skipped dependency/cache directories.
  * A Git path is untrusted input; each parent component is lstat-checked before opening.
