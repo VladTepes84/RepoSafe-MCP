@@ -133,6 +133,9 @@ test('public URL options fail before any network request', () => {
     ['scan', 'https://github.com/owner/repo', '--no-history'],
     ['scan', 'https://github.com/owner/repo', '--sarif'],
     ['scan', 'https://github.com/owner/repo', '--json'],
+    ['scan', 'https://github.com/owner/repo', '--unknown-flag'],
+    ['scan', 'https://github.com/owner/repo', '--group-by', 'invalid'],
+    ['scan', 'https://github.com/owner/repo', '--summary', '--high'],
   ]) {
     const result = cli(...args);
     assert.equal(result.status, 2, result.stderr);
