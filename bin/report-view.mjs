@@ -18,6 +18,7 @@ function orderFindings(a, b) {
 export function renderPrettyReport(report, {
   color = false, summary = false, high = false, details = false,
   compact = false, allFindings = false, groupBy = 'severity',
+  reviewCommand = 'reposafe scan', explicitRoot = false,
 } = {}) {
   if (report?.schemaVersion !== '2' || !Array.isArray(report.findings) ||
       !report.stats || typeof report.stats.complete !== 'boolean') {
@@ -156,15 +157,43 @@ export function renderPrettyReport(report, {
     for (const warning of warnings) out.push('  • ' + warning);
   }
   out.push('', paint('NEXT ACTIONS', 1));
-  if (counts.critical || counts.high || (report.baseline?.highSuppressed ?? 0)) {
-    out.push('  1. Review CRITICAL/HIGH findings and relevant local context; verify before rotating.');
+  // Commands reproduce the user's scan scope/options and run read-only.
+  // They do re-scan; reports are not persisted or cached between CLI invocations.
+  const priority = counts.critical + counts.high;
+  if (priority || (report.baseline?.highSuppressed ?? 0)) {
+    out.push('  1. PRIORITY — Review ' + priority + ' CRITICAL/HIGH findings (file:line, reason, action).',
+      '     ' + reviewCommand + ' --high');
+    if ((report.baseline?.highSuppressed ?? 0) > 0) {
+      out.push('     Warning: ' + report.baseline.highSuppressed + ' high/critical findings are suppressed by baseline.');
+    }
   } else if (findings.length) {
-    out.push('  1. Review remaining findings, starting with MEDIUM severity.');
+    out.push('  1. REVIEW — Start with ' + counts.medium + ' MEDIUM and ' + counts.low + ' LOW findings.',
+      '     ' + reviewCommand + ' --details');
   } else {
-    out.push('  1. No recognized findings in this scope; additional review may still be needed.');
+    out.push('  1. REVIEW — No recognized findings in the inspected scope; this is not a safety guarantee.');
   }
-  if (!complete) out.push('  2. Coverage is partial: review warnings and intentionally adjust scan limits.');
-  out.push('  Tip: reposafe scan --high  |  reposafe scan --details  |  reposafe scan --summary');
+  if (findings.length) {
+    out.push('',
+      '  2. BY FILE — Inspect ' + findings.length + ' findings grouped by relative file path' +
+      (findings.length > 50 ? ' (first 50 displayed).' : '.'),
+      '     ' + reviewCommand + ' --details --group-by file');
+    if (findings.length > 50) {
+      out.push('     Add --all-findings to display every retained finding.');
+    }
+  }
+  if (!complete) {
+    out.push('',
+      '  ' + (findings.length ? '3' : '2') + '. COVERAGE — Audit incomplete; review the warnings above.');
+    if (report.git && report.git.gitAvailable === false) {
+      out.push('     Git status was not inspected. Check the Git installation and working-tree root.');
+    } else {
+      out.push('     Do not interpret partial coverage as a clean repository.');
+    }
+  }
+  if (explicitRoot) {
+    out.push('  Note: replace ABSOLUTE_PATH with the same approved scan directory.');
+  }
+  out.push('  Commands re-run the read-only scan; this report is not cached between runs.');
   out.push('  No findings does NOT mean the repository is safe to publish.');
   return out.join('\n');
 }
