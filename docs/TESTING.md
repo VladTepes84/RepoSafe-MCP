@@ -98,3 +98,13 @@ The history scanner reports the first introducing commit for added lines within 
 - The existing Windows/macOS/Linux matrix runs all standard tests. A CI success does not validate the actual Cursor/Claude Desktop graphical interfaces.
 
 - Git-based npm dependencies require the package `prepare` lifecycle to compile `dist/` before packaging. A local `prepack` smoke alone is insufficient: the GitHub source test confirms that the installed entrypoint actually exists.
+
+## Offline field-accuracy scoring (under development for 1.0)
+
+After scanning an authorized local repository, keep the JSON report and manually reviewed labels outside the repository and run: 
+
+~~~sh
+npm run quality:score -- --report "$PRIVATE_DIR/reposafe.json" --labels "$PRIVATE_DIR/labels.json"
+~~~
+
+The scorer performs no scans or network calls, and outputs only aggregate TP/FP/FN/unknown counts, per-rule results and coverage flags. Its synthetic regression suite runs in the standard npm test chain via test:quality. See [QUALITY_BENCHMARK.md](QUALITY_BENCHMARK.md). **Passing that unit test does not establish real-world detector precision, recall or independent security audit.**
