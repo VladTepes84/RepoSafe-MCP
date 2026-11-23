@@ -27,7 +27,7 @@ function selectReport(report: ScanReport, category?: Category, offset = 0, limit
 }
 
 function createServer(): McpServer {
-  const server = new McpServer({ name: 'reposafe-mcp', version: '0.7.0' });
+  const server = new McpServer({ name: 'reposafe-mcp', version: '1.0.0' });
   let lastReport: { report: ScanReport; category?: Category } | undefined;
   const historySchema = z.object({
     historyDepth: z.number().int().min(1).max(5000).optional(),
