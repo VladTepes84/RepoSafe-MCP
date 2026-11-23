@@ -22,7 +22,7 @@ const EXPECTED_TOOLS = [
 ];
 function help(): void {
   console.log([
-    'RepoSafe MCP v0.7 | offline read-only repository auditor',
+    'RepoSafe MCP v1.0 | offline read-only repository auditor',
     '',
     'Usage:',
     '  reposafe scan --root ABSOLUTE_PATH [--json|--sarif] [--no-history] [--no-git]',
@@ -78,7 +78,7 @@ async function doctor(root: string): Promise<{ status: 'pass'; node: string; git
     args: [serverPath],
     env: { ...process.env, REPOSAFE_ROOT: approved },
   });
-  const client = new Client({ name: 'reposafe-doctor', version: '0.7.0' });
+  const client = new Client({ name: 'reposafe-doctor', version: '1.0.0' });
   try {
     await client.connect(transport);
     const tools = (await client.listTools()).tools.map(x => x.name).sort();

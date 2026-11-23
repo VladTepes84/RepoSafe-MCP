@@ -1,6 +1,6 @@
 # RepoSafe MCP — CLI reference
 
-**Scope:** local, read-only repository auditing. Runtime: Node.js 22+ and Git for history checks. This page documents **v0.7 beta plus the one-command public CLI**. The CLI scanner never uploads repository content.
+**Scope:** local, read-only repository auditing. Runtime: Node.js 22+ and Git for history checks. This page documents the **1.0.0 source release candidate** (not yet published) and the one-command public CLI. The CLI scanner never uploads repository content.
 
 ## Recommended public CLI (one command)
 
