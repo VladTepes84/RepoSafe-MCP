@@ -160,9 +160,15 @@ async function main() {
         if (process.stderr.isTTY && !args.includes('--json') && !args.includes('--sarif')) {
             process.stderr.write('RepoSafe: scanning the approved repository (read-only)...\n');
         }
+        const progress = process.env.REPOSAFE_INTERNAL_PROGRESS === '1'
+            ? (update) => {
+                // Private protocol to the local UI wrapper: numeric counters only.
+                process.stderr.write('REPOSAFE_PROGRESS ' + JSON.stringify(update) + '\n');
+            }
+            : undefined;
         const report = args.includes('--no-git')
-            ? await scanRepository(root)
-            : await generateReport(root, { includeHistory: !args.includes('--no-history'), historyOptions });
+            ? await scanRepository(root, { onProgress: progress })
+            : await generateReport(root, { includeHistory: !args.includes('--no-history'), historyOptions, onProgress: progress });
         if (args.includes('--json'))
             console.log(JSON.stringify(report, null, 2));
         else if (args.includes('--sarif'))
