@@ -1,43 +1,55 @@
-## Unreleased — CLI first-run polish (PR pending)
+# Changelog
+
+## [1.0.0] — 2026-11-23 (release candidate; NOT published)
+
+- First standalone **one-command local CLI**: enter an authorized Git repository root, run `reposafe scan`; review the terminal severity dashboard and all retained rules, or select `--high`, `--details`, `--summary`, JSON v2 or SARIF 2.1.0. No mandatory GUI, AI key, cloud service, telemetry, or source upload.
+- Retains the seven-tool local MCP STDIO server, bounded Git-history auditing, metadata-only redacted reports, fail-closed incomplete-coverage warnings, and optional private CLI checkpoint.
+- Internal Apple Silicon Mac acceptance: published-source beta command installed from an immutable SHA and a real authorized repository scan rendered the expected dashboard, priority details and coverage warnings. CI for PR #32 and post-merge source passed four OS/Node jobs. **This candidate version has not yet been independently accepted or tagged.**
+- Packaging: `reposafe` executable is included in the npm tarball; `private: true` remains intentionally enabled until separate npm publishing approval. The reviewed GitHub source archive is installable with lifecycle scripts disabled. No npm registry release or GitHub Release is claimed.
+- Limitations: source pattern detection is heuristic; live credential validity, representative field accuracy and independent security audit are **not verified**. A realistic repository scan found an overlength line and a Git-history timeout, both reported as incomplete coverage. Client GUI/IDE integrations are deferred to a future release.
+- Publication gate: execute the manual release-candidate workflow on the exact final commit; validate CycloneDX SBOM, package and SHA256SUMS and pin the release/tag before announcing 1.0.0.
+
+### Implementation history included in this candidate
+
+### CLI first-run polish (PR #32 merged)
 
 - Added a dedicated public bin/reposafe.mjs entrypoint: from an explicitly entered Git repository root, "reposafe scan" runs the same read-only engine without requiring manual --root arguments. Non-Git current directories fail closed; explicit absolute --root remains supported.
 - Terminal presentation now aggregates **all retained findings by severity/rule** and shows actionable HIGH/CRITICAL details via --high, a detailed view via --details, coverage limitations, and redacted metadata. No cloud scans, auto-fix or scanner detector changes.
 - Preserved pure JSON v2/SARIF 2.1.0, legacy dist/cli.js, seven MCP STDIO tools and exit statuses. New CLI packaging and cross-platform smoke/regression tests.
 - Installation can use a GitHub source archive with --ignore-scripts; npm-registry publication, a stable 1.0 tag and external security certification are **not claimed**.
 
-## Unreleased — adversarial filesystem boundary regression (PR pending)
+### adversarial filesystem boundary regression (PR #31 merged)
 
 - Added synthetic read-only tests for lexical traversal, Git metadata paths, symlink/junction escape, hardlinks to outside files, credential-bearing filenames and inherited GIT_COMMON_DIR overrides. Tests report any Windows privilege-based skips rather than asserting unconditional coverage.
 - Documented external security review scope. This is an internal test hardening proposal, **not an independent audit**.
 
-## Unreleased — offline field-quality scoring (PR #30 merged 2026-11-23)
+### offline field-quality scoring (PR #30 merged 2026-11-23)
 
 - Added optional, offline adjudication of redacted JSON v2 reports against privately held labels: per-rule TP/FP/FN, unknown and duplicate counts, precision/recall with null for empty denominators, and coverage/suppression checks.
 - No scanner behavior, network access, credential validation or cloud scanning added. The scorer never displays input filenames, source lines, token values or commit IDs.
 - Added synthetic CLI/privacy/error regressions and documented the authorized local validation protocol. **Real-world accuracy and independent audit remain unverified.** Codex/IDE integration is deferred to future work.
 
-## Unreleased — bounded overlength-line heuristic checks (PR #27 merged 2026-11-22)
+### bounded overlength-line heuristic checks (PR #27 merged 2026-11-22)
 
 - Overlength current-file and Git-tracked excluded-file lines receive overlapping, 65,536-character bounded pattern checks rather than being silently omitted from heuristic matching. Repeated rules on a single source line are deduplicated; matched values are never included in results.
 - The existing overlength counter and fail-closed incomplete-coverage verdict remain. Full-line structured parsing, arbitrary-length secrets and historical patch-line handling are **not** certified as covered; broader architecture remains necessary before calling overlength coverage complete.
 - Synthetic regressions cover a credential spanning a chunk boundary, a late-line match, repeated copies on one source line, and an excluded Git-tracked file.
 
-## Unreleased — contextual finding triage and CLI readability (PR #26)
+### contextual finding triage and CLI readability (PR #26)
 
 - Human-oriented scan display modes: `--summary`, `--compact`, `--group-by severity|file`; severity/file section headings, deterministic sort and clearer coverage (including Git completeness).
 - Contextual finding annotations: optional `testFile` path hint, `gitTracked` local Git index status, and `stats.overlengthLinesSkipped`. Human CLI context/counters improve triage without dropping or lowering alerts. JSON schema v2 is extended additively; seven-tool MCP API and existing provider patterns are unchanged.
 - Full README/CLI reference/first-run/uninstall/quickstart refresh with explicit dependency versions and actual Codex Desktop GUI limitation.
 - Synthetic Git and scanner regression tests cover fixture context, tracked/untracked provenance, redaction and long-line coverage. PR #26 code head `724fa432d71afccad0bd037d4ba8aa1ff50947d2` passed four GitHub Actions matrix jobs in run #45053790697. Later documentation-only changes require CI at their own head; actual desktop GUI MCP acceptance remains unverified.
 
-## 2026-11-22 — Integrated PRO updates merged (#20)
+### Integrated PRO updates merged (#20)
 
 - Merged consolidated PRs #11–#18 through PR #20, merge commit `1fe5bbb4c14e738f1fd196b839346f967909bf58`.
 - Combined head passed four CI matrix jobs; user-run Mac M3 testing passed 146 automated tests, runtime sync, synthetic benchmark and dependency audit.
 - Codex Desktop GUI session did not expose the tools; no GUI integration claim is made.
 
-# Changelog
 
-## Unreleased — security hardening merged in PR #10 (22 November 2026)
+### security hardening merged in PR #10 (22 November 2026)
 
 - Separate persisted history warnings from fresh tracked-file checks to avoid stale incomplete verdicts across resumed scans; add regression with fixed uncommitted oversized file. Invalidate old v1 checkpoint schema; new v2 snapshots are only eligible for reuse for seven days, with manual cleanup of old files.
 - Reject ambiguous Codex TOML forms (quoted/child tables, inline mappings) without changing any client configuration.
@@ -46,7 +58,7 @@
 - Align managed VS Code Copilot config with `COPILOT_HOME` and Claude Desktop Linux config with `XDG_CONFIG_HOME`; verify alternate locations and deliberate fail-closed relative-path handling.
 - These changes are merged on `main`; real client GUI integrations and the separate macOS Codex binary warning remain unverified.
 
-## Unreleased — local MCP onboarding and scalable bounded scans (merged PR #10)
+### local MCP onboarding and scalable bounded scans (merged PR #10)
 
 - Optional `connect` / `disconnect` for Codex Desktop/CLI, Cursor, Claude Desktop and VS Code, with reversible RepoSafe-only client configuration; no AI client executables or macOS security policy are invoked.
 - Git history scanned in sequential 100-commit batches with per-batch byte/timeout limits, commit-boundary resumption, local history candidate counts, and 5,000 requested commit ceiling. CLI-only opt-in `--resume-history` now persists bounded, private redacted checkpoint metadata for restart-safe resumption, keyed by canonical root, Git ref tips and scan options (7-day reuse window). Default CLI and all MCP tools do not write scan state.
@@ -60,7 +72,7 @@
 
 Changes describe the committed source and automated test evidence, **not a security certification**.
 
-## [Unreleased] — 2026-11-22 (script-free distribution update)
+### 2026-11-22 (script-free distribution update)
 
 - Stream Git history with bounded memory rather than buffering complete multi-MiB patches. Preserve fully inspected commit counts and partial findings on byte/timeout limits, with specific redacted diagnostics and synthetic 100-commit regressions. No scan budget is silently relaxed.
 
