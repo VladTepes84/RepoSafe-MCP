@@ -135,6 +135,23 @@ async function scan() {
     if (argv.some(arg => conflicting.includes(arg))) {
       return fail('REMOTE_OPTIONS_UNSUPPORTED: public URL scans are current-file-only and human-readable.');
     }
+    // Validate all remote display flags before issuing any network request.
+    const allowed = new Set(['--high', '--details', '--summary', '--compact',
+      '--all-findings', '--no-color']);
+    for (let index = 2; index < argv.length; index++) {
+      if (argv[index] === '--group-by') {
+        if (!['file', 'severity'].includes(argv[++index])) {
+          return fail('REMOTE_OPTIONS_UNSUPPORTED: invalid grouping.');
+        }
+      } else if (!allowed.has(argv[index])) {
+        return fail('REMOTE_OPTIONS_UNSUPPORTED: unknown flag for public URL scan.');
+      }
+    }
+    const display = new Set(argv.slice(2));
+    if (display.has('--summary') && ['--high', '--details', '--compact', '--all-findings']
+      .some(flag => display.has(flag))) {
+      return fail('REMOTE_OPTIONS_UNSUPPORTED: incompatible display options.');
+    }
     const controller = new AbortController();
     const abort = () => controller.abort();
     process.once('SIGINT', abort);
