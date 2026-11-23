@@ -314,3 +314,30 @@ test('inherited GIT_DIR and GIT_WORK_TREE cannot redirect history outside approv
     });
   });
 });
+
+
+test('inherited GIT_COMMON_DIR cannot redirect local history to a different repository', async () => {
+  await withGitRepo(async approved => {
+    await withGitRepo(async outside => {
+      git(approved, 'add', '.');
+      git(approved, 'commit', '-qm', 'approved synthetic files');
+      const foreignToken = 'ghp_' + 'V'.repeat(36);
+      await writeFile(join(outside, 'foreign.txt'), 'GITHUB_TOKEN=' + foreignToken + '\n');
+      git(outside, 'add', '.');
+      git(outside, 'commit', '-qm', 'foreign synthetic credential');
+      const previous = process.env.GIT_COMMON_DIR;
+      try {
+        process.env.GIT_COMMON_DIR = join(outside, '.git');
+        const result = await scanGit(approved, true, { depth: 10 });
+        assert.equal(result.stats.gitAvailable, true);
+        assert.equal(result.stats.historyChecked, true);
+        assert.equal(result.stats.commitsInspected, 1);
+        assert.ok(!result.findings.some(x => x.rule === 'git_history_github_token'));
+        assert.ok(!JSON.stringify(result).includes(foreignToken));
+      } finally {
+        if (previous === undefined) delete process.env.GIT_COMMON_DIR;
+        else process.env.GIT_COMMON_DIR = previous;
+      }
+    });
+  });
+});
