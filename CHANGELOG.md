@@ -1,4 +1,9 @@
-## Unreleased — offline field-quality scoring (PR pending)
+## Unreleased — adversarial filesystem boundary regression (PR pending)
+
+- Added synthetic read-only tests for lexical traversal, Git metadata paths, symlink/junction escape, hardlinks to outside files, credential-bearing filenames and inherited GIT_COMMON_DIR overrides. Tests report any Windows privilege-based skips rather than asserting unconditional coverage.
+- Documented external security review scope. This is an internal test hardening proposal, **not an independent audit**.
+
+## Unreleased — offline field-quality scoring (PR #30 merged 2026-11-23)
 
 - Added optional, offline adjudication of redacted JSON v2 reports against privately held labels: per-rule TP/FP/FN, unknown and duplicate counts, precision/recall with null for empty denominators, and coverage/suppression checks.
 - No scanner behavior, network access, credential validation or cloud scanning added. The scorer never displays input filenames, source lines, token values or commit IDs.
