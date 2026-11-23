@@ -114,8 +114,8 @@ const benignMatrix = [
   '-----BEGIN PUBLIC KEY-----',
   'const example="postgresql://demo:changeme@localhost:5432/app"',
   'AWS_ID=AKIA' + 'A'.repeat(15),
-  'GH_TOKEN=ghp_short',
-  'STRIPE_SECRET=sk_test_' + 'S'.repeat(32),
+  'GH_TOKEN=your_short_placeholder',
+  'STRIPE_SECRET=your_test_key_here',
 ];
 
 test('per-rule synthetic quality matrix tracks expected hits, extra alerts and redaction', () => {
