@@ -36,6 +36,8 @@ try {
   assert.doesNotMatch(installed.stderr, /allow-scripts|skipping integrity check for git dependency/i);
   const cli = join(prefix, 'node_modules', 'reposafe-mcp', 'dist', 'cli.js');
   assert.match(run(process.execPath, [cli, '--help']).stdout, /RepoSafe MCP/);
+  const publicCli = join(prefix, 'node_modules', 'reposafe-mcp', 'bin', 'reposafe.mjs');
+  assert.match(run(process.execPath, [publicCli, '--help']).stdout, /reposafe scan/);
   const target = join(directory, 'test-repository');
   await mkdir(target);
   await writeFile(join(target, 'README.md'), '# Test\n');
