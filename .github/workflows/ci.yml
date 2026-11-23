@@ -31,6 +31,9 @@ jobs:
         run: npm run check
       - name: Synthetic small/medium/large local scan benchmark
         run: npm run benchmark
+      - name: Real public GitHub URL scan smoke (Linux only)
+        if: runner.os == 'Linux'
+        run: node --test tests/github-snapshot-live.test.mjs
       - name: Verify checked-in distribution exactly matches TypeScript build
         run: npm run verify:runtime
       - name: Dependency audit (high/critical production vulnerabilities)
