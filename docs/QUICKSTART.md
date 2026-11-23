@@ -1,51 +1,32 @@
-# RepoSafe MCP — quick start
+# RepoSafe MCP — quick start (CLI first)
 
-RepoSafe audits a **specific local repository** with a standalone CLI or an optional local STDIO MCP server. It does **not** upload code, repair findings or certify publication safety. Node.js **22+**, npm and Git required (Git history checks need Git). **Seven MCP tools** are exposed at protocol level; actual GUI-client tool visibility must be tested separately.
+RepoSafe scans **local, authorized Git repositories** without uploading code or requiring an AI client, account, or API key. Requirements: Node.js 22+, npm, Git. Seven existing MCP STDIO tools are optional and remain unchanged.
 
-## 1. Install precompiled code, no lifecycle scripts
+## 1. Install from reviewed GitHub source
 
-macOS/Linux:
+Install into a user-controlled npm prefix. The global route below requires that npm's global prefix be user-writable; **never use sudo**:
 
 ~~~sh
-npm install --prefix "$HOME/.reposafe" --ignore-scripts --no-audit --no-fund \
+npm install -g --ignore-scripts --no-audit --no-fund \
   "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
-RS="$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js"
-node "$RS" --help
 ~~~
 
-Windows PowerShell:
+The archive ref main is mutable: replace it with the *reviewed 40-character commit SHA* for reproducibility. The npm registry package has **not** been published. If global installation is unavailable, the dedicated per-user prefix procedure is documented in [First run](FIRST_RUN.md).
 
-~~~powershell
-npm.cmd install --prefix "$HOME\.reposafe" --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
-$RS = "$HOME\.reposafe\node_modules\reposafe-mcp\dist\cli.js"
-node $RS --help
-~~~
-
-**Supply-chain:** `main` is mutable. Replace the archive's final segment with a reviewed **full commit SHA** to pin it; a commit pin is not signed release attestation. Install writes into your prefix/npm cache, never the target repository.
-
-## 2. Verify the server, then scan
-
-Select a real absolute directory that you **own or are authorized to inspect**; not your entire home, a system folder or a filesystem root.
+## 2. Open the Git repository and run one command
 
 ~~~sh
-REPO="/ABSOLUTE/PATH/TO/REPO"
-node "$RS" doctor --root "$REPO"   # protocol handshake and 7 tools; no scan
-node "$RS" scan --root "$REPO"     # real read-only scan
+cd /ABSOLUTE/PATH/TO/YOUR/GIT-REPOSITORY
+reposafe scan                 # dashboard and all findings grouped by severity/rule
+reposafe scan --high          # high-priority details and actions
+reposafe scan --details       # individual locations and remediation
+reposafe scan --summary       # counts/coverage only
+reposafe scan --no-history    # faster current-state evaluation
+reposafe scan --json          # automation without ANSI or extra text
+reposafe scan --sarif         # machine-readable SARIF 2.1.0
 ~~~
 
-The default human view is severity-grouped and includes coverage plus remediation. Useful alternatives:
-
-~~~sh
-node "$RS" scan --root "$REPO" --summary
-node "$RS" scan --root "$REPO" --compact --group-by file
-node "$RS" scan --root "$REPO" --history-depth 250 --max-diff-size 8
-node "$RS" scan --root "$REPO" --json > "/SAFE/OUTPUT/report.json"
-node "$RS" scan --root "$REPO" --sarif > "/SAFE/OUTPUT/report.sarif"
-~~~
-
-Redirect JSON/SARIF to a directory **outside** the repository being scanned. Exit `0` = no findings within bounded scope; `1` = review required/incomplete; `2` = error. Check all warnings: `0` is never certification.
-
-For every CLI flag and limit see [CLI reference](CLI_REFERENCE.md).
+The default current-directory scan **requires a .git marker in that exact directory**. It does not ascend into a parent directory. For a different authorized scope, pass --root ABSOLUTE_PATH; to scan an explicitly approved non-Git folder, add --no-git. The CLI never edits the target, rotates credentials or certifies publishing safety. Exit 0 = no findings in selected scope; 1 = findings or incomplete coverage; 2 = usage/runtime error. Check history windows, file limits, omissions and all coverage warnings.
 
 ## 3. Reproduce the security regression locally (developers)
 
