@@ -112,6 +112,9 @@ test('Next Actions include numbered, scoped priority/file/coverage commands', ()
 
 test('CLI preserves no-history and explicit-root scope in Next Actions without exposing root', async () => {
   await fixture(async root => {
+    // Ensure the priority view actually has a synthetic HIGH finding to display.
+    await writeFile(join(root, 'synthetic-credential.txt'),
+      'GITHUB_TOKEN=ghp_' + 'P'.repeat(36) + '\n');
     const report = run(root, 'scan', '--root', root, '--no-history', '--high', '--no-color');
     assert.equal(report.status, 1, report.stderr);
     assert.match(report.stdout, /reposafe scan --root ABSOLUTE_PATH --no-history --high/);
