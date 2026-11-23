@@ -18,7 +18,7 @@ function orderFindings(a, b) {
 export function renderPrettyReport(report, {
   color = false, summary = false, high = false, details = false,
   compact = false, allFindings = false, groupBy = 'severity',
-  reviewCommand = 'reposafe scan', explicitRoot = false,
+  reviewCommand = 'reposafe scan', explicitRoot = false, remoteSource = null,
 } = {}) {
   if (report?.schemaVersion !== '2' || !Array.isArray(report.findings) ||
       !report.stats || typeof report.stats.complete !== 'boolean') {
@@ -33,6 +33,8 @@ export function renderPrettyReport(report, {
     '╭' + LINE + '╮',
     '│ ' + paint('REPOSAFE', 1) + '   LOCAL REPOSITORY SECURITY AUDIT',
     '╰' + LINE + '╯',
+    ...(remoteSource ? ['Source: public GitHub snapshot ' + remoteSource.url + ' @ ' + remoteSource.sha.slice(0, 12),
+      '        Temporary local extraction; Git history not available.'] : []),
     '',
     'STATUS    ' + (report.verdict === 'review_required' ?
       paint('REVIEW REQUIRED', 33) : paint('NO FINDINGS IN SCANNED SCOPE', 32)),
