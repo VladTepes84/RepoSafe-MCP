@@ -35,6 +35,9 @@ try {
   await writeFile(join(root,'LICENSE'),'MIT\n');
   await writeFile(join(root,'.gitignore'),'.env\n');
   exec('git',['-C',root,'init','-q']);
+  exec('git',['-C',root,'add','.']);
+  exec('git',['-C',root,'-c','user.name=Synthetic Fixture',
+    '-c','user.email=fixture@example.invalid','commit','-qm','initial fixture']);
   const terminal=exec(bin,['scan','--no-history'],{cwd:root});
   assert.match(terminal,/SEVERITY OVERVIEW/);
   assert.match(terminal,/NO FINDINGS IN SCANNED SCOPE/);
