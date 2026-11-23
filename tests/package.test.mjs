@@ -8,7 +8,7 @@ test('npm pack dry-run includes executable bins and only required runtime files'
   assert.equal(pkg.private, true, 'Do not enable npm publication');
   assert.equal(pkg.scripts.prepare, undefined, 'Git install must not require a lifecycle build');
   assert.equal(pkg.scripts.prepack, undefined, 'Git install must not require a lifecycle pack script');
-  assert.equal(pkg.bin.reposafe, './dist/cli.js');
+  assert.equal(pkg.bin.reposafe, './bin/reposafe.mjs');
   assert.equal(pkg.bin['reposafe-mcp'], './dist/cli.js');
   assert.ok(process.env.npm_execpath, 'Invoke using npm run test:package');
   const r = spawnSync(process.execPath,
@@ -21,6 +21,7 @@ test('npm pack dry-run includes executable bins and only required runtime files'
   const files = new Set(info.files.map(f => f.path));
   for (const name of ['package.json','README.md','LICENSE','dist/cli.js','dist/server.js',
     'dist/sarif.js','dist/format.js','dist/baseline.js','scripts/config.mjs',
+    'bin/reposafe.mjs','bin/report-view.mjs',
     'scripts/quality-benchmark.mjs']) {
     assert.ok(files.has(name), 'Missing runtime file: ' + name);
   }
