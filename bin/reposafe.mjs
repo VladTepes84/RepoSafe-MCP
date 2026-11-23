@@ -3,6 +3,7 @@
 // Only an operator-supplied --root or the current Git repository root is scanned.
 import { lstat, realpath } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
+import { StringDecoder } from 'node:string_decoder';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { renderPrettyReport } from './report-view.mjs';
@@ -61,7 +62,8 @@ function execute(params, collect = false) {
       windowsHide: true,
     });
     let stdout = '';
-    let stderr = '';
+    let bytesReceived = 0;
+    const decoder = new StringDecoder('utf8');
     let oversized = false;
     let timedOut = false;
     const timer = setTimeout(() => { timedOut = true; child.kill(); }, MAX_SCAN_MS);
@@ -70,15 +72,14 @@ function execute(params, collect = false) {
     if (collect) {
       child.stdout.on('data', data => {
         if (oversized) return;
-        if (Buffer.byteLength(stdout, 'utf8') + data.length > MAX_REPORT_BYTES) {
+        bytesReceived += data.length;
+        if (bytesReceived > MAX_REPORT_BYTES) {
           oversized = true;
           child.kill();
-        } else stdout += data.toString('utf8');
+        } else stdout += decoder.write(data);
       });
-      // Error details remain intentionally generic; never display source paths or tokens.
-      child.stderr.on('data', data => {
-        if (stderr.length < 4096) stderr += data.toString('utf8').slice(0, 4096 - stderr.length);
-      });
+      // Drain untrusted diagnostics but never echo private absolute paths or source values.
+      child.stderr.on('data', () => {});
     }
     child.on('error', () => {
       clearTimeout(timer);
@@ -86,6 +87,7 @@ function execute(params, collect = false) {
       resolve({ status: 2, stdout: '', reason: 'SCAN_PROCESS_FAILED' });
     });
     child.on('close', (status, signal) => {
+      if (collect && !oversized) stdout += decoder.end();
       clearTimeout(timer);
       process.removeListener('SIGINT', abort);
       resolve({
