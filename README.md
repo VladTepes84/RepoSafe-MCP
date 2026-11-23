@@ -2,7 +2,7 @@
 
 **Find what a Git repository could expose *before* you publish it.** RepoSafe is a **local-first, read-only** security auditor for repository files and reachable Git history. Run it as a standalone command-line tool or as a local **Model Context Protocol (MCP) STDIO server**. The scanner reports finding metadata and remediation guidance, **never matching credential values or source snippets**.
 
-**Status:** v0.7.0 beta source · MIT license · Node.js **22+** · macOS, Linux, Windows. **No npm-registry publication, paid plan, AI key, hosted scanner, telemetry or mandatory GUI.** The source archive contains precompiled JavaScript. RepoSafe **does not certify** that a repository is safe to publish.
+**Status:** v1.0.0 release-candidate source (**not yet published as a GitHub Release or on npm**) · MIT license · Node.js **22+** · macOS, Linux, Windows. **No paid plan, AI key, hosted scanner, telemetry or mandatory GUI.** The source archive contains precompiled JavaScript. RepoSafe **does not certify** that a repository is safe to publish.
 
 [![GitHub Sponsors](https://img.shields.io/badge/Support-optional%20GitHub%20Sponsors-EA4AAA?logo=githubsponsors)](https://github.com/sponsors/VladTepes84)
 
