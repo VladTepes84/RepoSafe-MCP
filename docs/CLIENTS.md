@@ -1,6 +1,6 @@
 # MCP client compatibility — 22 November 2026
 
-> **2026-11-22 Codex Desktop result:** the real client conversation did **not** expose RepoSafe MCP tools, so no RepoSafe tool call was performed. Local SDK handshake and Mac `doctor` both passed. Treat Codex GUI integration as **UNAVAILABLE IN OBSERVED SESSION / NOT ACCEPTED**, not as successfully integrated and not as a diagnosed RepoSafe bug. Diagnosis is deferred.
+> **24 November 2026 re-evaluation:** the 22 Nov chat did not expose RepoSafe tools, but its identity as a *local Codex Desktop host* was not confirmed. Do not describe this as a diagnosed Codex MCP bug. Mac `doctor` and SDK tests passed; real Codex/ChatGPT client calls remain **NOT VERIFIED**. See [acceptance checklist](CLIENT_ACCEPTANCE.md).
 
 **Three distinct claims must not be conflated:** (1) the vendor documents local `stdio` MCP support; (2) RepoSafe's **real SDK integration test** succeeds in CI; (3) a person has tested RepoSafe inside the actual GUI client. This project currently verifies **(1) and (2), not (3)**. `doctor` on `main` discovers seven tools, including `get_findings_page` (merged in PR #10), but this still does NOT constitute a real Codex, Cursor or Claude GUI test. Some clients require specific versions, subscriptions, approvals or settings.
 
@@ -9,11 +9,11 @@
 | **Cursor Agent** | Yes | `npm run config -- --client cursor --root ABS_PATH`; `~/.cursor/mcp.json` | **Not yet manually tested** |
 | **Claude Desktop** | Yes | `--client claude`; macOS `~/Library/Application Support/Claude/claude_desktop_config.json`, Windows `%APPDATA%\Claude\claude_desktop_config.json`, Linux `$XDG_CONFIG_HOME/Claude/claude_desktop_config.json` or `~/.config/Claude/claude_desktop_config.json` | **Not yet manually tested** |
 | **VS Code + GitHub Copilot** | Yes, modern Copilot harness | `--client vscode`; `$COPILOT_HOME/mcp-config.json` if configured, else `~/.copilot/mcp-config.json`, native `mcpServers` | **Not yet manually tested** |
-| **OpenAI Codex CLI / IDE extension / supported ChatGPT desktop** | Yes, local config | `--client codex`; `~/.codex/config.toml` | **Observed unavailable in a Codex Desktop chat (22 Nov 2026); specific cause not established** |
+| **OpenAI Codex CLI / IDE extension / supported ChatGPT desktop** | Yes, local config | `--client codex`; `~/.codex/config.toml` | **Not verified in product; earlier chat host uncertain** |
 | **JetBrains AI Assistant** | Vendor documents STDIO MCP integrations | Add a custom STDIO server with the absolute `node` executable and `dist/server.js`; `REPOSAFE_ROOT` in env | Not tested |
 | **Gemini CLI** | Vendor documents STDIO MCP integrations | Use local MCP config (`mcpServers`) / `gemini mcp add`; adapt the `cursor` snippet | Not tested |
 | **Claude Code** | Vendor documents STDIO MCP integrations | Use `claude mcp add` or applicable user config; adapt generated `cursor` snippet | Not tested |
-| **ChatGPT web without local execution** | **No direct access to a local `stdio` process** | Requires a separately supported remote integration (not shipped by RepoSafe) | Not applicable |
+| **ChatGPT web/mobile without local execution** | **Cannot directly start a local `stdio` process** | Web requires a separately supported remote MCP connection or eligible Secure MCP Tunnel; see [remote access](MCP_REMOTE_ACCESS.md) | No RepoSafe remote integration tested |
 | **Claude web without local desktop integration** | Local `stdio` not directly runnable in a browser tab | Use Claude Desktop or a compatible host | Not applicable |
 
 **Do not mistake protocol compatibility for guaranteed availability in every plan or client session.** A cloud agent cannot automatically read files on your laptop just because a local JSON file was configured.
@@ -25,6 +25,7 @@
 - [Claude Desktop local MCP setup](https://modelcontextprotocol.io/docs/develop/connect-local-servers)
 - [VS Code Copilot native MCP configuration (note the deprecated Local harness format)](https://code.visualstudio.com/docs/agents/reference/mcp-configuration)
 - [OpenAI Codex / ChatGPT desktop configuration](https://learn.chatgpt.com/docs/extend/mcp)
+- [Remote-device options and boundaries](MCP_REMOTE_ACCESS.md)
 - [JetBrains AI Assistant MCP configuration](https://www.jetbrains.com/help/ai-assistant/mcp.html)
 - [Gemini CLI MCP](https://geminicli.com/docs/tools/mcp-server/)
 - [Claude Code MCP](https://code.claude.com/docs/en/mcp)
