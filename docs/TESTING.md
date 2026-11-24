@@ -16,7 +16,7 @@ The internal-progress regression uses synthetic-only data to verify numeric/path
 **PR #34 acceptance evidence (23 Nov 2026):** exact code head `bfa03c839c725292248c758562dfdfafbed3b3e5` passed [GitHub Actions #45164169801](https://github.com/VladTepes84/RepoSafe-MCP/actions/runs/45164169801) on Ubuntu Node 22, Windows Node 22 and macOS Node 22/24 (**4/4 PASS**). The real Mac scan at this pinned head completed, producing the same current-file counts as the preceding run and displaying the new Next Actions. The private local repository name, absolute paths and possible credential values are intentionally omitted from public documentation. **This evidence predates the current documentation-only commit, which needs its own CI.**
 
 
-> **Current evidence (22 Nov 2026):** combined PR #20 merged to `main` at `1fe5bbb4c14e738f1fd196b839346f967909bf58`. Its combined head passed four GitHub CI jobs and **146 local Mac automated tests**, plus demo, runtime verification, benchmark, audit and manual synthetic CLI Git/history/JSON/SARIF/checkpoint checks. PR #26 code head `724fa432d71afccad0bd037d4ba8aa1ff50947d2` separately passed four CI matrix jobs in [run #45053790697](https://github.com/VladTepes84/RepoSafe-MCP/actions/runs/45053790697), including the display and contextual triage regressions. CI on that code head does **not** constitute manual Mac/Codex Desktop GUI acceptance or validation of later commits. **Codex Desktop tools were not exposed in the observed client conversation; GUI acceptance has not passed.**
+> **Current evidence (22 Nov 2026):** combined PR #20 merged to `main` at `1fe5bbb4c14e738f1fd196b839346f967909bf58`. Its combined head passed four GitHub CI jobs and **146 local Mac automated tests**, plus demo, runtime verification, benchmark, audit and manual synthetic CLI Git/history/JSON/SARIF/checkpoint checks. PR #26 code head `724fa432d71afccad0bd037d4ba8aa1ff50947d2` separately passed four CI matrix jobs in [run #45053790697](https://github.com/VladTepes84/RepoSafe-MCP/actions/runs/45053790697), including the display and contextual triage regressions. CI on that code head does **not** constitute manual Mac/Codex Desktop GUI acceptance or validation of later commits. **Codex Desktop tools were not exposed in the observed client conversation; Codex GUI acceptance has not passed.**
 
 > Historical references below to **six** tools are old v0.7 development checkpoints; the merged current implementation exposes **seven** via SDK `doctor`, including `get_findings_page`. Do not use historical counts as today's requirement.
 
@@ -50,14 +50,14 @@ REAL OFFLINE DEMO PASS (synthetic credentials only)
 
 ## Honest verification levels
 
-- **Verified locally:** current scanner/Git/CLI/config SDK tests executed on a real Apple Silicon Mac (Node 24.19.0), as detailed in the 2026-11-22 acceptance logs; CI also runs isolated runners. Real GUI client calls have not passed.
+- **Verified locally:** current scanner/Git/CLI/config SDK tests executed on a real Apple Silicon Mac (Node 24.19.0), as detailed in the 2026-11-22 acceptance logs; CI also runs isolated runners. At that historical milestone, real GUI client calls had not passed.
 - **Verified in GitHub Actions:** only when a named workflow run explicitly shows each matrix job succeeded, with its associated commit SHA.
 - **Vendor-documented:** host supports local stdio MCP and documents file schema.
-- **Not tested:** GUI calls in Claude Desktop, Cursor, Codex, JetBrains etc. A successful official SDK handshake is not equivalent to all of those manual tests.
+- **Manual GUI scope:** operator-reported Claude Desktop Free report/paging tests passed on macOS; full acceptance remains incomplete, Codex was unavailable in its observed session and other clients remain unverified. A successful SDK handshake is not equivalent to manual GUI tests.
 
 ## Script-free distribution regression (2026-11-22)
 
-The GitHub repository tracks compiled JavaScript and declarations in `dist/`. CI runs `npm run verify:runtime` after building to catch any drift from TypeScript sources. A real pinned GitHub archive is installed in an isolated prefix with `npm --ignore-scripts`, then `--help`, `doctor --json` and `init --json` verify executable availability, an actual SDK MCP handshake and seven tools. This is run on Linux, Windows and macOS, including Node.js 24 on macOS. Direct runtime dependencies are pinned to the tested versions. The existing GitHub-source install smoke also uses `--ignore-scripts`. The npm registry remains unpublished, and actual Cursor/Claude GUI integration is still pending.
+The GitHub repository tracks compiled JavaScript and declarations in `dist/`. CI runs `npm run verify:runtime` after building to catch any drift from TypeScript sources. A real pinned GitHub archive is installed in an isolated prefix with `npm --ignore-scripts`, then `--help`, `doctor --json` and `init --json` verify executable availability, an actual SDK MCP handshake and seven tools. This is run on Linux, Windows and macOS, including Node.js 24 on macOS. Direct runtime dependencies are pinned to the tested versions. The existing GitHub-source install smoke also uses `--ignore-scripts`. The npm registry remains unpublished, and full GUI acceptance is still pending; see [CLIENT_ACCEPTANCE.md](CLIENT_ACCEPTANCE.md) for the limited Claude result.
 
 ## New human-readable CLI UX regression
 
@@ -90,7 +90,7 @@ The history scanner reports the first introducing commit for added lines within 
 - `npm run test:sarif`: real CLI SARIF 2.1.0, source-value redaction, relative code locations, incomplete-scan warning, mutually exclusive output flags, human-friendly remediation.
 - `npm run test:package`: checks `npm pack --dry-run --json --ignore-scripts` output: both bins and all runtime files present, no source/tests/workflow files, limited tarball size.
 - On Ubuntu, CI runs the actual composite `action.yml` in report-only mode and validates its SARIF output file. The scan does not automatically upload results.
-- Windows and macOS test all CLI and package workflows in the main `npm run check` suite. Actual GUI client sessions remain unverified.
+- Windows and macOS test all CLI and package workflows in the main `npm run check` suite. Full GUI client acceptance remains unverified; see the limited Claude result above.
 
 ## v0.6 evidence targets
 

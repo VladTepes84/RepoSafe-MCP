@@ -143,7 +143,7 @@ node "$RS" disconnect --client codex                    # reversible removal
 
 Choose `codex`, `cursor`, `vscode` or `claude`. Inspect the preview and preserve unrelated MCP entries. Restart/reload the actual AI client after configuring it. `doctor` verifies a real SDK STDIO handshake and seven-tool discovery; it **does not** prove the AI application exposes those tools.
 
-**Observed 22 Nov 2026:** Codex Desktop did not expose RepoSafe tools despite successful local SDK tests; the cause remains undiagnosed. **User-reported 24 Nov 2026:** Claude Desktop Free discovered seven tools and returned consistent generate_report/get_findings_page results on a minimal local fixture. Raw protocol logs were not independently inspected. MCP public snapshot mode requires separate acceptance. No Codex workaround or cloud deployment is implied.
+**Observed 22 Nov 2026:** Codex Desktop did not expose RepoSafe tools despite successful local SDK tests; the cause remains undiagnosed. **User-reported 24 Nov 2026:** Claude Desktop Free discovered seven tools and returned consistent generate_report/get_findings_page results on a minimal local fixture. Raw protocol logs were not independently inspected. Public URL scan and report pagination also passed an operator-reported two-repository Claude Desktop Free test on 2026-11-24 ([acceptance scope and evidence](docs/CLIENT_ACCEPTANCE.md)). Other GUI checks remain unverified. No Codex workaround or cloud deployment is implied.
 
 ## Dependencies, development and evidence
 

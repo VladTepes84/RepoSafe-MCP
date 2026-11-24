@@ -3,7 +3,7 @@
 
 RepoSafe runs as a **local STDIO MCP server**, not a hosted plugin. The same scanner handles authorized local roots offline and optional bounded public GitHub snapshots downloaded over HTTPS. No source is uploaded by RepoSafe; an AI host may transmit redacted findings to its provider.
 
-**Client acceptance:** Codex Desktop did not expose tools on 2026-11-22 despite SDK handshake success. On 2026-11-24 the operator reported successful seven-tool discovery and consistent report/pagination results in Claude Desktop Free on a one-file local fixture; raw MCP traces were not independently reviewed. The public snapshot mode has not yet been accepted in Claude.
+**Client acceptance:** Codex Desktop did not expose tools on 2026-11-22 despite SDK handshake success. On 2026-11-24 the operator reported successful seven-tool discovery and consistent report/pagination results in Claude Desktop Free on a one-file local fixture; raw MCP traces were not independently reviewed. Public URL scanning and report pagination subsequently passed the operator-reported two-repository test in Claude Desktop Free; see [CLIENT_ACCEPTANCE.md](CLIENT_ACCEPTANCE.md) for the precise scope and evidence.
 
 ## 1. Install and check
 

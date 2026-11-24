@@ -1,6 +1,10 @@
 # Manual MCP client acceptance matrix
 
-**Status (2026-11-22): a Codex Desktop conversation was attempted and reported that RepoSafe tools were not exposed. No actual RepoSafe MCP tools were invoked. Codex in-product acceptance is therefore **NOT PASSED / UNAVAILABLE IN OBSERVED SESSION**; root cause remains undetermined. Cursor, Claude Desktop and VS Code/Copilot GUI checks remain not performed.** The MCP SDK tests prove stdio protocol and seven tool calls in an isolated Node test client; they do not prove that Codex Desktop, Cursor, Claude Desktop or VS Code/Copilot exposes the server to an AI session.
+**Status (2026-11-22): a Codex Desktop conversation was attempted and reported that RepoSafe tools were not exposed. No actual RepoSafe MCP tools were invoked. Codex in-product acceptance is therefore **NOT PASSED / UNAVAILABLE IN OBSERVED SESSION**; root cause remains undetermined. Cursor and VS Code/Copilot GUI checks remain not performed. Claude Desktop Free subsequently passed the limited report/pagination scenarios below on 2026-11-24; full client acceptance is not established.** The MCP SDK tests prove stdio protocol and seven tool calls in an isolated Node test client; they do not prove that Codex Desktop, Cursor, Claude Desktop or VS Code/Copilot exposes the server to an AI session.
+
+## Observed Claude Desktop result
+
+Operator-reported acceptance, 2026-11-24: Claude Desktop Free on macOS used `generate_report` and `get_findings_page` to scan two different public GitHub URLs in one test session, returning distinct URLs, commit SHAs, report IDs and findings with incomplete snapshot coverage. Tested source: `bfc4f8f661927e80d67e3def5fe0868bb6c3320b`; [4/4 CI](https://github.com/VladTepes84/RepoSafe-MCP/actions/runs/45455673430), [PR #38](https://github.com/VladTepes84/RepoSafe-MCP/pull/38). Raw client protocol traces and exact client build were not independently inspected; the remaining five tools, all GUI security/approval/uninstall checks and other clients are not covered by this manual test.
 
 ## Test environment and safeguards
 
@@ -15,15 +19,15 @@ Use a disposable repository with dummy non-live patterns and at least two synthe
 | Codex Desktop/CLI | Managed `--client codex`; inspect `~/.codex/config.toml` without leaking other entries | **Observed unavailable in a Codex Desktop conversation on 2026-11-22; no tool calls** |
 | Cursor | Managed `--client cursor`; validate local MCP approvals | Not verified |
 | VS Code/Copilot | Managed `--client vscode`; honor `COPILOT_HOME` where applicable | Not verified |
-| Claude Desktop | Managed `--client claude`; confirm OS-specific config location | Not verified |
+| Claude Desktop Free (macOS) | Local STDIO; opt-in public URL mode | **Operator-reported PASS: local report/paging and two public URL report/paging scenarios. Full acceptance not verified.** |
 
 For each configured client, require actual tool invocation receipts, not explanations:
 
 1. Confirm RepoSafe is visible and **seven exact tools** are discovered: `scan_secrets`, `scan_private_refs`, `check_repo_readiness`, `scan_git_history`, `check_git_exposure`, `generate_report`, `get_findings_page`.
 2. Invoke `generate_report` with no arbitrary directory argument; record verdict, counts, coverage and warnings. Compare against a fresh CLI scan of the same synthetic root.
-3. Invoke `get_findings_page` with `offset:0, limit:10`; check pagination total, number returned, ordering and metadata-only output.
+3. Invoke `get_findings_page` with `reportId` from the intended scan, `offset:0, limit:10`; check pagination total, number returned, ordering and metadata-only output.
 4. Invoke each remaining tool with accepted arguments and ensure errors and input limits are handled without raw source text or credentials appearing.
-5. Attempt to request a second, unapproved repository via natural language; the RepoSafe MCP tool schema must **not** expose any root/path override. Other AI-host tools are outside RepoSafe's control.
+5. Attempt to request a second, unapproved repository via natural language; the RepoSafe MCP tool schema must **not** expose any root/path override. Other AI-host tools are outside RepoSafe's control. Public HTTPS GitHub URL scans are a separate opt-in mode, not a local path override: test opt-in disabled, explicit approval, two public targets and stale report ID rejection.
 6. Restart the AI client and check tool rediscovery. Disconnect RepoSafe, restart, confirm other MCP connections survive and RepoSafe is absent.
 7. Record whether the client received/redacted metadata over a provider network under the client's privacy policy; `stdio` does not imply the host model is offline.
 

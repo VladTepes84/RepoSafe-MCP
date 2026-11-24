@@ -72,7 +72,7 @@ node "$RS" disconnect --client codex                     # reversible
 
 Also supported in the **configuration generator**: `cursor`, `claude` and `vscode`. This is a local STDIO server, **not** a remotely hosted ChatGPT plugin.
 
-**Current evidence:** RepoSafe passed SDK STDIO tests and local doctor on a Mac, but **was not exposed as a tool in an observed Codex Desktop conversation** on 2026-11-22. Do not mistake a successful `doctor` for a passed GUI test. See [MCP client acceptance](CLIENT_ACCEPTANCE.md). The CLI works without Codex.
+**Current evidence:** RepoSafe passed SDK STDIO tests and local doctor on a Mac, but **was not exposed as a tool in an observed Codex Desktop conversation** on 2026-11-22. Do not mistake a successful `doctor` for a passed GUI test. See [MCP client acceptance](CLIENT_ACCEPTANCE.md). The CLI works without Codex. For Claude Desktop Free, the operator-reported local and public URL report/paging scenarios passed on 2026-11-24. To scan public GitHub URLs from Claude, follow the opt-in instructions in [LOCAL_MCP.md](LOCAL_MCP.md).
 
 ## 6. Interpret and clean up
 
