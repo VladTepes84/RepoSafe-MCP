@@ -79,7 +79,7 @@ Use `--all-findings` to display every *retained* finding rather than the default
 | `generate_report` | Consolidate findings, severities, coverage, exclusions, history and remediation |
 | `get_findings_page` | Read retained results from the **last report of the same running MCP server**, in pages |
 
-**Seven tools**, one locally authorized root. The MCP tool schemas do **not** let an AI agent select another directory or edit source. Tool reports are metadata-only; a connected **cloud AI host may still transmit those redacted findings according to its own privacy policy**.
+**Seven tools**, one locally authorized root and an optional public GitHub snapshot mode in `generate_report`. Local scans stay offline and no tool accepts an arbitrary local path. Public downloads require operator opt-in and user approval; see [MCP setup](docs/LOCAL_MCP.md). Reports identify the target and carry a `reportId`; metadata-only findings may still be transmitted by a connected cloud AI host.
 
 Additional capabilities:
 - Finding context (PR #26): `testFile` marks test/fixture-like paths without dismissing the alert; `gitTracked` reports **current local Git index membership**, not remote publication. A local-untracked file may still have appeared in past commits. Human reports also show the number of overlength lines skipped, if any. These are triage hints, not proof that a credential is valid or harmless. See [Detection](docs/DETECTION.md) and [Report contract](docs/REPORT_CONTRACT.md).
@@ -143,7 +143,7 @@ node "$RS" disconnect --client codex                    # reversible removal
 
 Choose `codex`, `cursor`, `vscode` or `claude`. Inspect the preview and preserve unrelated MCP entries. Restart/reload the actual AI client after configuring it. `doctor` verifies a real SDK STDIO handshake and seven-tool discovery; it **does not** prove the AI application exposes those tools.
 
-**Observed 22 Nov 2026:** protocol-level tests and the local Mac `doctor` succeeded, but RepoSafe's seven tools were **not exposed in a Codex Desktop conversation session**. Actual Codex GUI acceptance therefore **has not passed**; the specific cause remains undiagnosed. Other client GUIs have not been accepted end-to-end. No Codex workaround, macOS Gatekeeper bypass, or cloud MCP deployment is implied. The CLI remains independently usable. See [manual client acceptance](docs/CLIENT_ACCEPTANCE.md).
+**Observed 22 Nov 2026:** Codex Desktop did not expose RepoSafe tools despite successful local SDK tests; the cause remains undiagnosed. **User-reported 24 Nov 2026:** Claude Desktop Free discovered seven tools and returned consistent generate_report/get_findings_page results on a minimal local fixture. Raw protocol logs were not independently inspected. MCP public snapshot mode requires separate acceptance. No Codex workaround or cloud deployment is implied.
 
 ## Dependencies, development and evidence
 
