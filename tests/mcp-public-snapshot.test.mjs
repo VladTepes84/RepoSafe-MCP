@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, writeFile, rm, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 
@@ -15,7 +16,7 @@ test('MCP public snapshots: explicit scope, identity, paging, cleanup and target
     await writeFile(join(root, 'README.md'), '# Local fixture\n');
     await client.connect(new StdioClientTransport({
       command: process.execPath,
-      args: ['--import', resolve('tests/fixtures/mcp-snapshot-https.mjs'), resolve('dist/server.js')],
+      args: ['--import', pathToFileURL(resolve('tests/fixtures/mcp-snapshot-https.mjs')).href, resolve('dist/server.js')],
       env: { ...process.env, REPOSAFE_ROOT: root, REPOSAFE_ALLOW_PUBLIC_GITHUB: '1', TMPDIR: temp, TMP: temp, TEMP: temp },
     }));
     const call = (name, args = {}) => client.callTool({ name, arguments: args });
@@ -74,7 +75,7 @@ test('upgraded MCP stays local-only unless the operator opts in', { timeout: 20_
     await writeFile(join(root, 'README.md'), '# Local only\n');
     await client.connect(new StdioClientTransport({
       command: process.execPath,
-      args: ['--import', resolve('tests/fixtures/mcp-snapshot-https.mjs'), resolve('dist/server.js')],
+      args: ['--import', pathToFileURL(resolve('tests/fixtures/mcp-snapshot-https.mjs')).href, resolve('dist/server.js')],
       env: { ...process.env, REPOSAFE_ROOT: root, REPOSAFE_ALLOW_PUBLIC_GITHUB: '0' },
     }));
     const result = await client.callTool({ name: 'generate_report', arguments: {
