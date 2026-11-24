@@ -2,6 +2,10 @@
 
 
 
+## Codex configuration → real MCP SDK client test (not product acceptance)
+
+`tests/codex-config-protocol.test.mjs` generates the Codex `config.toml` server entry for a disposable synthetic Git repository, parses the generated STDIO command/environment, launches RepoSafe through the official MCP SDK, discovers seven tools, calls `generate_report` and then `get_findings_page(offset=0, limit=10)`, and checks redaction. `npm run test:integration` runs this test on all CI operating systems. This validates the Codex **launch configuration** via a real MCP client, not the actual Codex or ChatGPT user interface. In the 22 November missing-tool attempt the specific chat host was not verified. See [actual in-product acceptance](CLIENT_ACCEPTANCE.md) and [remote-device boundaries](MCP_REMOTE_ACCESS.md).
+
 ## Controlled public GitHub URL snapshot — merged source implementation
 
 New `tests/github-snapshot.test.mjs` synthetic regressions validate strict GitHub URL normalization, tar checksum/trailer verification, regular-file-only extraction, hardlink/symlink/path traversal refusal, resource limits, priority scan integration, and remote-only options failing before any network request. The tests use synthetic credentials, not tokens. An additional [live public GitHub smoke](https://github.com/VladTepes84/RepoSafe-MCP/actions/runs/45192156385) validates the real Codeload archive and normal-path temp cleanup on Linux. Synthetic tests alone do **not** prove all GitHub/network variations, macOS manual acceptance of later Next Actions, cleanup after SIGKILL or protection against a compromised operating system. The local CLI and MCP passed [final post-merge 4/4 CI](https://github.com/VladTepes84/RepoSafe-MCP/actions/runs/45200166977) on the exact merge SHA. A real Mac acceptance of the final private-prefix Next Actions remains unverified.

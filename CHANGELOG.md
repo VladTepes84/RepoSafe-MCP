@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — MCP client acceptance revalidation
+
+- New synthetic end-to-end SDK test launches the seven-tool server from the **generated Codex STDIO configuration**, then invokes `generate_report` and `get_findings_page`. It is explicitly **not** a verified Codex/ChatGPT product tool call.
+- Correct documentation that attributed an unsuccessful 22 November chat to Codex Desktop without conclusive session identity.
+- Document a repeatable local desktop acceptance test and alternatives for other devices; **no remote endpoint, tunnel, networking, release or deployment added**.
+
 ## [1.0.0] — 2026-11-23 (source candidate; no published release)
 
 - **Simple local CLI:** `reposafe scan` runs from a specific approved Git root, with progress, comprehensive severity rule groups, numbered Next Actions and copyable follow-up commands. Existing JSON v2/SARIF, seven-tool local MCP STDIO and bounded history remain supported.

@@ -61,7 +61,7 @@ Use `--all-findings` to display every *retained* finding rather than the default
 | First use, installation and PATH | [First run](docs/FIRST_RUN.md) · [macOS](docs/INSTALL_MAC.md) · [Windows](docs/INSTALL_WINDOWS.md) |
 | CLI options and real examples | [CLI reference](docs/CLI_REFERENCE.md) · [Quickstart](docs/QUICKSTART.md) |
 | Findings and remediation | [Detection](docs/DETECTION.md) · [Remediation](docs/REMEDIATION.md) · [Baseline](docs/BASELINE.md) |
-| Local seven-tool MCP server | [MCP setup](docs/LOCAL_MCP.md) · [Client limitations](docs/CLIENTS.md) |
+| Local seven-tool MCP server | [MCP setup](docs/LOCAL_MCP.md) · [Client tests](docs/CLIENT_ACCEPTANCE.md) · [Other devices](docs/MCP_REMOTE_ACCESS.md) |
 | Threat model, coverage and testing | [Security](docs/SECURITY.md) · [Testing](docs/TESTING.md) · [Readiness](docs/PRO_READINESS.md) |
 | Cleanup, updates and rollback | [Uninstall](docs/UNINSTALL.md) · [Changelog](CHANGELOG.md) |
 
@@ -143,7 +143,7 @@ node "$RS" disconnect --client codex                    # reversible removal
 
 Choose `codex`, `cursor`, `vscode` or `claude`. Inspect the preview and preserve unrelated MCP entries. Restart/reload the actual AI client after configuring it. `doctor` verifies a real SDK STDIO handshake and seven-tool discovery; it **does not** prove the AI application exposes those tools.
 
-**Observed 22 Nov 2026:** protocol-level tests and the local Mac `doctor` succeeded, but RepoSafe's seven tools were **not exposed in a Codex Desktop conversation session**. Actual Codex GUI acceptance therefore **has not passed**; the specific cause remains undiagnosed. Other client GUIs have not been accepted end-to-end. No Codex workaround, macOS Gatekeeper bypass, or cloud MCP deployment is implied. The CLI remains independently usable. See [manual client acceptance](docs/CLIENT_ACCEPTANCE.md).
+**MCP client acceptance (24 Nov 2026):** local Mac `doctor` and MCP SDK tests passed, but a 22 Nov chat attempt did not expose RepoSafe tools. The observed chat **was not conclusively identified as a local Codex host**; no actual Codex or ChatGPT client tool invocation can be claimed. A new Codex-config SDK regression tests the generated STDIO command, not the real Codex application. See [real client acceptance](docs/CLIENT_ACCEPTANCE.md) and [using another device](docs/MCP_REMOTE_ACCESS.md). No remote endpoint or cloud scanner is included.
 
 ## Dependencies, development and evidence
 
