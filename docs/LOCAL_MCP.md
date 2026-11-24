@@ -3,7 +3,7 @@
 
 RepoSafe runs as a **local STDIO MCP server**, not as a hosted plugin or GUI app. The CLI and AI-connected MCP tools share the same offline scanner. Installation of the archive and npm dependencies requires internet once; scans operate on local files. An AI host may send redacted finding metadata to its model provider under that host's privacy policy.
 
-**Actual GUI integration has NOT passed.** On 2026-11-22 a Codex Desktop conversation did not expose RepoSafe tools; no RepoSafe MCP calls occurred in that session, despite passing local Mac `doctor` and SDK tests. The reason has not been diagnosed. This work is deferred. Other client GUIs remain unverified; protocol success is not client acceptance.
+**Real AI-client invocation remains NOT VERIFIED.** On 22 November a chat session did not expose RepoSafe tools, but the host was not definitively identified as a local Codex Desktop session. The Mac `doctor` and SDK handshake passed. The new Codex-config STDIO test invokes real SDK tools using generated Codex launch parameters, **not the actual Codex/ChatGPT app**. Follow [manual acceptance](CLIENT_ACCEPTANCE.md).
 
 ## 1. Install and check
 
@@ -21,7 +21,13 @@ On Windows PowerShell:
 
 The URL ending in main is mutable; for trustworthy reproducibility replace it with a reviewed full 40-character commit SHA. No installer scripts or macOS security-policy changes are necessary. Adapt the prefix if RepoSafe is already installed in .reposafe-v2.
 
-## 2. Connect to Codex Desktop, Codex CLI and other IDEs
+## 2. Distinguish local desktop from ChatGPT web
+
+A supported **local desktop** Codex or ChatGPT host can launch RepoSafe through STDIO, using the local `~/.codex/config.toml` entry. For supported ChatGPT desktop environments, check Settings → MCP servers and restart; in supported Codex clients, inspect `/mcp`. **Ordinary ChatGPT web and mobile chats do not automatically load the Mac's local Codex config.**
+
+Do not use or bypass any blocked Codex executable. A successful `doctor` call is not a GUI test; see [the end-to-end checklist](CLIENT_ACCEPTANCE.md). Remote use requires [a separate architecture](MCP_REMOTE_ACCESS.md).
+
+## 3. Connect to Codex Desktop, Codex CLI and other IDEs
 
 On macOS/Linux, with an installed RepoSafe runtime:
 
