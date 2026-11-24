@@ -1,6 +1,25 @@
 # Manual MCP client acceptance matrix
 
-**Status (2026-11-22): a Codex Desktop conversation was attempted and reported that RepoSafe tools were not exposed. No actual RepoSafe MCP tools were invoked. Codex in-product acceptance is therefore **NOT PASSED / UNAVAILABLE IN OBSERVED SESSION**; root cause remains undetermined. Cursor, Claude Desktop and VS Code/Copilot GUI checks remain not performed.** The MCP SDK tests prove stdio protocol and seven tool calls in an isolated Node test client; they do not prove that Codex Desktop, Cursor, Claude Desktop or VS Code/Copilot exposes the server to an AI session.
+**Status re-evaluated 2026-11-24:** A chat attempt on 22 November did not expose RepoSafe tools, but the evidence does **not establish that it ran in an actual local Codex Desktop session** rather than an ordinary ChatGPT conversation. Neither `generate_report` nor `get_findings_page` was invoked from that chat. Local Mac `doctor` and MCP SDK calls passed; the new Codex-config STDIO SDK test checks the generated command, **not the Codex application itself**. Real Codex/ChatGPT UI acceptance is **NOT VERIFIED**. Other client UIs are not verified.
+
+## Immediate macOS acceptance test (local desktop)
+
+1. Select an explicitly authorized **synthetic Git repository**. Set `REPO` to its absolute path, and use the already installed runtime. No private production data is required.
+2. Run these **read-only** checks:
+
+   ```sh
+   RS="$HOME/.reposafe/node_modules/reposafe-mcp/dist/cli.js"
+   REPO="/ABSOLUTE/PATH/TO/SYNTHETIC-GIT-REPOSITORY"
+   node "$RS" doctor --root "$REPO" --json
+   node "$RS" connect --root "$REPO" --client codex --dry-run
+   ```
+
+3. Inspect the dry-run. If RepoSafe is not configured and you explicitly choose to connect, run `node "$RS" connect --root "$REPO" --client codex`. This **writes to the user's Codex configuration**, makes a private backup where needed and does not modify the repository. Do not repeat a connection if it is already configured correctly. Never share the full TOML or personal paths.
+4. Launch an actual supported **local** ChatGPT desktop/Codex host and check its MCP server list (Settings → MCP servers for supported desktop ChatGPT; `/mcp` in supported Codex client). The web or mobile ChatGPT conversation is a different environment. Use `codex mcp list` only if the `codex` executable is independently trusted and **not blocked by macOS security**; never circumvent Gatekeeper or antivirus.
+5. Request: **"Use RepoSafe MCP generate_report on the preconfigured synthetic repository; then invoke get_findings_page with offset 0 and limit 10. Show the actual tool-call receipts, total, severities and coverage without revealing file contents or secrets."**
+6. Mark **PASS** only when the real application shows both successful tool calls. Otherwise record only a redacted error category, tool discovery result and client version. Do not upload absolute paths, TOML contents or real findings.
+
+If `doctor` fails, investigate the server/runtime. If `doctor` passes but the app cannot discover tools, inspect **which app/session/host is being used**, whether config was reloaded and whether its local MCP integration is enabled. A simulator/SDK pass does not certify GUI integration.
 
 ## Test environment and safeguards
 
@@ -12,7 +31,7 @@ Use a disposable repository with dummy non-live patterns and at least two synthe
 
 | Client | Connection method | Actual in-product test |
 | --- | --- | --- |
-| Codex Desktop/CLI | Managed `--client codex`; inspect `~/.codex/config.toml` without leaking other entries | **Observed unavailable in a Codex Desktop conversation on 2026-11-22; no tool calls** |
+| Codex Desktop/CLI | Managed `--client codex`; inspect `~/.codex/config.toml` without leaking other entries | **Not verified in Codex; 22 Nov assistant session type uncertain, no tool calls** |
 | Cursor | Managed `--client cursor`; validate local MCP approvals | Not verified |
 | VS Code/Copilot | Managed `--client vscode`; honor `COPILOT_HOME` where applicable | Not verified |
 | Claude Desktop | Managed `--client claude`; confirm OS-specific config location | Not verified |
@@ -41,6 +60,6 @@ For each configured client, require actual tool invocation receipts, not explana
 | Restart and uninstall isolation | NOT VERIFIED |
 | Evidence link (redacted) | NOT VERIFIED |
 
-In a 2026-11-22 Codex Desktop chat attempt, tool discovery in the assistant session did not expose `reposafe` despite a successful Mac local `doctor` protocol test. No `generate_report` or `get_findings_page` call executed in that chat. **This is evidence of an unmet GUI acceptance gate, not proof of the underlying transport/configuration root cause.** The product feature is deferred, not reported as passed.
+In a 2026-11-22 assistant chat attempt with unconfirmed client/session identity, tool discovery did not expose `reposafe` despite a successful local `doctor` protocol test. No `generate_report` or `get_findings_page` call executed in that chat. **This is evidence of an unmet GUI acceptance gate, not proof of the underlying transport/configuration root cause.** The product feature is deferred, not reported as passed.
 
 The client passes only when all applicable checks have observed evidence. Otherwise report **NOT VERIFIED** or **FAILED**, never **PASS** by inference.
