@@ -1,9 +1,9 @@
 
 # RepoSafe MCP — local IDE connection (no cloud hosting)
 
-RepoSafe runs as a **local STDIO MCP server**, not as a hosted plugin or GUI app. The CLI and AI-connected MCP tools share the same offline scanner. Installation of the archive and npm dependencies requires internet once; scans operate on local files. An AI host may send redacted finding metadata to its model provider under that host's privacy policy.
+RepoSafe runs as a **local STDIO MCP server**, not a hosted plugin. The same scanner handles authorized local roots offline and optional bounded public GitHub snapshots downloaded over HTTPS. No source is uploaded by RepoSafe; an AI host may transmit redacted findings to its provider.
 
-**Actual GUI integration has NOT passed.** On 2026-11-22 a Codex Desktop conversation did not expose RepoSafe tools; no RepoSafe MCP calls occurred in that session, despite passing local Mac `doctor` and SDK tests. The reason has not been diagnosed. This work is deferred. Other client GUIs remain unverified; protocol success is not client acceptance.
+**Client acceptance:** Codex Desktop did not expose tools on 2026-11-22 despite SDK handshake success. On 2026-11-24 the operator reported successful seven-tool discovery and consistent report/pagination results in Claude Desktop Free on a one-file local fixture; raw MCP traces were not independently reviewed. The public snapshot mode has not yet been accepted in Claude.
 
 ## 1. Install and check
 
@@ -37,9 +37,21 @@ On Windows PowerShell:
 
 Other choices: --client cursor, --client vscode, --client claude. For VS Code's modern Copilot harness, `COPILOT_HOME` overrides the default `~/.copilot` location. Claude Desktop on Linux uses `XDG_CONFIG_HOME/Claude` or `~/.config/Claude`. Always inspect the `--dry-run` target before connecting. The installer writes **only** the named RepoSafe MCP entry in the user's client configuration, preserving other servers and unrelated settings. Codex Desktop and Codex CLI use the same local Codex TOML configuration. Crucially, connecting RepoSafe does **not** execute the codex binary or change macOS Gatekeeper settings.
 
-Restart/reload the relevant IDE. Ask it to list the seven RepoSafe tools, call generate_report, and then retrieve later findings via get_findings_page with offset and limit. MCP sends a bounded first page (up to 50 results), with later pages up to 100; data is cached in the running local server process and not stored on disk.
+Restart/reload the relevant IDE. Call `generate_report`, then pass its `reportId`, offset and limit to `get_findings_page`. A local scan returns `target.kind=configured_local_root` and an opaque session root ID, not a private path. A remote scan returns the canonical public URL and full commit SHA. The first page contains up to 50 retained findings, later pages up to 100; only the latest completed scan is cached in memory. A failed scan after its handler starts invalidates the cache. Public report pagination requires the exact `reportId`.
 
-Client GUIs and approval prompts have not been manually validated on the user's actual installed versions. Protocol compatibility does not guarantee UI availability or permissions.
+### Public GitHub URL scans from MCP (opt-in)
+
+In Claude Desktop, add `"REPOSAFE_ALLOW_PUBLIC_GITHUB": "1"` to the existing RepoSafe server `env` object, preserving `REPOSAFE_ROOT` and all unrelated settings. Restart once after the upgrade/configuration. Subsequent public URL scans require no reconfiguration. Keep per-call approval enabled; the model-supplied confirmation field is not independent proof of human approval.
+
+Example tool arguments for a user-requested URL:
+
+```json
+{"repositoryUrl":"https://github.com/OWNER/REPO","confirmPublicDownload":true}
+```
+
+Use `generate_report` only; other scan tools still target the configured local root. Do not mix history options with a URL. RepoSafe downloads a commit-pinned snapshot to private temporary storage, scans locally without Git execution or repository-controlled baseline suppression, then attempts cleanup. Git history/index, LFS and submodules are not inspected; coverage is always incomplete. No arbitrary hosts, credentials or paths. Verify the returned URL and commit SHA; pass the returned report ID when paging. Failed downloads never fall back to the local root.
+
+Client permissions, network behavior and public-snapshot acceptance must be verified separately; SDK tests alone are insufficient.
 
 ## CLI-only optional persistent history
 
@@ -61,7 +73,7 @@ Human CLI output defaults to the first 50 highest-severity findings grouped by s
 ## 4. Privacy and safety
 
 - The scan engine does not execute code from the target repository or upload it to a RepoSafe server.
-- Only an operator-approved absolute REPOSAFE_ROOT is accessible to the MCP tools.
+- Local scans access only an operator-approved absolute `REPOSAFE_ROOT`; public snapshots use separate bounded temporary storage after opt-in and user approval.
 - Client-provided model requests may still share **redacted report metadata** with the AI provider.
 - No scanner can prove that a repository is safe to publish. Review incomplete coverage and false positives.
 - A macOS “Malware blocked” dialog for the separate codex executable must be investigated independently. Do not bypass macOS security controls or assume RepoSafe caused the alert.

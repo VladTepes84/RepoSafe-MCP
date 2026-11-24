@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test:unit": "node --experimental-strip-types --test tests/scanner.test.mjs tests/detection.test.mjs tests/v04-detection.test.mjs tests/baseline.test.mjs",
     "test:git": "node --test tests/git.test.mjs tests/cli.test.mjs",
-    "test:integration": "node --test tests/protocol.test.mjs",
+    "test:integration": "node --test tests/protocol.test.mjs tests/mcp-public-snapshot.test.mjs",
     "test": "npm run test:unit && npm run test:git && npm run test:config && npm run test:integration && npm run test:userflow && npm run test:sarif && npm run test:package && npm run test:structured && npm run test:history-options && npm run test:workflow && npm run test:report-contract && npm run test:precision && npm run test:quality && npm run test:security-boundaries && npm run test:cli-entrypoint && npm run test:remote-snapshot",
     "check": "npm run typecheck && npm run build && npm test && npm run demo",
     "demo": "node tests/demo.mjs",
