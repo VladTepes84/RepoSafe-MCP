@@ -18,7 +18,7 @@ export function renderPrettyReport(report, {
   color = false, summary = false, high = false, severity = null, details = false,
   compact = false, allFindings = false, groupBy = 'severity',
   reviewCommand = 'reposafe scan', explicitRoot = false, remoteSource = null, windowsPrivate = false, windows = false,
-  ascii = false, width = 72,
+  ascii = false, width = 72, localSha = null,
 } = {}) {
   if (report?.schemaVersion !== '2' || !Array.isArray(report.findings) ||
       !report.stats || typeof report.stats.complete !== 'boolean') {
@@ -35,7 +35,8 @@ export function renderPrettyReport(report, {
     '│ ' + paint('REPOSAFE', 1) + '   LOCAL REPOSITORY SECURITY AUDIT',
     '╰' + LINE + '╯',
     ...(remoteSource ? ['Source: public GitHub snapshot ' + remoteSource.url + ' @ ' + remoteSource.sha.slice(0, 12),
-      '        Temporary local extraction; Git history not available.'] : []),
+      '        Temporary local extraction; Git history not available.'] :
+      ['Target: approved local directory', 'Git HEAD: ' + (localSha ? localSha + ' (observed after scan; working tree may differ)' : 'unavailable or not requested')]),
     '',
     'STATUS    ' + (report.verdict === 'review_required' ?
       paint('REVIEW REQUIRED', 33) : paint('NO FINDINGS IN SCANNED SCOPE', 32)),
@@ -166,19 +167,22 @@ export function renderPrettyReport(report, {
     for (const warning of warnings) out.push('  • ' + warning);
   }
   out.push('', paint('NEXT ACTIONS', 1));
+  const commands = new Set();
   const commandLines = suffix => {
     const command = reviewCommand + suffix;
     if (explicitRoot) {
-      if (!windows) return ['     ' + command + ' --root "$PWD"'];
+      if (!windows) { const line = '     ' + command + ' --root "$PWD"'; commands.add(line); return [line]; }
       const cmd = windowsPrivate ? command.replace(/^reposafe\.cmd/, '"%USERPROFILE%\\.reposafe\\node_modules\\.bin\\reposafe.cmd"') : command;
       const ps = windowsPrivate ? command.replace(/^reposafe\.cmd/, '& "$HOME\\.reposafe\\node_modules\\.bin\\reposafe.cmd"') : command;
-      return ['     CMD: ' + cmd + ' --root "%CD%"',
+      const lines = ['     CMD: ' + cmd + ' --root "%CD%"',
         '     PowerShell: ' + ps + ' --root (Get-Location).Path'];
+      lines.forEach(line => commands.add(line)); return lines;
     }
-    if (!windowsPrivate) return ['     ' + command];
-    return ['     PATH: ' + command,
+    if (!windowsPrivate) { const line = '     ' + command; commands.add(line); return [line]; }
+    const lines = ['     PATH: ' + command,
       '     CMD: ' + command.replace(/^reposafe\.cmd/, '"%USERPROFILE%\\.reposafe\\node_modules\\.bin\\reposafe.cmd"'),
       '     PowerShell: ' + command.replace(/^reposafe\.cmd/, '& "$HOME\\.reposafe\\node_modules\\.bin\\reposafe.cmd"')];
+    lines.forEach(line => commands.add(line)); return lines;
   };
   // Commands reproduce the user's scan scope/options and run read-only.
   // They do re-scan; reports are not persisted or cached between CLI invocations.
@@ -217,7 +221,21 @@ export function renderPrettyReport(report, {
   if (explicitRoot) out.push('  First change directory to the same approved scan directory.');
   out.push('  Commands re-run the read-only scan; this report is not cached between runs.');
   out.push('  No findings does NOT mean the repository is safe to publish.');
-  const result = out.join('\n');
+  const maxWidth = Math.max(24, width || 72);
+  const visibleLength = text => text.replace(/\x1b\[[0-9;]*m/g, '').length;
+  const wrapped = out.flatMap(line => {
+    if (commands.has(line) || visibleLength(line) <= maxWidth) return [line];
+    const indent = (line.match(/^\s*/) ?? [''])[0];
+    const words = line.trim().split(/\s+/); const lines = []; let current = indent;
+    for (const word of words) {
+      if (current.trim() && visibleLength(current) + 1 + visibleLength(word) > maxWidth) {
+        lines.push(current); current = indent + word;
+      } else current += (current.trim() ? ' ' : '') + word;
+    }
+    if (current.trim()) lines.push(current);
+    return lines;
+  });
+  const result = wrapped.join('\n');
   return ascii ? result.replace(/[╭╮╰╯]/g, '+').replace(/│/g, '|').replace(/─/g, '-')
     .replace(/■/g, '#').replace(/[·•]/g, '*').replace(/—/g, '-') : result;
 }
