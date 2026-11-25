@@ -157,10 +157,14 @@ test('Windows CMD and PowerShell execute the displayed private-prefix commands',
     const one = spawnSync('cmd.exe', ['/d', '/s', '/c', '"' + cmd + '"'],
       { cwd: root, env, encoding: 'utf8', windowsVerbatimArguments: true });
     assert.equal(one.status, 0, one.stderr);
-    assert.deepEqual(JSON.parse(one.stdout), ['scan', '--no-history', '--high', '--root', root]);
+    const cmdArgs = JSON.parse(one.stdout);
+    assert.deepEqual(cmdArgs.slice(0, -1), ['scan', '--no-history', '--high', '--root']);
+    assert.equal((await realpath(cmdArgs.at(-1))).toLowerCase(), (await realpath(root)).toLowerCase());
     const two = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { cwd: root, env, encoding: 'utf8' });
     assert.equal(two.status, 0, two.stderr);
-    assert.deepEqual(JSON.parse(two.stdout), ['scan', '--no-history', '--high', '--root', root]);
+    const psArgs = JSON.parse(two.stdout);
+    assert.deepEqual(psArgs.slice(0, -1), ['scan', '--no-history', '--high', '--root']);
+    assert.equal((await realpath(psArgs.at(-1))).toLowerCase(), (await realpath(root)).toLowerCase());
   });
 });
 
