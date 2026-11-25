@@ -72,6 +72,28 @@ test('priority view prints only HIGH/CRITICAL details, preserves full counts and
   assert.match(output, /Total shown in groups: 2/);
 });
 
+test('severity filter selects exactly one severity while retaining total counts', () => {
+  const output = renderPrettyReport(sample, { severity: 'medium' });
+  assert.match(output, /MEDIUM DETECTION GROUPS/);
+  assert.match(output, /missing_license/);
+  assert.doesNotMatch(output, /github_token/);
+  assert.match(output, /Total shown in groups: 1 \(filtered; full counts above\)/);
+});
+
+test('severity filtering is accepted by the CLI and invalid combinations fail', async () => {
+  await fixture(async root => {
+    await writeFile(join(root, 'fixture.txt'), 'GITHUB_TOKEN=ghp_' + 'V'.repeat(36) + '\n');
+    const result = run(root, 'scan', '--no-history', '--severity', 'high', '--no-color');
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stdout, /Filtered findings:/);
+    assert.match(result.stdout, /github_token/);
+    for (const flags of [['--severity', 'invalid'], ['--severity', 'high', '--high'],
+      ['--severity', 'high', '--json'], ['--severity', 'high', '--severity', 'low']]) {
+      assert.equal(run(root, 'scan', '--no-history', ...flags).status, 2);
+    }
+  }, true);
+});
+
 test('summary view hides all rule names, compact view abbreviates explanations', () => {
   const summary = renderPrettyReport(sample, { summary: true });
   assert.doesNotMatch(summary, /github_token|missing_license/);
@@ -91,7 +113,7 @@ test('private-prefix Next Actions reuse the executable without exposing the home
   assert.equal(mac, '"$HOME/.reposafe/node_modules/.bin/reposafe"');
   assert.equal(reviewLauncher(script, home, 'linux'), mac);
   const windows = reviewLauncher(script, home, 'win32');
-  assert.equal(windows, ['& "$HOME', '.reposafe', 'node_modules', '.bin', 'reposafe.cmd"'].join('\\'));
+  assert.equal(windows, 'reposafe.cmd');
   assert.ok(!mac.includes(home) && !windows.includes(home));
   assert.equal(reviewLauncher(join(home, 'unrelated', 'bin', 'reposafe.mjs'), home), 'reposafe');
   const output = renderPrettyReport(sample, {
@@ -102,6 +124,13 @@ test('private-prefix Next Actions reuse the executable without exposing the home
   assert.ok(!output.includes(home));
 });
 
+test('Windows private-prefix commands include complete CMD and PowerShell alternatives', () => {
+  const output = renderPrettyReport(sample, { windowsPrivate: true,
+    reviewCommand: 'reposafe.cmd scan https://github.com/octocat/Hello-World' });
+  assert.match(output, /CMD: "%USERPROFILE%\\\.reposafe\\node_modules\\\.bin\\reposafe\.cmd" scan https:\/\/github\.com\/octocat\/Hello-World --high/);
+  assert.match(output, /PowerShell: & "\$HOME\\\.reposafe\\node_modules\\\.bin\\reposafe\.cmd" scan https:\/\/github\.com\/octocat\/Hello-World --high/);
+});
+
 test('Next Actions include numbered, scoped priority/file/coverage commands', () => {
   const output = renderPrettyReport(sample, {
     reviewCommand: 'reposafe scan --no-history',
@@ -110,7 +139,8 @@ test('Next Actions include numbered, scoped priority/file/coverage commands', ()
   assert.match(output, /reposafe scan --no-history --high/);
   assert.match(output, /2\. BY FILE — Inspect 3 findings grouped by relative file path/);
   assert.match(output, /reposafe scan --no-history --details --group-by file/);
-  assert.match(output, /3\. COVERAGE — Audit incomplete/);
+  assert.match(output, /3\. SEVERITY/);
+  assert.match(output, /4\. COVERAGE — Audit incomplete/);
   assert.match(output, /not cached between runs/);
   assert.doesNotMatch(output, /Tip: reposafe scan/);
   const unavailable = renderPrettyReport({
@@ -118,7 +148,7 @@ test('Next Actions include numbered, scoped priority/file/coverage commands', ()
   }, { reviewCommand: 'reposafe scan --root ABSOLUTE_PATH --no-git',
     explicitRoot: true });
   assert.match(unavailable, /Git status was not inspected/);
-  assert.match(unavailable, /replace ABSOLUTE_PATH/);
+  assert.match(unavailable, /change directory to the same approved scan directory/);
   assert.ok(!unavailable.includes('/Users/'));
   const nothing = renderPrettyReport({
     ...sample, verdict: 'no_findings_in_scope',
@@ -136,9 +166,9 @@ test('CLI preserves no-history and explicit-root scope in Next Actions without e
       'GITHUB_TOKEN=ghp_' + 'P'.repeat(36) + '\n');
     const report = run(root, 'scan', '--root', root, '--no-history', '--high', '--no-color');
     assert.equal(report.status, 1, report.stderr);
-    assert.match(report.stdout, /reposafe scan --root ABSOLUTE_PATH --no-history --high/);
-    assert.match(report.stdout, /reposafe scan --root ABSOLUTE_PATH --no-history --details --group-by file/);
-    assert.match(report.stdout, /replace ABSOLUTE_PATH/);
+    assert.match(report.stdout, /reposafe scan --no-history --high --root/);
+    assert.match(report.stdout, /reposafe scan --no-history --details --group-by file --root/);
+    assert.match(report.stdout, /change directory to the same approved scan directory/);
     assert.ok(!report.stdout.includes(root));
   }, true);
 });
