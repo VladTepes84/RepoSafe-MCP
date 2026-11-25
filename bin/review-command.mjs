@@ -7,9 +7,6 @@ export function reviewLauncher(entrypoint, home, platform = process.platform) {
   const privateEntrypoint = join(home, '.reposafe', 'node_modules',
     'reposafe-mcp', 'bin', 'reposafe.mjs');
   if (normalize(entrypoint) !== normalize(privateEntrypoint)) return 'reposafe';
-  if (platform === 'win32') {
-    // Windows installation documented for PowerShell, not cmd.exe.
-    return '& "$HOME\\.reposafe\\node_modules\\.bin\\reposafe.cmd"';
-  }
+  if (platform === 'win32') return 'reposafe.cmd';
   return '"$HOME/.reposafe/node_modules/.bin/reposafe"';
 }

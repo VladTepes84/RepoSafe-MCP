@@ -2,7 +2,6 @@
 // All counts and statuses come from the existing versioned, redacted scanner report.
 const SEVERITIES = ['critical', 'high', 'medium', 'low'];
 const COLORS = { critical: 91, high: 33, medium: 36, low: 32 };
-const LINE = '─'.repeat(70);
 const bar = n => n === 0 ? '·' : '■'.repeat(Math.min(12, Math.max(1, Math.ceil(Math.log2(n + 1)))));
 
 function severityCounts(findings) {
@@ -16,25 +15,28 @@ function orderFindings(a, b) {
 }
 
 export function renderPrettyReport(report, {
-  color = false, summary = false, high = false, details = false,
+  color = false, summary = false, high = false, severity = null, details = false,
   compact = false, allFindings = false, groupBy = 'severity',
-  reviewCommand = 'reposafe scan', explicitRoot = false, remoteSource = null,
+  reviewCommand = 'reposafe scan', explicitRoot = false, remoteSource = null, windowsPrivate = false, windows = false,
+  ascii = false, width = 72, localSha = null,
 } = {}) {
   if (report?.schemaVersion !== '2' || !Array.isArray(report.findings) ||
       !report.stats || typeof report.stats.complete !== 'boolean') {
     throw new Error('INVALID_REPORT');
   }
   const paint = (text, code) => color ? '\x1b[' + code + 'm' + text + '\x1b[0m' : text;
+  const LINE = '─'.repeat(Math.max(20, Math.min(70, (width || 72) - 2)));
   const findings = report.findings;
   const counts = severityCounts(findings);
   const complete = report.stats.complete && (report.git?.complete ?? true);
-  const restricted = findings.filter(f => !high || f.severity === 'critical' || f.severity === 'high');
+  const restricted = findings.filter(f => severity ? f.severity === severity : !high || f.severity === 'critical' || f.severity === 'high');
   const out = [
     '╭' + LINE + '╮',
     '│ ' + paint('REPOSAFE', 1) + '   LOCAL REPOSITORY SECURITY AUDIT',
     '╰' + LINE + '╯',
     ...(remoteSource ? ['Source: public GitHub snapshot ' + remoteSource.url + ' @ ' + remoteSource.sha.slice(0, 12),
-      '        Temporary local extraction; Git history not available.'] : []),
+      '        Temporary local extraction; Git history not available.'] :
+      ['Target: approved local directory', 'Git HEAD: ' + (localSha ? localSha + ' (observed after scan; working tree may differ)' : 'unavailable or not requested')]),
     '',
     'STATUS    ' + (report.verdict === 'review_required' ?
       paint('REVIEW REQUIRED', 33) : paint('NO FINDINGS IN SCANNED SCOPE', 32)),
@@ -46,6 +48,12 @@ export function renderPrettyReport(report, {
         ' | Known omissions: ' + report.stats.findingsOmitted : '') +
       ((report.stats.overlengthLinesSkipped ?? 0) > 0 ?
         ' | Long lines skipped: ' + report.stats.overlengthLinesSkipped : ''),
+    'Scan coverage: ' + (report.stats.complete ? 'complete within limits' : 'incomplete; see warnings') +
+      ' | Git: ' + (remoteSource ? 'snapshot only; index and history not inspected' :
+        !report.git ? 'not inspected' : !report.git.gitAvailable ? 'unavailable' : !report.git.complete ? 'incomplete; see warnings' :
+          report.git.historyChecked ? 'index and bounded history inspected' : 'index inspected; history not inspected'),
+    ...(remoteSource ? ['LFS objects: not inspected | Submodules: not inspected'] : []),
+    ...(high || severity ? ['Filtered findings: ' + restricted.length + ' of ' + findings.length + ' retained'] : []),
     '',
     paint('SEVERITY OVERVIEW', 1),
   ];
@@ -80,9 +88,9 @@ export function renderPrettyReport(report, {
   }
 
   if (!summary) {
-    out.push('', paint(high ? 'HIGH / CRITICAL DETECTION GROUPS' : 'DETECTION GROUPS — ALL SEVERITIES', 1));
+    out.push('', paint(severity ? severity.toUpperCase() + ' DETECTION GROUPS' : high ? 'HIGH / CRITICAL DETECTION GROUPS' : 'DETECTION GROUPS — ALL SEVERITIES', 1));
     if (restricted.length === 0) {
-      out.push(high ? '  No HIGH or CRITICAL findings in the examined scope.' :
+      out.push(severity ? '  No ' + severity.toUpperCase() + ' findings in the examined scope.' : high ? '  No HIGH or CRITICAL findings in the examined scope.' :
         '  No findings were identified within the examined scope.');
     } else {
       const groups = new Map();
@@ -109,10 +117,10 @@ export function renderPrettyReport(report, {
           (context.length ? '  ' + context.join(' ') : ''));
       }
       out.push('  ' + LINE, '  Total shown in groups: ' + restricted.length +
-        (high ? ' (HIGH/CRITICAL only; full counts above)' : ' (all retained findings)'));
+        (severity ? ' (filtered; full counts above)' : high ? ' (HIGH/CRITICAL only; full counts above)' : ' (all retained findings)'));
     }
 
-    const showDetails = high || details || compact || allFindings;
+    const showDetails = high || severity || details || compact || allFindings;
     if (showDetails && restricted.length) {
       const sorted = [...restricted].sort((a, b) =>
         groupBy === 'file' ?
@@ -159,18 +167,35 @@ export function renderPrettyReport(report, {
     for (const warning of warnings) out.push('  • ' + warning);
   }
   out.push('', paint('NEXT ACTIONS', 1));
+  const commands = new Set();
+  const commandLines = suffix => {
+    const command = reviewCommand + suffix;
+    if (explicitRoot) {
+      if (!windows) { const line = '     ' + command + ' --root "$PWD"'; commands.add(line); return [line]; }
+      const cmd = windowsPrivate ? command.replace(/^reposafe\.cmd/, '"%USERPROFILE%\\.reposafe\\node_modules\\.bin\\reposafe.cmd"') : command;
+      const ps = windowsPrivate ? command.replace(/^reposafe\.cmd/, '& "$HOME\\.reposafe\\node_modules\\.bin\\reposafe.cmd"') : command;
+      const lines = ['     CMD: ' + cmd + ' --root "%CD%"',
+        '     PowerShell: ' + ps + ' --root (Get-Location).Path'];
+      lines.forEach(line => commands.add(line)); return lines;
+    }
+    if (!windowsPrivate) { const line = '     ' + command; commands.add(line); return [line]; }
+    const lines = ['     PATH: ' + command,
+      '     CMD: ' + command.replace(/^reposafe\.cmd/, '"%USERPROFILE%\\.reposafe\\node_modules\\.bin\\reposafe.cmd"'),
+      '     PowerShell: ' + command.replace(/^reposafe\.cmd/, '& "$HOME\\.reposafe\\node_modules\\.bin\\reposafe.cmd"')];
+    lines.forEach(line => commands.add(line)); return lines;
+  };
   // Commands reproduce the user's scan scope/options and run read-only.
   // They do re-scan; reports are not persisted or cached between CLI invocations.
   const priority = counts.critical + counts.high;
   if (priority || (report.baseline?.highSuppressed ?? 0)) {
     out.push('  1. PRIORITY — Review ' + priority + ' CRITICAL/HIGH findings (file:line, reason, action).',
-      '     ' + reviewCommand + ' --high');
+      ...commandLines(' --high'));
     if ((report.baseline?.highSuppressed ?? 0) > 0) {
       out.push('     Warning: ' + report.baseline.highSuppressed + ' high/critical findings are suppressed by baseline.');
     }
   } else if (findings.length) {
     out.push('  1. REVIEW — Start with ' + counts.medium + ' MEDIUM and ' + counts.low + ' LOW findings.',
-      '     ' + reviewCommand + ' --details');
+      ...commandLines(' --details'));
   } else {
     out.push('  1. REVIEW — No recognized findings in the inspected scope; this is not a safety guarantee.');
   }
@@ -178,24 +203,39 @@ export function renderPrettyReport(report, {
     out.push('',
       '  2. BY FILE — Inspect ' + findings.length + ' findings grouped by relative file path' +
       (findings.length > 50 ? ' (first 50 displayed).' : '.'),
-      '     ' + reviewCommand + ' --details --group-by file');
+      ...commandLines(' --details --group-by file'));
     if (findings.length > 50) {
-      out.push('     Add --all-findings to display every retained finding.');
+      out.push('     All retained findings:', ...commandLines(' --details --group-by file --all-findings'));
     }
+    out.push('', '  3. SEVERITY — Inspect HIGH findings only:', ...commandLines(' --severity high'));
   }
   if (!complete) {
     out.push('',
-      '  ' + (findings.length ? '3' : '2') + '. COVERAGE — Audit incomplete; review the warnings above.');
+      '  ' + (findings.length ? '4' : '2') + '. COVERAGE — Audit incomplete; review the warnings above.');
     if (report.git && report.git.gitAvailable === false) {
       out.push('     Git status was not inspected. Check the Git installation and working-tree root.');
     } else {
       out.push('     Do not interpret partial coverage as a clean repository.');
     }
   }
-  if (explicitRoot) {
-    out.push('  Note: replace ABSOLUTE_PATH with the same approved scan directory.');
-  }
+  if (explicitRoot) out.push('  First change directory to the same approved scan directory.');
   out.push('  Commands re-run the read-only scan; this report is not cached between runs.');
   out.push('  No findings does NOT mean the repository is safe to publish.');
-  return out.join('\n');
+  const maxWidth = Math.max(24, width || 72);
+  const visibleLength = text => text.replace(/\x1b\[[0-9;]*m/g, '').length;
+  const wrapped = out.flatMap(line => {
+    if (commands.has(line) || visibleLength(line) <= maxWidth) return [line];
+    const indent = (line.match(/^\s*/) ?? [''])[0];
+    const words = line.trim().split(/\s+/); const lines = []; let current = indent;
+    for (const word of words) {
+      if (current.trim() && visibleLength(current) + 1 + visibleLength(word) > maxWidth) {
+        lines.push(current); current = indent + word;
+      } else current += (current.trim() ? ' ' : '') + word;
+    }
+    if (current.trim()) lines.push(current);
+    return lines;
+  });
+  const result = wrapped.join('\n');
+  return ascii ? result.replace(/[╭╮╰╯]/g, '+').replace(/│/g, '|').replace(/─/g, '-')
+    .replace(/■/g, '#').replace(/[·•]/g, '*').replace(/—/g, '-') : result;
 }

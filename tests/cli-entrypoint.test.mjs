@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync, execFileSync } from 'node:child_process';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { renderPrettyReport } from '../bin/report-view.mjs';
@@ -59,7 +59,8 @@ test('dashboards group every retained finding by rule and show explicit incomple
   assert.doesNotMatch(plain, /\x1b\[/);
   const styled = renderPrettyReport(sample, { color: true });
   assert.match(styled, /\x1b\[/);
-  assert.equal(styled.replace(/\x1b\[[0-9;]*m/g, ''), plain);
+  const normalizeSpacing = text => text.replace(/\x1b\[[0-9;]*m/g, '').replace(/ {2,}/g, ' ');
+  assert.equal(normalizeSpacing(styled), normalizeSpacing(plain));
 });
 
 test('priority view prints only HIGH/CRITICAL details, preserves full counts and remediation', () => {
@@ -70,6 +71,28 @@ test('priority view prints only HIGH/CRITICAL details, preserves full counts and
   assert.doesNotMatch(output, /missing_license/);
   assert.match(output, /MEDIUM/);
   assert.match(output, /Total shown in groups: 2/);
+});
+
+test('severity filter selects exactly one severity while retaining total counts', () => {
+  const output = renderPrettyReport(sample, { severity: 'medium' });
+  assert.match(output, /MEDIUM DETECTION GROUPS/);
+  assert.match(output, /missing_license/);
+  assert.doesNotMatch(output, /github_token/);
+  assert.match(output, /Total shown in groups: 1 \(filtered; full counts above\)/);
+});
+
+test('severity filtering is accepted by the CLI and invalid combinations fail', async () => {
+  await fixture(async root => {
+    await writeFile(join(root, 'fixture.txt'), 'GITHUB_TOKEN=ghp_' + 'V'.repeat(36) + '\n');
+    const result = run(root, 'scan', '--no-history', '--severity', 'high', '--no-color');
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stdout, /Filtered findings:/);
+    assert.match(result.stdout, /github_token/);
+    for (const flags of [['--severity', 'invalid'], ['--severity', 'high', '--high'],
+      ['--severity', 'high', '--json'], ['--severity', 'high', '--severity', 'low']]) {
+      assert.equal(run(root, 'scan', '--no-history', ...flags).status, 2);
+    }
+  }, true);
 });
 
 test('summary view hides all rule names, compact view abbreviates explanations', () => {
@@ -91,7 +114,7 @@ test('private-prefix Next Actions reuse the executable without exposing the home
   assert.equal(mac, '"$HOME/.reposafe/node_modules/.bin/reposafe"');
   assert.equal(reviewLauncher(script, home, 'linux'), mac);
   const windows = reviewLauncher(script, home, 'win32');
-  assert.equal(windows, ['& "$HOME', '.reposafe', 'node_modules', '.bin', 'reposafe.cmd"'].join('\\'));
+  assert.equal(windows, 'reposafe.cmd');
   assert.ok(!mac.includes(home) && !windows.includes(home));
   assert.equal(reviewLauncher(join(home, 'unrelated', 'bin', 'reposafe.mjs'), home), 'reposafe');
   const output = renderPrettyReport(sample, {
@@ -102,6 +125,68 @@ test('private-prefix Next Actions reuse the executable without exposing the home
   assert.ok(!output.includes(home));
 });
 
+test('Windows private-prefix commands include complete CMD and PowerShell alternatives', () => {
+  const output = renderPrettyReport(sample, { windowsPrivate: true,
+    reviewCommand: 'reposafe.cmd scan https://github.com/octocat/Hello-World' });
+  assert.match(output, /CMD: "%USERPROFILE%\\\.reposafe\\node_modules\\\.bin\\reposafe\.cmd" scan https:\/\/github\.com\/octocat\/Hello-World --high/);
+  assert.match(output, /PowerShell: & "\$HOME\\\.reposafe\\node_modules\\\.bin\\reposafe\.cmd" scan https:\/\/github\.com\/octocat\/Hello-World --high/);
+});
+
+test('narrow output wraps prose without breaking copyable commands', () => {
+  const command = 'reposafe scan https://github.com/octocat/Hello-World --high';
+  const output = renderPrettyReport(sample, { width: 32, ascii: true,
+    reviewCommand: 'reposafe scan https://github.com/octocat/Hello-World' });
+  assert.ok(output.includes(command));
+  assert.doesNotMatch(output, /[╭╮╰╯│─■•—]/);
+  assert.match(output, /Git history: inspected/);
+});
+
+test('Windows CMD and PowerShell execute the displayed private-prefix commands', { skip: process.platform !== 'win32' }, async () => {
+  await fixture(async root => {
+    const fakeHome = join(root, 'home with spaces');
+    const bin = join(fakeHome, '.reposafe', 'node_modules', '.bin');
+    await mkdir(bin, { recursive: true });
+    const stub = join(root, 'capture.mjs');
+    await writeFile(stub, 'process.stdout.write(JSON.stringify(process.argv.slice(2)))');
+    await writeFile(join(bin, 'reposafe.cmd'), '@echo off\r\n"' + process.execPath + '" "' + stub + '" %*\r\n');
+    const output = renderPrettyReport(sample, { windows: true, windowsPrivate: true, explicitRoot: true,
+      reviewCommand: 'reposafe.cmd scan --no-history' });
+    const cmd = output.split('\n').find(line => line.includes('CMD:') && line.includes('--high')).trim().slice(5);
+    const ps = output.split('\n').find(line => line.includes('PowerShell:') && line.includes('--high')).trim().slice(12);
+    const env = { ...process.env, USERPROFILE: fakeHome, HOME: fakeHome };
+    const one = spawnSync('cmd.exe', ['/d', '/s', '/c', '"' + cmd + '"'],
+      { cwd: root, env, encoding: 'utf8', windowsVerbatimArguments: true });
+    assert.equal(one.status, 0, one.stderr);
+    const cmdArgs = JSON.parse(one.stdout);
+    assert.deepEqual(cmdArgs.slice(0, -1), ['scan', '--no-history', '--high', '--root']);
+    assert.equal((await realpath(cmdArgs.at(-1))).toLowerCase(), (await realpath(root)).toLowerCase());
+    const two = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { cwd: root, env, encoding: 'utf8' });
+    assert.equal(two.status, 0, two.stderr);
+    const psArgs = JSON.parse(two.stdout);
+    assert.deepEqual(psArgs.slice(0, -1), ['scan', '--no-history', '--high', '--root']);
+    assert.equal((await realpath(psArgs.at(-1))).toLowerCase(), (await realpath(root)).toLowerCase());
+  });
+});
+
+test('POSIX shell executes the displayed private-prefix command', { skip: process.platform === 'win32' }, async () => {
+  await fixture(async root => {
+    const fakeHome = join(root, 'home with spaces');
+    const bin = join(fakeHome, '.reposafe', 'node_modules', '.bin');
+    await mkdir(bin, { recursive: true });
+    const stub = join(root, 'capture.mjs');
+    await writeFile(stub, 'process.stdout.write(JSON.stringify(process.argv.slice(2)))');
+    await writeFile(join(bin, 'reposafe'), '#!/bin/sh\nexec "' + process.execPath + '" "' + stub + '" "$@"\n', { mode: 0o755 });
+    const output = renderPrettyReport(sample, { explicitRoot: true,
+      reviewCommand: '"$HOME/.reposafe/node_modules/.bin/reposafe" scan --no-history' });
+    const command = output.split('\n').find(line => line.includes('--high') && line.includes('--root')).trim();
+    const result = spawnSync('sh', ['-c', command], { cwd: root, env: { ...process.env, HOME: fakeHome }, encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    const args = JSON.parse(result.stdout);
+    assert.deepEqual(args.slice(0, -1), ['scan', '--no-history', '--high', '--root']);
+    assert.equal(await realpath(args.at(-1)), await realpath(root));
+  });
+});
+
 test('Next Actions include numbered, scoped priority/file/coverage commands', () => {
   const output = renderPrettyReport(sample, {
     reviewCommand: 'reposafe scan --no-history',
@@ -110,15 +195,16 @@ test('Next Actions include numbered, scoped priority/file/coverage commands', ()
   assert.match(output, /reposafe scan --no-history --high/);
   assert.match(output, /2\. BY FILE — Inspect 3 findings grouped by relative file path/);
   assert.match(output, /reposafe scan --no-history --details --group-by file/);
-  assert.match(output, /3\. COVERAGE — Audit incomplete/);
-  assert.match(output, /not cached between runs/);
+  assert.match(output, /3\. SEVERITY/);
+  assert.match(output, /4\. COVERAGE — Audit incomplete/);
+  assert.match(output, /not cached between\s+runs/);
   assert.doesNotMatch(output, /Tip: reposafe scan/);
   const unavailable = renderPrettyReport({
     ...sample, git: { ...sample.git, gitAvailable: false }
   }, { reviewCommand: 'reposafe scan --root ABSOLUTE_PATH --no-git',
     explicitRoot: true });
   assert.match(unavailable, /Git status was not inspected/);
-  assert.match(unavailable, /replace ABSOLUTE_PATH/);
+  assert.match(unavailable, /change directory to the same approved scan directory/);
   assert.ok(!unavailable.includes('/Users/'));
   const nothing = renderPrettyReport({
     ...sample, verdict: 'no_findings_in_scope',
@@ -136,9 +222,9 @@ test('CLI preserves no-history and explicit-root scope in Next Actions without e
       'GITHUB_TOKEN=ghp_' + 'P'.repeat(36) + '\n');
     const report = run(root, 'scan', '--root', root, '--no-history', '--high', '--no-color');
     assert.equal(report.status, 1, report.stderr);
-    assert.match(report.stdout, /reposafe scan --root ABSOLUTE_PATH --no-history --high/);
-    assert.match(report.stdout, /reposafe scan --root ABSOLUTE_PATH --no-history --details --group-by file/);
-    assert.match(report.stdout, /replace ABSOLUTE_PATH/);
+    assert.match(report.stdout, /reposafe scan --no-history --high --root/);
+    assert.match(report.stdout, /reposafe scan --no-history --details --group-by file --root/);
+    assert.match(report.stdout, /change directory to the same approved scan directory/);
     assert.ok(!report.stdout.includes(root));
   }, true);
 });
@@ -159,6 +245,21 @@ test('one command from a Git root scans working tree with read-only output', asy
     assert.match(high.stdout, /fixture.txt/);
     assert.doesNotMatch(high.stdout, /\x1b\[/);
     assert.ok(!high.stdout.includes(token));
+  }, true);
+});
+
+test('local dashboard reports the actual HEAD without exposing the root', async () => {
+  await fixture(async root => {
+    execFileSync('git', ['-C', root, 'add', 'README.md'], { stdio: 'pipe' });
+    execFileSync('git', ['-C', root, '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+      'commit', '-qm', 'synthetic'], { stdio: 'pipe' });
+    const sha = execFileSync('git', ['-C', root, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+    const output = run(root, 'scan', '--no-history', '--no-color');
+    assert.ok([0, 1].includes(output.status), output.stderr);
+    assert.ok(output.stdout.includes(sha));
+    assert.ok(!output.stdout.includes(root));
+    const noGit = run(root, 'scan', '--no-git');
+    assert.doesNotMatch(noGit.stdout, new RegExp(sha));
   }, true);
 });
 

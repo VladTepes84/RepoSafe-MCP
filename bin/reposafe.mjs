@@ -17,6 +17,31 @@ const command = argv[0];
 const MAX_REPORT_BYTES = 32 * 1024 * 1024;
 const MAX_SCAN_MS = 160_000;
 
+// This is display metadata only. Never let inherited Git configuration redirect
+// the query or reveal the absolute root in a diagnostic.
+async function localHead(root) {
+  const env = { ...process.env };
+  for (const key of Object.keys(env)) if (/^GIT_/i.test(key)) delete env[key];
+  Object.assign(env, { GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : '/dev/null',
+    GIT_TERMINAL_PROMPT: '0', GIT_NO_LAZY_FETCH: '1', GIT_OPTIONAL_LOCKS: '0' });
+  const query = args => new Promise(resolve => {
+    const child = spawn('git', ['--no-pager', '-C', root, '-c', 'core.fsmonitor=false', ...args],
+      { env, windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
+    let output = ''; let done = false;
+    const finish = value => { if (!done) { done = true; clearTimeout(timer); resolve(value); } };
+    const timer = setTimeout(() => { child.kill(); finish(null); }, 5000);
+    child.stdout.on('data', chunk => { output += chunk.toString(); if (output.length > 4096) { child.kill(); finish(null); } });
+    child.on('error', () => finish(null));
+    child.on('close', code => finish(code === 0 ? output.trim() : null));
+  });
+  try {
+    const top = await query(['rev-parse', '--show-toplevel']);
+    if (!top || await realpath(top) !== await realpath(root)) return null;
+    const sha = await query(['rev-parse', '--verify', 'HEAD^{commit}']);
+    return /^[0-9a-f]{40,64}$/i.test(sha ?? '') ? sha : null;
+  } catch { return null; }
+}
+
 function help() {
   process.stdout.write([
     'RepoSafe — private-by-design local repository security audit',
@@ -26,6 +51,7 @@ function help() {
     '  reposafe scan                          Scan the current Git repository',
     '  reposafe scan https://github.com/OWNER/REPO   Scan a public GitHub snapshot locally',
     '  reposafe scan --high       Review CRITICAL/HIGH findings and actions',
+    '  --severity critical|high|medium|low  Filter findings by one severity',
     '  reposafe scan --details               Show file/line details and remediation',
     '',
     'SCAN OPTIONS',
@@ -141,7 +167,9 @@ async function scan() {
     const allowed = new Set(['--high', '--details', '--summary', '--compact',
       '--all-findings', '--no-color']);
     for (let index = 2; index < argv.length; index++) {
-      if (argv[index] === '--group-by') {
+      if (argv[index] === '--severity') {
+        if (!['critical', 'high', 'medium', 'low'].includes(argv[++index])) return fail('INVALID_OPTIONS: invalid severity.');
+      } else if (argv[index] === '--group-by') {
         if (!['file', 'severity'].includes(argv[++index])) {
           return fail('REMOTE_OPTIONS_UNSUPPORTED: invalid grouping.');
         }
@@ -150,9 +178,12 @@ async function scan() {
       }
     }
     const display = new Set(argv.slice(2));
-    if (display.has('--summary') && ['--high', '--details', '--compact', '--all-findings']
+    if (display.has('--summary') && ['--high', '--severity', '--details', '--compact', '--all-findings']
       .some(flag => display.has(flag))) {
       return fail('REMOTE_OPTIONS_UNSUPPORTED: incompatible display options.');
+    }
+    if (display.has('--severity') && (display.has('--high') || argv.indexOf('--severity') !== argv.lastIndexOf('--severity'))) {
+      return fail('REMOTE_OPTIONS_UNSUPPORTED: incompatible severity options.');
     }
     const controller = new AbortController();
     const abort = () => controller.abort();
@@ -180,6 +211,8 @@ async function scanPrepared(remote) {
   const isJson = flags.has('--json');
   const isSarif = flags.has('--sarif');
   const high = flags.has('--high');
+  const severityIndex = argv.indexOf('--severity');
+  const severity = severityIndex < 0 ? null : argv[severityIndex + 1];
   const details = flags.has('--details');
   const summary = flags.has('--summary');
   const compact = flags.has('--compact');
@@ -188,7 +221,9 @@ async function scanPrepared(remote) {
     process.env.TERM !== 'dumb' && !flags.has('--no-color'));
   const groupIndex = argv.indexOf('--group-by');
   const groupBy = groupIndex === -1 ? 'severity' : argv[groupIndex + 1];
-  if (isJson && isSarif || (isJson || isSarif) && (high || details || summary || compact || groupIndex >= 0) ||
+  if (severityIndex >= 0 && (!['critical', 'high', 'medium', 'low'].includes(severity) || high || argv.lastIndexOf('--severity') !== severityIndex) ||
+      isJson && isSarif || (isJson || isSarif) && (high || severity || details || summary || compact || groupIndex >= 0) ||
+      summary && severity ||
       summary && (compact || high || details || allFindings) ||
       (groupIndex >= 0 && !['severity', 'file'].includes(groupBy))) {
     return fail('INVALID_OPTIONS: use --help for valid scan options.');
@@ -215,9 +250,9 @@ async function scanPrepared(remote) {
   }
   // Recommend scope-preserving read-only follow-ups, never emit an absolute private path.
   // Historical checkpoint resume is intentionally not copied into suggested commands.
-  const reviewArgs = [reviewLauncher(fileURLToPath(import.meta.url), homedir()), 'scan'];
+  const launcher = reviewLauncher(fileURLToPath(import.meta.url), homedir());
+  const reviewArgs = [launcher, 'scan'];
   if (remote) reviewArgs.push(remote.url);
-  else if (rootIndex >= 0) reviewArgs.push('--root', 'ABSOLUTE_PATH');
   for (const flag of ['--no-git', '--no-history', '--current-branch']) {
     if (flags.has(flag)) reviewArgs.push(flag);
   }
@@ -230,14 +265,19 @@ async function scanPrepared(remote) {
     }
   }
   const rendererOptions = {
-    color, high, details, summary, compact, allFindings, groupBy,
+    color, high, severity, details, summary, compact, allFindings, groupBy,
+    ascii: !process.stdout.isTTY || process.env.TERM === 'dumb', width: process.stdout.columns,
     reviewCommand: reviewArgs.join(' '), explicitRoot: !remote && rootIndex >= 0,
+    windows: process.platform === 'win32',
+    windowsPrivate: process.platform === 'win32' && launcher === 'reposafe.cmd' &&
+      fileURLToPath(import.meta.url) === join(homedir(), '.reposafe', 'node_modules', 'reposafe-mcp', 'bin', 'reposafe.mjs'),
     remoteSource: remote ? { url: remote.url, sha: remote.sha } : null,
   };
   const engineParams = [];
   for (let index = 0; index < params.length; index++) {
     if (['--high', '--details', '--summary', '--compact', '--all-findings', '--no-color'].includes(params[index])) continue;
     if (params[index] === '--group-by') { index++; continue; }
+    if (params[index] === '--severity') { index++; continue; }
     engineParams.push(params[index]);
   }
   engineParams.push('--json');
@@ -282,6 +322,9 @@ async function scanPrepared(remote) {
   let report;
   try { report = JSON.parse(result.stdout); }
   catch { return fail('INVALID_REPORT: scanner returned an unreadable result.'); }
+  if (!remote && !flags.has('--no-git')) {
+    rendererOptions.localSha = await localHead(rootIndex >= 0 ? argv[rootIndex + 1] : process.cwd());
+  }
   if (remote) {
     // A source archive cannot establish any local Git index/history coverage.
     // Never advertise a clean or fully covered repository from this transport.

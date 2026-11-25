@@ -29,13 +29,15 @@ reposafe scan --details
 
 The public CLI scans the current directory **only if it contains its own .git marker**; it never searches parent directories. An explicit approved absolute --root is still supported. Its terminal dashboard groups **all retained findings by rule** with severity counts, Git/test context, coverage, warnings and next actions. The --high view prints HIGH/CRITICAL details, --details prints file locations and remediation, and --summary shows counts only.
 
+For local Git scans, the dashboard displays the HEAD commit observed after the scan. The working tree may differ from that commit, and HEAD can change during a scan. With `--no-git`, an unborn repository, or an unavailable Git root, HEAD is shown as unavailable or not requested. Narrow terminals wrap explanatory text; commands remain on one line so they can be copied intact.
+
 The original dist/cli.js remains supported for existing scripts and protocol integrations and still requires --root. The public CLI preserves JSON v2, SARIF 2.1.0 and the same scanner exit codes.
 
-**Private per-user npm installation:** When RepoSafe is installed at `$HOME/.reposafe`, the numbered Next Actions render copyable `"$HOME/.reposafe/node_modules/.bin/reposafe" scan ...` commands on macOS/Linux (and the corresponding PowerShell command on Windows). No global PATH modification is required. Other installations retain the short `reposafe` form when already configured on PATH.
+**Private per-user npm installation:** When RepoSafe is installed at `$HOME/.reposafe`, numbered Next Actions use `"$HOME/.reposafe/node_modules/.bin/reposafe"` on macOS/Linux. On Windows they show the short PATH command and complete alternatives for CMD and PowerShell. Other installations use the short command on PATH.
 
-**Private-prefix follow-ups:** An installation inside `$HOME/.reposafe` prints directly executable NEXT ACTIONS using `"$HOME/.reposafe/node_modules/.bin/reposafe"` (macOS/Linux) or PowerShell `& "$HOME\.reposafe\node_modules\.bin\reposafe.cmd"`. These work without configuring the user's PATH permanently.
+**Private-prefix follow-ups:** On Windows, select the CMD or PowerShell line matching the shell in use when the short command is not on PATH. These alternatives do not require a permanent PATH change.
 
-**Next Actions:** after the dashboard, numbered suggestions show the priority findings (file:line, reason and action), a by-file view (first 50, with an explicit `--all-findings` option), and a coverage warning only when required. A grouped severity overview is not the same as individual findings: use `--high` or `--details` to inspect paths and line numbers. Suggested commands preserve `--no-history`/`--no-git` and supported Git history scope options. For explicitly supplied roots, commands display `--root ABSOLUTE_PATH` instead of a private absolute path; replace this placeholder with the same approved directory. **Each suggested command performs a new read-only scan**; there is no cached interactive report or automatic remediation.
+**Next Actions:** after the dashboard, numbered suggestions show priority findings, a by-file view, a severity filter and coverage warnings. Suggested commands preserve supported scope options. For an explicitly supplied root, first change directory to that same approved directory; the suggested shell command obtains its absolute path without printing it in the report. **Each suggested command performs a new read-only scan**; there is no cached interactive report or automatic remediation.
 
 **Interactive progress:** While attached to a terminal, the CLI shows elapsed time, the current phase (file scan, Git checks, finalizing) and aggregate file/directory counts. There is no interactive choice menu, and suggested commands do not reuse an in-memory completed scan. These are observed counters, **not a completion percentage**. An interrupted or timed-out scan has no completed report. Progress events never contain paths, source content or matched secret values; JSON/SARIF stdout remains unchanged.
 
@@ -70,6 +72,7 @@ Development checkout: run `npm ci --ignore-scripts && npm run build` first, then
 | --- | --- |
 | `--root ABS_PATH` | Explicit approved absolute directory; optional in public CLI when cwd itself is a Git root, required by the legacy engine |
 | `--high` (public CLI) | Only HIGH/CRITICAL grouped rules and individual priority findings; full counts remain visible |
+| `--severity critical\|high\|medium\|low` (public CLI) | Show one severity and its details; the overview retains total counts. Cannot be combined with `--high`, `--summary`, JSON or SARIF |
 | `--details` (public CLI) | Detailed locations and remediation for up to 50 retained findings |
 | `--summary` | Counts, coverage and warnings; hide individual findings |
 | `--compact` | One line per finding, no reason/action expansion |
