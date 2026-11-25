@@ -17,6 +17,31 @@ const command = argv[0];
 const MAX_REPORT_BYTES = 32 * 1024 * 1024;
 const MAX_SCAN_MS = 160_000;
 
+// This is display metadata only. Never let inherited Git configuration redirect
+// the query or reveal the absolute root in a diagnostic.
+async function localHead(root) {
+  const env = { ...process.env };
+  for (const key of Object.keys(env)) if (/^GIT_/i.test(key)) delete env[key];
+  Object.assign(env, { GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : '/dev/null',
+    GIT_TERMINAL_PROMPT: '0', GIT_NO_LAZY_FETCH: '1', GIT_OPTIONAL_LOCKS: '0' });
+  const query = args => new Promise(resolve => {
+    const child = spawn('git', ['--no-pager', '-C', root, '-c', 'core.fsmonitor=false', ...args],
+      { env, windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
+    let output = ''; let done = false;
+    const finish = value => { if (!done) { done = true; clearTimeout(timer); resolve(value); } };
+    const timer = setTimeout(() => { child.kill(); finish(null); }, 5000);
+    child.stdout.on('data', chunk => { output += chunk.toString(); if (output.length > 4096) { child.kill(); finish(null); } });
+    child.on('error', () => finish(null));
+    child.on('close', code => finish(code === 0 ? output.trim() : null));
+  });
+  try {
+    const top = await query(['rev-parse', '--show-toplevel']);
+    if (!top || await realpath(top) !== await realpath(root)) return null;
+    const sha = await query(['rev-parse', '--verify', 'HEAD^{commit}']);
+    return /^[0-9a-f]{40,64}$/i.test(sha ?? '') ? sha : null;
+  } catch { return null; }
+}
+
 function help() {
   process.stdout.write([
     'RepoSafe — private-by-design local repository security audit',
@@ -297,6 +322,9 @@ async function scanPrepared(remote) {
   let report;
   try { report = JSON.parse(result.stdout); }
   catch { return fail('INVALID_REPORT: scanner returned an unreadable result.'); }
+  if (!remote && !flags.has('--no-git')) {
+    rendererOptions.localSha = await localHead(rootIndex >= 0 ? argv[rootIndex + 1] : process.cwd());
+  }
   if (remote) {
     // A source archive cannot establish any local Git index/history coverage.
     // Never advertise a clean or fully covered repository from this transport.
