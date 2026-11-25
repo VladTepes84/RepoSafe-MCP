@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync, execFileSync } from 'node:child_process';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { renderPrettyReport } from '../bin/report-view.mjs';
@@ -177,7 +177,9 @@ test('POSIX shell executes the displayed private-prefix command', { skip: proces
     const command = output.split('\n').find(line => line.includes('--high') && line.includes('--root')).trim();
     const result = spawnSync('sh', ['-c', command], { cwd: root, env: { ...process.env, HOME: fakeHome }, encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
-    assert.deepEqual(JSON.parse(result.stdout), ['scan', '--no-history', '--high', '--root', root]);
+    const args = JSON.parse(result.stdout);
+    assert.deepEqual(args.slice(0, -1), ['scan', '--no-history', '--high', '--root']);
+    assert.equal(await realpath(args.at(-1)), await realpath(root));
   });
 });
 
