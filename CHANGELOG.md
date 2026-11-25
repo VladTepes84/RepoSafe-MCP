@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased] — 2026-11-24
+
+- **MCP public GitHub URL mode:** `generate_report` accepts an explicitly authorized public URL when the operator enables `REPOSAFE_ALLOW_PUBLIC_GITHUB=1`. Uses the existing bounded local snapshot scanner, skips untrusted remote baseline suppression, and reports incomplete coverage. Returns target metadata, a unique report ID and aggregate retained-finding counts. Public pagination requires the matching report ID. CLI and scanner behavior remain unchanged; seven tools retained.
+- **Evidence:** Operator-reported acceptance, 2026-11-24: Claude Desktop Free on macOS used `generate_report` and `get_findings_page` to scan two different public GitHub URLs in one test session, returning distinct URLs, commit SHAs, report IDs and findings with incomplete snapshot coverage. Tested source: `bfc4f8f661927e80d67e3def5fe0868bb6c3320b`; [4/4 CI](https://github.com/VladTepes84/RepoSafe-MCP/actions/runs/45455673430), [PR #38](https://github.com/VladTepes84/RepoSafe-MCP/pull/38). Raw client protocol traces and exact client build were not independently inspected; the remaining five tools, all GUI security/approval/uninstall checks and other clients are not covered by this manual test.
+- [PR #38](https://github.com/VladTepes84/RepoSafe-MCP/pull/38) merged at `4d2a1c95220e2e68964721476c384dba5a589ce2`; post-merge CI is tracked independently. No npm publication, tag, independent audit or security certification claimed.
+
 ## [1.0.0] — 2026-11-23 (source candidate; no published release)
 
 - **Simple local CLI:** `reposafe scan` runs from a specific approved Git root, with progress, comprehensive severity rule groups, numbered Next Actions and copyable follow-up commands. Existing JSON v2/SARIF, seven-tool local MCP STDIO and bounded history remain supported.

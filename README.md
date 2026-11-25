@@ -15,13 +15,24 @@ export PATH="$HOME/.reposafe/node_modules/.bin:$PATH"
 reposafe --help
 ~~~
 
-**Windows 11** — paste in PowerShell (no administrator rights):
+**Windows 11 PowerShell** (prompt starts with `PS`, no administrator rights):
 
 ~~~powershell
 npm.cmd install --prefix "$HOME\.reposafe" --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
 $env:PATH = "$HOME\.reposafe\node_modules\.bin;$env:PATH"
-reposafe --help
+reposafe.cmd --help
 ~~~
+
+**Windows CMD (Command Prompt, e.g. `C:\>`) — do not use PowerShell's `$HOME` or `$env:PATH` here:**
+
+~~~bat
+npm.cmd install --prefix "%USERPROFILE%\.reposafe" --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
+set "PATH=%USERPROFILE%\.reposafe\node_modules\.bin;%PATH%"
+reposafe.cmd --help
+reposafe.cmd scan https://github.com/octocat/Hello-World
+~~~
+
+In CMD, if a NEXT ACTIONS command begins with `& "$HOME\.reposafe\node_modules\.bin\reposafe.cmd"`, use `reposafe.cmd` instead (after the PATH setup above), retaining the remaining arguments. PowerShell uses the displayed command unchanged.
 
 The PATH setting applies **only to that terminal session**; see [First run](docs/FIRST_RUN.md) for alternatives. Do not use `sudo` or bypass macOS/Windows security controls. Installation needs GitHub/npm network access. The `main` source URL can change; for production pin a reviewed **40-character commit SHA**. A SHA is not a signed release.
 
@@ -143,7 +154,7 @@ node "$RS" disconnect --client codex                    # reversible removal
 
 Choose `codex`, `cursor`, `vscode` or `claude`. Inspect the preview and preserve unrelated MCP entries. Restart/reload the actual AI client after configuring it. `doctor` verifies a real SDK STDIO handshake and seven-tool discovery; it **does not** prove the AI application exposes those tools.
 
-**Observed 22 Nov 2026:** Codex Desktop did not expose RepoSafe tools despite successful local SDK tests; the cause remains undiagnosed. **User-reported 24 Nov 2026:** Claude Desktop Free discovered seven tools and returned consistent generate_report/get_findings_page results on a minimal local fixture. Raw protocol logs were not independently inspected. MCP public snapshot mode requires separate acceptance. No Codex workaround or cloud deployment is implied.
+**Observed 22 Nov 2026:** Codex Desktop did not expose RepoSafe tools despite successful local SDK tests; the cause remains undiagnosed. **User-reported 24 Nov 2026:** Claude Desktop Free discovered seven tools and returned consistent generate_report/get_findings_page results on a minimal local fixture. Raw protocol logs were not independently inspected. Public URL scan and report pagination also passed an operator-reported two-repository Claude Desktop Free test on 2026-11-24 ([acceptance scope and evidence](docs/CLIENT_ACCEPTANCE.md)). Other GUI checks remain unverified. No Codex workaround or cloud deployment is implied.
 
 ## Dependencies, development and evidence
 

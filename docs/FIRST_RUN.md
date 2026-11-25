@@ -13,7 +13,7 @@ export PATH="$HOME/.reposafe/node_modules/.bin:$PATH"
 reposafe --help
 ~~~
 
-**Windows PowerShell:**
+**Windows PowerShell (prompt starts with `PS`):**
 
 ~~~powershell
 npm.cmd install --prefix "$HOME\.reposafe" --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
@@ -21,7 +21,16 @@ $env:PATH = "$HOME\.reposafe\node_modules\.bin;$env:PATH"
 reposafe --help
 ~~~
 
-The PATH change lasts only for the open terminal. Without it, use `"$HOME/.reposafe/node_modules/.bin/reposafe"` on macOS/Linux or `& "$HOME\.reposafe\node_modules\.bin\reposafe.cmd"` on PowerShell. The numbered NEXT ACTIONS automatically use this private prefix for standard installs. Avoid `sudo` and OS policy changes. If you already have a **user-writable** global npm prefix, `npm install -g` is also supported. Installation downloads from GitHub/npm; the `main` source archive is mutable. Replace `main` with a vetted 40-character SHA for repeatable installs. No published npm package or signed release is implied.
+**Windows CMD (Command Prompt, e.g. `C:\>`) — do not use PowerShell's `$HOME` or `$env:PATH` here:**
+
+~~~bat
+npm.cmd install --prefix "%USERPROFILE%\.reposafe" --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
+set "PATH=%USERPROFILE%\.reposafe\node_modules\.bin;%PATH%"
+reposafe.cmd --help
+reposafe.cmd scan https://github.com/octocat/Hello-World
+~~~
+
+The PATH change lasts only for the open terminal. Without it, use `"$HOME/.reposafe/node_modules/.bin/reposafe"` on macOS/Linux or `& "$HOME\.reposafe\node_modules\.bin\reposafe.cmd"` on PowerShell. For CMD without PATH, use `"%USERPROFILE%\.reposafe\node_modules\.bin\reposafe.cmd"`. In CMD, if a NEXT ACTIONS command begins with `& "$HOME\.reposafe\node_modules\.bin\reposafe.cmd"`, use `reposafe.cmd` instead (after the PATH setup above), retaining the remaining arguments. PowerShell uses the displayed command unchanged. Avoid `sudo` and OS policy changes. If you already have a **user-writable** global npm prefix, `npm install -g` is also supported. Installation downloads from GitHub/npm; the `main` source archive is mutable. Replace `main` with a vetted 40-character SHA for repeatable installs. No published npm package or signed release is implied.
 
 ## 2. Scan
 

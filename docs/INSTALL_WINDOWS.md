@@ -1,6 +1,6 @@
-# RepoSafe MCP — Windows 11 installation (PowerShell)
+# RepoSafe MCP — Windows 11 installation (PowerShell or CMD)
 
-**Runtime:** Node.js 22+, npm, Git for Windows. The local scanner does not need an AI key, cloud service, administrator installation or PowerShell execution-policy changes. Use PowerShell; when `npm.ps1` is restricted, call **`npm.cmd`**.
+**Runtime:** Node.js 22+, npm, Git for Windows. The local scanner does not need an AI key, cloud service, administrator installation or PowerShell execution-policy changes. Choose PowerShell (prompt begins with `PS`) or CMD (Command Prompt, prompt such as `C:\>`). Do not mix the syntax. Use **`npm.cmd`** in either shell.
 
 ## 1. Verify available tools
 
@@ -22,7 +22,18 @@ reposafe --help
 
 No administrator rights, Defender exceptions or PowerShell policy changes are needed. The PATH change is limited to the active terminal. Without it, use `& "$HOME\.reposafe\node_modules\.bin\reposafe.cmd"`. Pin a reviewed immutable 40-character SHA instead of mutable `main` when reproducibility matters; no signed GitHub Release or npm registry distribution is claimed.
 
-## 3. Scan local code or a public GitHub URL
+**Windows CMD (Command Prompt, e.g. `C:\>`) — do not use PowerShell's `$HOME` or `$env:PATH` here:**
+
+~~~bat
+npm.cmd install --prefix "%USERPROFILE%\.reposafe" --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
+set "PATH=%USERPROFILE%\.reposafe\node_modules\.bin;%PATH%"
+reposafe.cmd --help
+reposafe.cmd scan https://github.com/octocat/Hello-World
+~~~
+
+In CMD, if a NEXT ACTIONS command begins with `& "$HOME\.reposafe\node_modules\.bin\reposafe.cmd"`, use `reposafe.cmd` instead (after the PATH setup above), retaining the remaining arguments. PowerShell uses the displayed command unchanged.
+
+## 3. Scan local code or a public GitHub URL (PowerShell)
 
 ~~~powershell
 # Local Git root
@@ -33,6 +44,17 @@ reposafe scan --details --group-by file
 # Public GitHub repository (no manual clone required)
 reposafe scan https://github.com/octocat/Hello-World
 ~~~
+
+CMD equivalents (after the CMD PATH setup):
+
+~~~bat
+cd /d "C:\ABSOLUTE\PATH\TO\GIT-REPOSITORY"
+reposafe.cmd scan
+reposafe.cmd scan --details --group-by file
+reposafe.cmd scan https://github.com/octocat/Hello-World
+~~~
+
+The advanced examples below use PowerShell; open PowerShell before using them, or adapt variable syntax for CMD.
 
 RepoSafe creates a bounded, private temporary snapshot when explicitly given a public GitHub URL. It does **not** execute code or upload findings. The URL mode does **not** inspect Git history/index, LFS objects or submodules; its coverage is always incomplete. A forced process termination may leave temporary files. Exit 0 indicates no recognized finding in inspected scope, 1 indicates findings/incomplete coverage, 2 indicates errors. The terminal prints copyable NEXT ACTIONS for deeper review.
 

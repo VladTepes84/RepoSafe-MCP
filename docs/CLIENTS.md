@@ -2,11 +2,11 @@
 
 > **2026-11-22 Codex Desktop result:** the real client conversation did **not** expose RepoSafe MCP tools, so no RepoSafe tool call was performed. Local SDK handshake and Mac `doctor` both passed. Treat Codex GUI integration as **UNAVAILABLE IN OBSERVED SESSION / NOT ACCEPTED**, not as successfully integrated and not as a diagnosed RepoSafe bug. Diagnosis is deferred.
 
-**Three distinct claims must not be conflated:** (1) the vendor documents local `stdio` MCP support; (2) RepoSafe's **real SDK integration test** succeeds in CI; (3) a person has tested RepoSafe inside the actual GUI client. This project currently verifies **(1) and (2), not (3)**. `doctor` on `main` discovers seven tools, including `get_findings_page` (merged in PR #10), but this still does NOT constitute a real Codex, Cursor or Claude GUI test. Some clients require specific versions, subscriptions, approvals or settings.
+**Three distinct claims must not be conflated:** (1) the vendor documents local `stdio` MCP support; (2) RepoSafe's **real SDK integration test** succeeds in CI; (3) a person has tested RepoSafe inside the actual GUI client. This project verifies **(1) and (2)**; for (3), a limited operator-reported Claude Desktop Free report/paging test is documented in [CLIENT_ACCEPTANCE.md](CLIENT_ACCEPTANCE.md). Full GUI acceptance is not established. `doctor` on `main` discovers seven tools, including `get_findings_page` (merged in PR #10), but this still does NOT constitute a real Codex, Cursor or Claude GUI test. Some clients require specific versions, subscriptions, approvals or settings.
 
 | Client / AI | Local stdio MCP according to vendor docs | RepoSafe configuration | RepoSafe in-product test |
 | --- | --- | --- | --- |
-| **Cursor Agent** | Yes | `npm run config -- --client cursor --root ABS_PATH`; `~/.cursor/mcp.json` | **Not yet manually tested** |
+| **Cursor Agent** | Yes | `npm run config -- --client cursor --root ABS_PATH`; `~/.cursor/mcp.json` | **Operator-reported local and public URL report/paging scenarios passed on macOS; full GUI acceptance not verified** |
 | **Claude Desktop** | Yes | `--client claude`; macOS `~/Library/Application Support/Claude/claude_desktop_config.json`, Windows `%APPDATA%\Claude\claude_desktop_config.json`, Linux `$XDG_CONFIG_HOME/Claude/claude_desktop_config.json` or `~/.config/Claude/claude_desktop_config.json` | **Not yet manually tested** |
 | **VS Code + GitHub Copilot** | Yes, modern Copilot harness | `--client vscode`; `$COPILOT_HOME/mcp-config.json` if configured, else `~/.copilot/mcp-config.json`, native `mcpServers` | **Not yet manually tested** |
 | **OpenAI Codex CLI / IDE extension / supported ChatGPT desktop** | Yes, local config | `--client codex`; `~/.codex/config.toml` | **Observed unavailable in a Codex Desktop chat (22 Nov 2026); specific cause not established** |
@@ -50,11 +50,11 @@ For `scan_git_history` and `generate_report`, MCP callers may request a **bounde
 
 There is still no tool argument for a repository path; the operator-approved `REPOSAFE_ROOT` remains fixed. The accepted depth/patch limits are hard-coded ceilings (5,000 commits and 16 MiB per batch). This protocol-level capability does not constitute a Cursor/Claude Desktop GUI acceptance test.
 
-**GUI verification has not passed; Codex Desktop was observed unavailable:** document actual client version, OS, required approvals and redacted output only after a person runs the workflow inside each application.
+**Full GUI verification remains incomplete; Codex Desktop was observed unavailable:** document actual client version, OS, required approvals and redacted output only after a person runs the workflow inside each application.
 
 ## v0.7 machine-readable first-run config
 
-`reposafe init --root ABSOLUTE_PATH --client cursor|claude|vscode|codex --json` first performs an actual MCP `stdio` handshake and then outputs JSON with the target configuration file and the generated entry. `verifiedProtocol: true` means only the SDK handshake/tool discovery passed. `verifiedGUI: false` remains true until a real client GUI session has been tested and documented. `writesFiles: false` confirms the initialization command never changes user client files.
+`reposafe init --root ABSOLUTE_PATH --client cursor|claude|vscode|codex --json` first performs an actual MCP `stdio` handshake and then outputs JSON with the target configuration file and the generated entry. `verifiedProtocol: true` means only the SDK handshake/tool discovery passed. `verifiedGUI: false` describes the automated initializer's own scope: it cannot validate an actual GUI session. Manual evidence is tracked separately. `writesFiles: false` confirms the initialization command never changes user client files.
 
 The standalone `npm run config -- --client ... --root ... --json` can render a configuration without invoking a server; it correctly sets `verifiedProtocol: false`.
 
