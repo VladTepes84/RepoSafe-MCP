@@ -29,6 +29,8 @@ reposafe scan --details
 
 The public CLI scans the current directory **only if it contains its own .git marker**; it never searches parent directories. An explicit approved absolute --root is still supported. Its terminal dashboard groups **all retained findings by rule** with severity counts, Git/test context, coverage, warnings and next actions. The --high view prints HIGH/CRITICAL details, --details prints file locations and remediation, and --summary shows counts only.
 
+For local Git scans, the dashboard displays the HEAD commit observed after the scan. The working tree may differ from that commit, and HEAD can change during a scan. With `--no-git`, an unborn repository, or an unavailable Git root, HEAD is shown as unavailable or not requested. Narrow terminals wrap explanatory text; commands remain on one line so they can be copied intact.
+
 The original dist/cli.js remains supported for existing scripts and protocol integrations and still requires --root. The public CLI preserves JSON v2, SARIF 2.1.0 and the same scanner exit codes.
 
 **Private per-user npm installation:** When RepoSafe is installed at `$HOME/.reposafe`, numbered Next Actions use `"$HOME/.reposafe/node_modules/.bin/reposafe"` on macOS/Linux. On Windows they show the short PATH command and complete alternatives for CMD and PowerShell. Other installations use the short command on PATH.
