@@ -11,11 +11,20 @@ npm install --prefix "$HOME/.reposafe" --ignore-scripts --no-audit --no-fund \
 export PATH="$HOME/.reposafe/node_modules/.bin:$PATH"
 ~~~
 
-For Windows PowerShell:
+For Windows PowerShell (prompt starts with `PS`):
 
 ~~~powershell
 npm.cmd install --prefix "$HOME\.reposafe" --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
 $env:PATH = "$HOME\.reposafe\node_modules\.bin;$env:PATH"
+~~~
+
+**Windows CMD (Command Prompt, e.g. `C:\>`) — do not use PowerShell's `$HOME` or `$env:PATH` here:**
+
+~~~bat
+npm.cmd install --prefix "%USERPROFILE%\.reposafe" --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
+set "PATH=%USERPROFILE%\.reposafe\node_modules\.bin;%PATH%"
+reposafe.cmd --help
+reposafe.cmd scan https://github.com/octocat/Hello-World
 ~~~
 
 `main` is mutable. Pin a reviewed 40-character SHA for production use. No administrator, AI account or npm registry publication required.
@@ -40,6 +49,8 @@ reposafe scan --high                    # local priority findings
 reposafe scan --details --group-by file # local file/line details
 reposafe scan https://github.com/OWNER/REPO --details
 ~~~
+
+In CMD, if a NEXT ACTIONS command begins with `& "$HOME\.reposafe\node_modules\.bin\reposafe.cmd"`, use `reposafe.cmd` instead (after the PATH setup above), retaining the remaining arguments. PowerShell uses the displayed command unchanged.
 
 Each suggested command scans again. `--all-findings` shows all retained results (up to the scanner's limit). Local-only `--json` and `--sarif` output are intended for automation. Exit 0 means no recognized finding in inspected scope; 1 means findings/incomplete coverage; 2 means an error. **Never infer that a zero-finding scan is safe to publish.**
 

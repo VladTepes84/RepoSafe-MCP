@@ -15,13 +15,24 @@ export PATH="$HOME/.reposafe/node_modules/.bin:$PATH"
 reposafe --help
 ~~~
 
-**Windows 11** — paste in PowerShell (no administrator rights):
+**Windows 11 PowerShell** (prompt starts with `PS`, no administrator rights):
 
 ~~~powershell
 npm.cmd install --prefix "$HOME\.reposafe" --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
 $env:PATH = "$HOME\.reposafe\node_modules\.bin;$env:PATH"
-reposafe --help
+reposafe.cmd --help
 ~~~
+
+**Windows CMD (Command Prompt, e.g. `C:\>`) — do not use PowerShell's `$HOME` or `$env:PATH` here:**
+
+~~~bat
+npm.cmd install --prefix "%USERPROFILE%\.reposafe" --ignore-scripts --no-audit --no-fund "https://codeload.github.com/VladTepes84/RepoSafe-MCP/tar.gz/main"
+set "PATH=%USERPROFILE%\.reposafe\node_modules\.bin;%PATH%"
+reposafe.cmd --help
+reposafe.cmd scan https://github.com/octocat/Hello-World
+~~~
+
+In CMD, if a NEXT ACTIONS command begins with `& "$HOME\.reposafe\node_modules\.bin\reposafe.cmd"`, use `reposafe.cmd` instead (after the PATH setup above), retaining the remaining arguments. PowerShell uses the displayed command unchanged.
 
 The PATH setting applies **only to that terminal session**; see [First run](docs/FIRST_RUN.md) for alternatives. Do not use `sudo` or bypass macOS/Windows security controls. Installation needs GitHub/npm network access. The `main` source URL can change; for production pin a reviewed **40-character commit SHA**. A SHA is not a signed release.
 
