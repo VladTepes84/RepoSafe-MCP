@@ -48,7 +48,7 @@ export function renderPrettyReport(report, {
         ' | Known omissions: ' + report.stats.findingsOmitted : '') +
       ((report.stats.overlengthLinesSkipped ?? 0) > 0 ?
         ' | Long lines skipped: ' + report.stats.overlengthLinesSkipped : ''),
-    'Files: ' + (report.stats.complete ? 'complete within limits' : 'incomplete') +
+    'Scan coverage: ' + (report.stats.complete ? 'complete within limits' : 'incomplete; see warnings') +
       ' | Git: ' + (remoteSource ? 'snapshot only; index and history not inspected' :
         !report.git ? 'not inspected' : !report.git.gitAvailable ? 'unavailable' : !report.git.complete ? 'incomplete; see warnings' :
           report.git.historyChecked ? 'index and bounded history inspected' : 'index inspected; history not inspected'),
